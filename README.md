@@ -20,7 +20,8 @@ Como el directorio `node_modules` está en el `.gitignore`, deberás instalar la
 3. Instala las dependencias:
     npm install
 4. Para iniciar el proyecto en modo desarrollo, ejecuta:
-    npm run web o npm expo start
+    npm run web o npx expo start
+
 
 Para subir los archivos al no estar trabajando con ramas lo que hago para subir es:
     git add .
