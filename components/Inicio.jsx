@@ -53,70 +53,45 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
 
   const handleLogout = async () => {
     if (isLoggingOut) {
-      console.log('🚫 Logout ya en progreso, ignorando...');
       return;
     }
 
     try {
       setIsLoggingOut(true);
-      console.log('🔄 Iniciando logout...');
 
       dispatch(desloguear());
-      console.log('✅ Redux limpiado');
       
       try {
         await SecureStore.deleteItemAsync('isLogged');
-        console.log('✅ isLogged eliminado de SecureStore');
       } catch (error) {
-        console.warn('⚠️ Error eliminando isLogged:', error);
       }
       
       try {
         await SecureStore.deleteItemAsync('usuario');
-        console.log('✅ usuario eliminado de SecureStore');
       } catch (error) {
-        console.warn('⚠️ Error eliminando usuario:', error);
       }
       
       setMenuVisible(false);
-      console.log('✅ Menú cerrado');
       
       setTimeout(() => {
         setIsLogged(false);
-        console.log('✅ Estado local actualizado');
         
         Alert.alert('Sesión cerrada', 'Has cerrado sesión exitosamente');
       }, 300);
       
     } catch (error) {
-      console.error('❌ Error al cerrar sesión:', error);
       
       dispatch(desloguear());
       setMenuVisible(false);
       
       setTimeout(() => {
         setIsLogged(false);
-        Alert.alert('Sesión cerrada', 'Sesión cerrada (con algunos errores menores)');
       }, 300);
       
     } finally {
       setTimeout(() => {
         setIsLoggingOut(false);
       }, 500);
-    }
-  };
-
-  const emergencyLogout = async () => {
-    try {
-      console.log('🚨 Logout de emergencia...');
-      if (resetSession) {
-        await resetSession();
-      }
-      dispatch(desloguear());
-      setIsLogged(false);
-      Alert.alert('Reset completo', 'Sesión reseteada completamente');
-    } catch (error) {
-      console.error('❌ Error en reset de emergencia:', error);
     }
   };
 
@@ -174,15 +149,7 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
           <View style={styles.hamburgerLine} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Inicio</Text>
-        
-        {/* Botón de emergencia solo en DEV */}
-        {__DEV__ ? (
-          <TouchableOpacity onPress={emergencyLogout} style={styles.emergencyButton}>
-            <Text style={styles.emergencyText}>🚨</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.placeholder} />
-        )}
+        <View style={styles.placeholder} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -251,17 +218,6 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     width: 30,
-  },
-  emergencyButton: {
-    width: 30,
-    height: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#ff6b6b',
-    borderRadius: 15,
-  },
-  emergencyText: {
-    fontSize: 16,
   },
   content: {
     flex: 1,

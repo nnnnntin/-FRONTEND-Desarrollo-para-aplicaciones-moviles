@@ -13,17 +13,13 @@ export default function App() {
     const verificarSesion = async () => {
       try {
         const isLoggedStorage = await SecureStore.getItemAsync("isLogged");
-        console.log('🔍 App - Verificando sesión storage:', isLoggedStorage);
         
         if (isLoggedStorage === 'true') {
           setIsLogged(true);
-          console.log('✅ App - Usuario logueado encontrado');
         } else {
           setIsLogged(false);
-          console.log('❌ App - No hay sesión guardada');
         }
       } catch (error) { 
-        console.error("❌ App - Error al verificar la sesión:", error);
         setIsLogged(false);
       }
     }
@@ -36,9 +32,7 @@ export default function App() {
       await SecureStore.deleteItemAsync('isLogged');
       await SecureStore.deleteItemAsync('usuario');
       setIsLogged(false);
-      console.log('🔄 App - Sesión reseteada');
     } catch (error) {
-      console.error('❌ App - Error al resetear sesión:', error);
     }
   };
 

@@ -11,26 +11,14 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
 
     useEffect(() => {
         if (isLogged !== null) {
-            console.log('🔄 Pantallas - Sincronizando estados...');
-            console.log('   - isLogged (local):', isLogged);
-            console.log('   - logueado (Redux):', logueado);
-            
+
             if (isLogged && !logueado) {
-                console.log('✅ Pantallas - Activando Redux (login)');
                 dispatch(loguear());
             } else if (!isLogged && logueado) {
-                console.log('❌ Pantallas - Desactivando Redux (logout)');
                 dispatch(desloguear());
             }
         }
     }, [isLogged, dispatch]);
-
-    useEffect(() => {
-        console.log('🔍 Pantallas - Estado actual:');
-        console.log('   - isLogged (local):', isLogged);
-        console.log('   - logueado (Redux):', logueado);
-        console.log('   - shouldShowApp:', isLogged && logueado);
-    }, [isLogged, logueado]);
 
     if (isLogged === null) {
         return (
@@ -41,19 +29,9 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
     }
 
     const shouldShowApp = isLogged && logueado;
-    
-    console.log('🎯 Pantallas - Renderizando:', shouldShowApp ? 'Aplicacion' : 'Pila');
-    
+        
     return (
         <View style={styles.container}>
-            {__DEV__ && (
-                <View style={styles.debugBar}>
-                    <Text style={styles.debugText}>
-                        Local: {isLogged ? '✅' : '❌'} | Redux: {logueado ? '✅' : '❌'} | App: {shouldShowApp ? '✅' : '❌'}
-                    </Text>
-                </View>
-            )}
-            
             {shouldShowApp ? 
                 <Aplicacion setIsLogged={setIsLogged} resetSession={resetSession} /> : 
                 <Pila setIsLogged={setIsLogged} />

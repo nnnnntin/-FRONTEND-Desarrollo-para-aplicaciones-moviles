@@ -3,16 +3,18 @@ import { useState } from 'react';
 import { Alert, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { desloguear, loguear } from '../store/slices/usuarioSlice';
+import RestablecerContraseña from './RestablecerContraseña';
+import RestablecerMail from './RestablecerMail';
 
 const Login = ({ navigation, setIsLogged }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [currentView, setCurrentView] = useState('login');
   const dispatch = useDispatch();
 
   const handleLogin = async () => {
     if (isLoading) {
-      console.log('🚫 Login ya en progreso, ignorando...');
       return;
     }
 
@@ -23,18 +25,14 @@ const Login = ({ navigation, setIsLogged }) => {
 
     try {
       setIsLoading(true);
-      console.log('🔄 Iniciando login...');
 
       if (email.length >= 1 && password.length >= 1) {
         dispatch(loguear());
-        console.log('✅ Redux actualizado (login)');
         
         await SecureStore.setItemAsync('isLogged', 'true');
         await SecureStore.setItemAsync('usuario', JSON.stringify({ email }));
-        console.log('✅ SecureStore actualizado');
         
         setIsLogged(true);
-        console.log('✅ Estado local actualizado (login)');
         
         setTimeout(() => {
           Alert.alert('Éxito', 'Inicio de sesión exitoso');
@@ -59,20 +57,12 @@ const Login = ({ navigation, setIsLogged }) => {
     
     try {
       setIsLoading(true);
-      console.log('🚀 Auto login iniciado...');
-      
       dispatch(loguear());
-      console.log('✅ Auto login - Redux actualizado');
       
       await SecureStore.setItemAsync('isLogged', 'true');
       await SecureStore.setItemAsync('usuario', JSON.stringify({ email: 'dev@test.com' }));
-      console.log('✅ Auto login - SecureStore actualizado');
-      
       setIsLogged(true);
-      console.log('✅ Auto login - Estado local actualizado');
-      
     } catch (error) {
-      console.error('❌ Error en auto login:', error);
       dispatch(desloguear());
       setIsLogged(false);
     } finally {
@@ -84,6 +74,60 @@ const Login = ({ navigation, setIsLogged }) => {
     if (isLoading) return;
     navigation.navigate('Registro');
   };
+
+  const handleForgotPassword = () => {
+    setCurrentView('forgotPassword');
+  };
+
+  const handleForgotEmail = () => {
+    setCurrentView('forgotEmail');
+  };
+
+  const handleBackToLogin = () => {
+    setCurrentView('login');
+  };
+
+  const handleRecoverySuccess = () => {
+    setCurrentView('login');
+    Alert.alert('Éxito', 'Proceso completado exitosamente');
+  };
+
+  if (currentView === 'forgotPassword') {
+    return (
+      <View style={styles.container}>
+        <Image 
+          source={require('../assets/images/logo.png')} 
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <Text style={styles.title}>Officereserve</Text>
+        
+        <RestablecerContraseña 
+          onBack={handleBackToLogin}
+          onSuccess={handleRecoverySuccess}
+          onForgotEmail={handleForgotEmail}
+        />
+      </View>
+    );
+  }
+
+  if (currentView === 'forgotEmail') {
+    return (
+      <View style={styles.container}>
+        <Image 
+          source={require('../assets/images/logo.png')} 
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <Text style={styles.title}>Officereserve</Text>
+        
+        <RestablecerMail 
+          onBack={handleBackToLogin}
+          onSuccess={handleRecoverySuccess}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -106,7 +150,7 @@ const Login = ({ navigation, setIsLogged }) => {
           disabled={isLoading}
         >
           <Text style={styles.autoLoginText}>
-            {isLoading ? '🔄 CARGANDO...' : '🚀 AUTO LOGIN (DEV)'}
+            {isLoading ? '🔄 CARGANDO...' : 'AUTO LOGIN (DEV)'}
           </Text>
         </TouchableOpacity>
       )}
@@ -154,7 +198,20 @@ const Login = ({ navigation, setIsLogged }) => {
       </TouchableOpacity>
 
       <View style={styles.registerContainer}>
-        <Text style={styles.registerQuestion}>¿Olvidaste tu contraseña?</Text>
+        <TouchableOpacity 
+          onPress={handleForgotPassword}
+          disabled={isLoading}
+          style={styles.forgotButton}
+        >
+          <Text style={[
+            styles.forgotText,
+            isLoading && styles.linkDisabled
+          ]}>
+            ¿Olvidaste tu contraseña?
+          </Text>
+        </TouchableOpacity>
+
+        <Text style={styles.registerQuestion}>¿No tienes cuenta?</Text>
         <TouchableOpacity 
           onPress={goToRegister}
           disabled={isLoading}
@@ -258,8 +315,18 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     fontFamily: 'System',
   },
+  forgotButton: {
+    marginBottom: 10,
+  },
+  forgotText: {
+    fontSize: 16,
+    color: '#4a90e2',
+    fontWeight: '600',
+    fontFamily: 'System',
+    textAlign: 'center',
+  },
   registerContainer: {
-    marginTop: 30,
+    marginTop: 20,
     alignItems: 'center',
   },
   registerQuestion: {
