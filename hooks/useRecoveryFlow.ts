@@ -13,13 +13,6 @@ interface RecoveryFlowState {
   hasError: boolean;
 }
 
-/**
- * Custom hook para manejar flujos de recuperación de cuenta
- * Proporciona funciones para navegación por pasos y validación de códigos
- * Maneja tanto recuperación de email como de contraseña
- * 
- * @returns Objeto con funciones de control de flujo y estados
- */
 export function useRecoveryFlow() {
   const [state, setState] = useState<RecoveryFlowState>({
     currentStep: 1,
@@ -27,9 +20,6 @@ export function useRecoveryFlow() {
     hasError: false
   });
 
-  /**
-   * Avanza al siguiente paso del flujo
-   */
   const nextStep = (): void => {
     setState(prev => ({
       ...prev,
@@ -38,10 +28,6 @@ export function useRecoveryFlow() {
     }));
   };
 
-  /**
-   * Reinicia el flujo al primer paso
-   * Limpia todos los estados de error
-   */
   const resetFlow = (): void => {
     setState({
       currentStep: 1,
@@ -50,11 +36,6 @@ export function useRecoveryFlow() {
     });
   };
 
-  /**
-   * Establece un paso específico del flujo
-   * 
-   * @param step - Número del paso a establecer
-   */
   const setStep = (step: number): void => {
     setState(prev => ({
       ...prev,
@@ -63,13 +44,6 @@ export function useRecoveryFlow() {
     }));
   };
 
-  /**
-   * Simula el envío de un código de verificación por email
-   * Enmascara el email para proteger la privacidad
-   * 
-   * @param email - Dirección de email donde enviar el código
-   * @returns Promise con resultado de la operación y email enmascarado
-   */
   const sendVerificationCode = async (email: string): Promise<RecoveryResult> => {
     if (!email) {
       Alert.alert('Error', 'Por favor ingrese un email válido');
@@ -101,13 +75,6 @@ export function useRecoveryFlow() {
     }
   };
 
-  /**
-   * Verifica un código de seguridad
-   * En un entorno real, esto haría una llamada al backend
-   * 
-   * @param code - Código de verificación a validar
-   * @returns Promise con resultado de la verificación
-   */
   const verifyCode = async (code: string): Promise<RecoveryResult> => {
     if (!code || code.length < 4) {
       Alert.alert('Error', 'Por favor ingrese un código válido');
@@ -138,14 +105,6 @@ export function useRecoveryFlow() {
     }
   };
 
-  /**
-   * Valida y actualiza contraseña
-   * Verifica que las contraseñas coincidan y cumplan requisitos
-   * 
-   * @param newPassword - Nueva contraseña
-   * @param confirmPassword - Confirmación de contraseña
-   * @returns Promise con resultado de la operación
-   */
   const updatePassword = async (newPassword: string, confirmPassword: string): Promise<RecoveryResult> => {
     if (!newPassword || !confirmPassword) {
       Alert.alert('Error', 'Por favor complete todos los campos');

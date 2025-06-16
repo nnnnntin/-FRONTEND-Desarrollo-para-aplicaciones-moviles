@@ -1,72 +1,26 @@
-import * as SecureStore from 'expo-secure-store';
 import { useState } from 'react';
 import { Alert, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useDispatch } from 'react-redux';
-import { desloguear, loguear } from '../store/slices/usuarioSlice';
+import { useAuth } from '../hooks/useAuth';
 import RestablecerContraseña from './RestablecerContraseña';
 import RestablecerMail from './RestablecerMail';
 
 const Login = ({ navigation, setIsLogged }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [currentView, setCurrentView] = useState('login');
-  const dispatch = useDispatch();
+  const [tipoUsuario, setTipoUsuario] = useState('usuario');
+  const { login, autoLogin, isLoading } = useAuth(setIsLogged);
 
   const handleLogin = async () => {
-    if (isLoading) {
-      return;
-    }
-
-    if (!email || !password) {
-      Alert.alert('Error', 'Por favor complete todos los campos');
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-
-      if (email.length >= 1 && password.length >= 1) {
-        dispatch(loguear());
-        
-        await SecureStore.setItemAsync('isLogged', 'true');
-        await SecureStore.setItemAsync('usuario', JSON.stringify({ email }));
-        
-        setIsLogged(true);
-        
-        setTimeout(() => {
-          Alert.alert('Éxito', 'Inicio de sesión exitoso');
-        }, 300);
-        
-      } else {
-        Alert.alert('Error', 'Credenciales inválidas');
-      }
-    } catch (error) {
-      console.error('❌ Error en handleLogin:', error);
-      Alert.alert('Error', 'Error al iniciar sesión: ' + error.message);
-      
-      dispatch(desloguear());
-      setIsLogged(false);
-    } finally {
-      setIsLoading(false);
-    }
+    const result = await login(email, password, tipoUsuario);
   };
 
-  const autoLogin = async () => {
-    if (isLoading) return;
-    
-    try {
-      setIsLoading(true);
-      dispatch(loguear());
-      
-      await SecureStore.setItemAsync('isLogged', 'true');
-      await SecureStore.setItemAsync('usuario', JSON.stringify({ email: 'dev@test.com' }));
-      setIsLogged(true);
-    } catch (error) {
-      dispatch(desloguear());
-      setIsLogged(false);
-    } finally {
-      setIsLoading(false);
+  const handleAutoLogin = async () => {
+    const result = await autoLogin(tipoUsuario === 'cliente');
+    if (result.success) {
+      setTimeout(() => {
+        Alert.alert('Éxito', `Auto login exitoso como ${tipoUsuario}`);
+      }, 300);
     }
   };
 
@@ -146,14 +100,51 @@ const Login = ({ navigation, setIsLogged }) => {
             styles.autoLoginButton,
             isLoading && styles.buttonDisabled
           ]} 
-          onPress={autoLogin}
+          onPress={handleAutoLogin}
           disabled={isLoading}
         >
           <Text style={styles.autoLoginText}>
-            {isLoading ? '🔄 CARGANDO...' : 'AUTO LOGIN (DEV)'}
+            {isLoading ? '🔄 CARGANDO...' : `AUTO LOGIN ${tipoUsuario.toUpperCase()} (DEV)`}
           </Text>
         </TouchableOpacity>
       )}
+
+      <View style={styles.tipoUsuarioContainer}>
+        <Text style={styles.tipoUsuarioLabel}>Ingresar como:</Text>
+        <View style={styles.tipoUsuarioButtons}>
+          <TouchableOpacity
+            style={[
+              styles.tipoUsuarioButton,
+              tipoUsuario === 'usuario' && styles.tipoUsuarioButtonActive
+            ]}
+            onPress={() => setTipoUsuario('usuario')}
+            disabled={isLoading}
+          >
+            <Text style={[
+              styles.tipoUsuarioButtonText,
+              tipoUsuario === 'usuario' && styles.tipoUsuarioButtonTextActive
+            ]}>
+              Usuario
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.tipoUsuarioButton,
+              tipoUsuario === 'cliente' && styles.tipoUsuarioButtonActive
+            ]}
+            onPress={() => setTipoUsuario('cliente')}
+            disabled={isLoading}
+          >
+            <Text style={[
+              styles.tipoUsuarioButtonText,
+              tipoUsuario === 'cliente' && styles.tipoUsuarioButtonTextActive
+            ]}>
+              Cliente
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <Text style={styles.label}>Correo electrónico</Text>
       <TextInput
@@ -263,8 +254,47 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 18,
     color: '#7f8c8d',
-    marginBottom: 40,
+    marginBottom: 20,
     fontFamily: 'System',
+  },
+  tipoUsuarioContainer: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  tipoUsuarioLabel: {
+    fontSize: 16,
+    color: '#2c3e50',
+    marginBottom: 10,
+    fontWeight: '500',
+    fontFamily: 'System',
+  },
+  tipoUsuarioButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  tipoUsuarioButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#e1e5e9',
+    alignItems: 'center',
+  },
+  tipoUsuarioButtonActive: {
+    backgroundColor: '#4a90e2',
+    borderColor: '#4a90e2',
+  },
+  tipoUsuarioButtonText: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    fontWeight: '600',
+    fontFamily: 'System',
+  },
+  tipoUsuarioButtonTextActive: {
+    color: '#fff',
   },
   label: {
     alignSelf: 'flex-start',

@@ -1,18 +1,21 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  Modal,
   Animated,
-  StyleSheet,
+  Modal,
   SafeAreaView,
   StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { useSelector } from 'react-redux';
 
-const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut }) => {
+const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation }) => {
   const slideAnim = React.useRef(new Animated.Value(-300)).current;
+  
+  const { tipoUsuario, datosUsuario } = useSelector(state => state.usuario);
 
   React.useEffect(() => {
     if (visible) {
@@ -30,40 +33,82 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut }) => {
     }
   }, [visible]);
 
-  const menuItems = [
-    {
-      id: 1,
-      title: 'Inicio',
-      icon: 'home-outline',
-      onPress: () => {
-        onClose();
+  const handleNavigation = (screenName) => {
+    onClose();
+    
+    setTimeout(() => {
+      try {
+        if (navigation && navigation.navigate) {
+          if (screenName === 'MetodosPago') {
+            navigation.navigate(screenName, { modoSeleccion: false });
+          } else if (screenName === 'Estadisticas') {
+            navigation.navigate(screenName);
+          } else if (screenName === 'GestionGanancias') {
+            navigation.navigate(screenName);
+          } else {
+            navigation.navigate(screenName);
+          }
+        } else {
+          console.error('Navigation object no disponible o no tiene método navigate');
+        }
+      } catch (error) {
+        console.error('Error al navegar:', error);
       }
-    },
-    {
-      id: 2,
-      title: 'Mi cuenta',
-      icon: 'person-outline',
-      onPress: () => {
-        onClose();
+    }, 100);
+  };
+
+  const getMenuItems = () => {
+    const baseItems = [
+      {
+        id: 1,
+        title: 'Inicio',
+        icon: 'home-outline',
+        onPress: () => handleNavigation('InicioMain')
+      },
+      {
+        id: 2,
+        title: 'Mi cuenta',
+        icon: 'person-outline',
+        onPress: () => handleNavigation('MiCuenta')
       }
-    },
-    {
-      id: 3,
-      title: 'Reservas',
-      icon: 'calendar-outline',
-      onPress: () => {
-        onClose();
-      }
-    },
-    {
-      id: 4,
-      title: 'Pagos',
-      icon: 'card-outline',
-      onPress: () => {
-        onClose();
-      }
+    ];
+
+    if (tipoUsuario === 'cliente') {
+      return [
+        ...baseItems,
+        {
+          id: 3,
+          title: 'Estadísticas',
+          icon: 'stats-chart-outline',
+          onPress: () => handleNavigation('Estadisticas')
+        },
+        {
+          id: 4,
+          title: 'Ganancias',
+          icon: 'cash-outline',
+          onPress: () => handleNavigation('GestionGanancias')
+        }
+      ];
+    } else {
+      return [
+        ...baseItems,
+        {
+          id: 3,
+          title: 'Reservas',
+          icon: 'calendar-outline',
+          onPress: () => handleNavigation('Reservas')
+        },
+        {
+          id: 4,
+          title: 'Pagos',
+          icon: 'card-outline',
+          onPress: () => handleNavigation('MetodosPago')
+        }
+      ];
     }
-  ];
+  };
+
+  const menuItems = getMenuItems();
 
   const handleLogout = () => {
     if (!isLoggingOut) {
@@ -80,14 +125,12 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut }) => {
     >
       <StatusBar backgroundColor="rgba(0,0,0,0.5)" barStyle="light-content" />
       
-      {/* Overlay de fondo oscuro */}
       <TouchableOpacity
         style={styles.overlay}
         activeOpacity={1}
         onPress={onClose}
       >
         <View style={styles.container}>
-          {/* Menú deslizable */}
           <TouchableOpacity activeOpacity={1} onPress={() => {}}>
             <Animated.View
               style={[
@@ -98,17 +141,22 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut }) => {
               ]}
             >
               <SafeAreaView style={styles.safeArea}>
-                {/* Header del menú */}
                 <View style={styles.header}>
                   <View style={styles.logoContainer}>
                     <View style={styles.logoCircle}>
                       <Ionicons name="business" size={24} color="#4a90e2" />
                     </View>
-                    <Text style={styles.appName}>Officereserve</Text>
+                    <View>
+                      <Text style={styles.appName}>Officereserve</Text>
+                      {tipoUsuario === 'cliente' && (
+                        <Text style={styles.userType}>
+                          {datosUsuario?.empresa || 'Cliente'}
+                        </Text>
+                      )}
+                    </View>
                   </View>
                 </View>
 
-                {/* Elementos del menú */}
                 <View style={styles.menuItemsContainer}>
                   {menuItems.map((item) => (
                     <TouchableOpacity
@@ -129,7 +177,6 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut }) => {
                   ))}
                 </View>
 
-                {/* Botón de cerrar sesión */}
                 <View style={styles.logoutContainer}>
                   <TouchableOpacity
                     style={[
@@ -208,6 +255,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#2c3e50',
+    fontFamily: 'System',
+  },
+  userType: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginTop: 2,
     fontFamily: 'System',
   },
   menuItemsContainer: {

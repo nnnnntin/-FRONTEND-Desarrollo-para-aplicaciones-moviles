@@ -1,11 +1,19 @@
+import * as SecureStore from 'expo-secure-store';
 import { useState } from 'react';
 import { Alert } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
 import { useDispatch } from 'react-redux';
-import { loguear, desloguear } from '../store/slices/usuarioSlice';
+import { desloguear, loguear } from '../store/slices/usuarioSlice';
 
 interface AuthUser {
   email: string;
+  nombre?: string;
+  empresa?: string;
+}
+
+interface UserData {
+  tipoUsuario: 'usuario' | 'cliente';
+  datosUsuario: AuthUser;
+  oficinasPropias: number[];
 }
 
 interface AuthResult {
@@ -13,27 +21,16 @@ interface AuthResult {
   error?: string;
 }
 
-/**
- * Custom hook para manejar autenticación de usuarios
- * Proporciona funciones para login, logout y estados de carga
- * 
- * @param setIsLogged - Función para actualizar el estado local de login
- * @returns Objeto con funciones de autenticación y estado de carga
- */
 export function useAuth(setIsLogged: (isLogged: boolean) => void) {
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
   const dispatch = useDispatch();
 
-  /**
-   * Función para iniciar sesión
-   * Valida credenciales y actualiza estados local y persistente
-   * 
-   * @param email - Correo electrónico del usuario
-   * @param password - Contraseña del usuario
-   * @returns Promise con resultado de la operación
-   */
-  const login = async (email: string, password: string): Promise<AuthResult> => {
+  const login = async (
+    email: string, 
+    password: string, 
+    tipoUsuario: string = 'usuario'
+  ): Promise<AuthResult> => {
     if (isLoading) {
       return { success: false, error: 'Login ya en progreso' };
     }
@@ -48,15 +45,30 @@ export function useAuth(setIsLogged: (isLogged: boolean) => void) {
       setHasError(false);
 
       if (email.length >= 1 && password.length >= 1) {
-        dispatch(loguear());
+        let oficinasPropias: number[] = [];
+        if (tipoUsuario === 'cliente') {
+          oficinasPropias = [1, 2];
+        }
+
+        const userData: UserData = {
+          tipoUsuario: tipoUsuario as 'usuario' | 'cliente',
+          datosUsuario: { 
+            email, 
+            nombre: email.split('@')[0],
+            empresa: tipoUsuario === 'cliente' ? 'Mi Empresa' : undefined
+          },
+          oficinasPropias
+        };
+
+        dispatch(loguear(userData));
         
         await SecureStore.setItemAsync('isLogged', 'true');
-        await SecureStore.setItemAsync('usuario', JSON.stringify({ email } as AuthUser));
+        await SecureStore.setItemAsync('usuario', JSON.stringify(userData));
         
         setIsLogged(true);
         
         setTimeout(() => {
-          Alert.alert('Éxito', 'Inicio de sesión exitoso');
+          Alert.alert('Éxito', `Inicio de sesión exitoso como ${tipoUsuario}`);
         }, 300);
         
         return { success: true };
@@ -78,23 +90,51 @@ export function useAuth(setIsLogged: (isLogged: boolean) => void) {
     }
   };
 
-  /**
-   * Función para cerrar sesión
-   * Limpia todos los estados y almacenamiento persistente
-   * 
-   * @returns Promise con resultado de la operación
-   */
+  const autoLogin = async (asClient: boolean = false): Promise<AuthResult> => {
+    if (isLoading) {
+      return { success: false, error: 'Login ya en progreso' };
+    }
+    
+    try {
+      setIsLoading(true);
+      setHasError(false);
+      
+      const userData: UserData = {
+        tipoUsuario: asClient ? 'cliente' : 'usuario',
+        datosUsuario: { 
+          email: asClient ? 'cliente@test.com' : 'dev@test.com',
+          nombre: asClient ? 'Cliente Demo' : 'Usuario Demo',
+          empresa: asClient ? 'Empresa Demo' : undefined
+        },
+        oficinasPropias: asClient ? [1, 2] : []
+      };
+
+      dispatch(loguear(userData));
+      
+      await SecureStore.setItemAsync('isLogged', 'true');
+      await SecureStore.setItemAsync('usuario', JSON.stringify(userData));
+      setIsLogged(true);
+      
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      setHasError(true);
+      dispatch(desloguear());
+      setIsLogged(false);
+      return { success: false, error: errorMessage };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = async (): Promise<AuthResult> => {
     try {
       setIsLoading(true);
       setHasError(false);
       dispatch(desloguear());
       
-      try {
-        await SecureStore.deleteItemAsync('isLogged');
-        await SecureStore.deleteItemAsync('usuario');
-      } catch (error) {
-      }
+      await SecureStore.deleteItemAsync('isLogged');
+      await SecureStore.deleteItemAsync('usuario');
       
       setIsLogged(false);
       
@@ -113,9 +153,24 @@ export function useAuth(setIsLogged: (isLogged: boolean) => void) {
     }
   };
 
+  const getUserData = async (): Promise<UserData | null> => {
+    try {
+      const userData = await SecureStore.getItemAsync('usuario');
+      if (userData) {
+        return JSON.parse(userData) as UserData;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error al obtener datos del usuario:', error);
+      return null;
+    }
+  };
+
   return {
     login,
     logout,
+    autoLogin,
+    getUserData,
     isLoading,
     hasError
   };
