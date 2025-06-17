@@ -12,6 +12,7 @@ import Inicio from '../components/Inicio';
 import MetodosPago from '../components/MetodosPago';
 import MiCuenta from '../components/MiCuenta';
 import Reservas from '../components/Reservas';
+import Transacciones from '../components/Transacciones';
 import { desloguear } from '../store/slices/usuarioSlice';
 
 const Drawer = createDrawerNavigator();
@@ -45,6 +46,10 @@ const InicioStack = ({ setIsLogged, resetSession }) => {
       <Stack.Screen 
         name="MetodosPago" 
         component={MetodosPago}
+      />
+      <Stack.Screen 
+        name="Transacciones" 
+        component={Transacciones}
       />
       <Stack.Screen 
         name="AgregarTarjeta" 

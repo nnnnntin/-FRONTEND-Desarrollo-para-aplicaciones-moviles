@@ -45,6 +45,8 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
             navigation.navigate(screenName);
           } else if (screenName === 'GestionGanancias') {
             navigation.navigate(screenName);
+              } else if (screenName === 'Transacciones') {
+            navigation.navigate(screenName);
           } else {
             navigation.navigate(screenName);
           }
@@ -103,6 +105,12 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
           title: 'Pagos',
           icon: 'card-outline',
           onPress: () => handleNavigation('MetodosPago')
+        },
+        {
+          id: 5,
+          title: 'Transacciones',
+          icon: 'card-outline',
+          onPress: () => handleNavigation('Transacciones')
         }
       ];
     }
