@@ -1,18 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
-const EstadoPago = ({ estado, onContinuar, oficina, precio }) => {
+const EstadoPago = ({ estado, onContinuar, oficina, precio, onVerDetalles, onReportarProblema }) => {
   const renderContent = () => {
     switch (estado) {
       case 'procesando':
@@ -23,7 +23,7 @@ const EstadoPago = ({ estado, onContinuar, oficina, precio }) => {
             <Text style={styles.estadoSubtitulo}>Por favor espere</Text>
           </View>
         );
-      
+
       case 'confirmado':
         return (
           <View style={styles.estadoContainer}>
@@ -37,12 +37,14 @@ const EstadoPago = ({ estado, onContinuar, oficina, precio }) => {
               <Text style={styles.detalleItem}>Horario: 13:00 - 18:00</Text>
               <Text style={styles.detalleItem}>Ubicación: Montevideo, Ciudad Vieja ***</Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.botonDetalles}
+              onPress={onVerDetalles}
+              activeOpacity={0.7}
             >
               <Text style={styles.textoBotonDetalles}>Ver detalles</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.botonContinuar}
               onPress={onContinuar}
             >
@@ -50,7 +52,7 @@ const EstadoPago = ({ estado, onContinuar, oficina, precio }) => {
             </TouchableOpacity>
           </View>
         );
-      
+
       case 'error':
         return (
           <View style={styles.estadoContainer}>
@@ -59,8 +61,14 @@ const EstadoPago = ({ estado, onContinuar, oficina, precio }) => {
             </View>
             <Text style={styles.estadoTitulo}>Error en el pago</Text>
             <Text style={styles.estadoSubtitulo}>Reintentar</Text>
-            <Text style={styles.preguntaProblema}>¿Tienes un problema?</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
+              style={styles.problemaLink}
+              onPress={onReportarProblema}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.preguntaProblema}>¿Tienes un problema?</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={styles.botonContinuar}
               onPress={onContinuar}
             >
@@ -68,7 +76,7 @@ const EstadoPago = ({ estado, onContinuar, oficina, precio }) => {
             </TouchableOpacity>
           </View>
         );
-      
+
       default:
         return null;
     }
@@ -77,7 +85,7 @@ const EstadoPago = ({ estado, onContinuar, oficina, precio }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
-      
+
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Estado</Text>
       </View>
@@ -105,8 +113,9 @@ const MetodosPago = ({ navigation, route }) => {
     }
   ]);
 
-  const [estadoPago, setEstadoPago] = useState(null); 
-  
+  const [estadoPago, setEstadoPago] = useState(null);
+  const [transaccionActual, setTransaccionActual] = useState(null);
+
   const { modoSeleccion = false, oficina, precio } = route?.params || {};
 
   const handleGoBack = () => {
@@ -161,14 +170,19 @@ const MetodosPago = ({ navigation, route }) => {
   };
 
   const procesarPago = (tarjeta) => {
-    
     setEstadoPago('procesando');
-    
+
     setTimeout(() => {
       const exito = Math.random() > 0.2;
-      
+
       if (exito) {
         setEstadoPago('confirmado');
+        setTransaccionActual({
+          fecha: new Date().toLocaleDateString('es-ES'),
+          precio: precio,
+          oficina: oficina,
+          tarjeta: tarjeta
+        });
       } else {
         setEstadoPago('error');
       }
@@ -181,6 +195,16 @@ const MetodosPago = ({ navigation, route }) => {
     } else if (estadoPago === 'error') {
       setEstadoPago(null);
     }
+  };
+
+  const handleVerDetalles = () => {
+    navigation.navigate('Transacciones', {
+      transaccion: transaccionActual
+    });
+  };
+
+  const handleReportarProblema = () => {
+    navigation.navigate('FormularioProblema');
   };
 
   const obtenerIconoTarjeta = (tipo) => {
@@ -209,11 +233,13 @@ const MetodosPago = ({ navigation, route }) => {
 
   if (estadoPago) {
     return (
-      <EstadoPago 
+      <EstadoPago
         estado={estadoPago}
         onContinuar={handleContinuar}
         oficina={oficina}
         precio={precio}
+        onVerDetalles={handleVerDetalles}
+        onReportarProblema={handleReportarProblema}
       />
     );
   }
@@ -221,10 +247,10 @@ const MetodosPago = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
-      
+
       <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={handleGoBack} 
+        <TouchableOpacity
+          onPress={handleGoBack}
           style={styles.backButton}
           activeOpacity={0.7}
         >
@@ -250,7 +276,7 @@ const MetodosPago = ({ navigation, route }) => {
             {modoSeleccion ? 'Selecciona un método de pago' : 'Métodos de pago guardados'}
           </Text>
           {!modoSeleccion && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.botonAgregar}
               onPress={handleAgregarTarjeta}
               activeOpacity={0.7}
@@ -278,7 +304,7 @@ const MetodosPago = ({ navigation, route }) => {
                   <Text style={styles.numeroTarjeta}>•••• {tarjeta.ultimosCuatroDigitos}</Text>
                 </View>
               </View>
-              
+
               {modoSeleccion ? (
                 <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
               ) : (
@@ -296,7 +322,7 @@ const MetodosPago = ({ navigation, route }) => {
 
         {modoSeleccion && (
           <View style={styles.agregarTarjetaContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.botonAgregarNueva}
               onPress={handleAgregarTarjeta}
               activeOpacity={0.7}
@@ -513,7 +539,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontFamily: 'System',
   },
-  
+
   estadoContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -590,12 +616,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'System',
   },
+  problemaLink: {
+    marginTop: 10,
+    marginBottom: 10,
+  },
   preguntaProblema: {
     fontSize: 14,
-    color: '#7f8c8d',
-    marginTop: 10,
+    color: '#4a90e2',
     textAlign: 'center',
     fontFamily: 'System',
+    textDecorationLine: 'underline',
   },
 });
 

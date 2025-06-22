@@ -2,19 +2,22 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import {
-    Alert,
-    Image,
-    Keyboard,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  Alert,
+  Image,
+  Keyboard,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from 'react-native';
+
+const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
+const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
 const MiCuenta = ({ navigation }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -35,7 +38,7 @@ const MiCuenta = ({ navigation }) => {
         Alert.alert('Error', 'Las contraseñas no coinciden');
         return;
       }
-      
+
       if (!editData.nombre.trim() || !editData.email.trim()) {
         Alert.alert('Error', 'Por favor completa todos los campos obligatorios');
         return;
@@ -85,6 +88,36 @@ const MiCuenta = ({ navigation }) => {
     return true;
   };
 
+  const uploadToCloudinary = async (imageUri) => {
+    const formData = new FormData();
+    
+    formData.append('file', {
+      uri: imageUri,
+      name: 'profile_image.jpeg',
+      type: 'image/jpeg'
+    });
+    
+    formData.append('upload_preset', UPLOAD_PRESET);
+    
+    try {
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      const data = await response.json();
+      
+      if (data.secure_url) {
+        return data.secure_url;
+      } else {
+        throw new Error('Error al subir imagen a Cloudinary');
+      }
+    } catch (error) {
+      console.error('Error uploading to Cloudinary:', error);
+      throw error;
+    }
+  };
+
   const takePhoto = async () => {
     const hasPermission = await requestCameraPermission();
     if (!hasPermission) return;
@@ -98,7 +131,8 @@ const MiCuenta = ({ navigation }) => {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setProfileImage(result.assets[0].uri);
+        const cloudinaryUrl = await uploadToCloudinary(result.assets[0].uri);
+        setProfileImage(cloudinaryUrl);
         Alert.alert('Éxito', 'Foto actualizada correctamente');
       }
     } catch (error) {
@@ -119,7 +153,8 @@ const MiCuenta = ({ navigation }) => {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setProfileImage(result.assets[0].uri);
+        const cloudinaryUrl = await uploadToCloudinary(result.assets[0].uri);
+        setProfileImage(cloudinaryUrl);
         Alert.alert('Éxito', 'Foto actualizada correctamente');
       }
     } catch (error) {
@@ -160,7 +195,7 @@ const MiCuenta = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor="#f8f9fa" barStyle="dark-content" />
-      
+
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBackPress} style={styles.menuButton}>
           <Ionicons name="arrow-back" size={24} color="#4a90e2" />
@@ -170,7 +205,7 @@ const MiCuenta = ({ navigation }) => {
       </View>
 
       <TouchableWithoutFeedback onPress={dismissKeyboard}>
-        <ScrollView 
+        <ScrollView
           style={styles.content}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -182,7 +217,7 @@ const MiCuenta = ({ navigation }) => {
                 source={{ uri: profileImage }}
                 style={styles.profileImage}
               />
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.editPhotoButton}
                 onPress={showImageOptions}
               >

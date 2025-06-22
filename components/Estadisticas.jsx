@@ -58,10 +58,10 @@ const Estadisticas = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
-      
+
       <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={handleGoBack} 
+        <TouchableOpacity
+          onPress={handleGoBack}
           style={styles.backButton}
           activeOpacity={0.7}
         >
@@ -122,25 +122,25 @@ const Estadisticas = ({ navigation }) => {
               <Text style={styles.legendText}>Usuarios</Text>
             </View>
           </View>
-          
+
           <View style={styles.chart}>
             {chartData.map((data, index) => (
               <View key={index} style={styles.barContainer}>
                 <View style={styles.barsWrapper}>
-                  <View 
+                  <View
                     style={[
                       styles.bar,
-                      { 
+                      {
                         height: (data.sesiones / maxValue) * 150,
                         backgroundColor: '#f39c12',
                         marginRight: 4
                       }
                     ]}
                   />
-                  <View 
+                  <View
                     style={[
                       styles.bar,
-                      { 
+                      {
                         height: (data.usuarios / maxValue) * 150,
                         backgroundColor: '#3498db'
                       }
@@ -151,7 +151,7 @@ const Estadisticas = ({ navigation }) => {
               </View>
             ))}
           </View>
-          
+
           <View style={styles.chartValues}>
             <Text style={styles.chartValueText}>
               Sesiones: {chartData[chartData.length - 1].sesiones.toLocaleString()}
@@ -168,13 +168,13 @@ const Estadisticas = ({ navigation }) => {
             <Text style={styles.additionalStatValue}>{estadisticas.promedioHoras}h</Text>
             <Text style={styles.additionalStatLabel}>Promedio por reserva</Text>
           </View>
-          
+
           <View style={styles.additionalStatItem}>
             <Ionicons name="business-outline" size={32} color="#e74c3c" />
             <Text style={styles.additionalStatValue}>{estadisticas.oficinasActivas}</Text>
             <Text style={styles.additionalStatLabel}>Oficinas activas</Text>
           </View>
-          
+
           <View style={styles.additionalStatItem}>
             <Ionicons name="people" size={32} color="#2ecc71" />
             <Text style={styles.additionalStatValue}>{estadisticas.clientesRecurrentes}</Text>

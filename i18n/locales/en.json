@@ -1,0 +1,30 @@
+{
+  "greeting": "Hello!",
+  "welcome_user": "Welcome, {{name}}",
+  "form": {
+    "title": "Person Registration",
+    "name": "Name",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "birthDate": "Birth Date",
+    "country": "Country",
+    "department": "Department",
+    "terms": "Accept terms and conditions",
+    "submit": "Submit",
+    "selectDate": "Select Date",
+    "selectCountry": "Select a country",
+    "selectDepartment": "Select a department",
+    "es": "Spanish",
+    "en": "English"
+  },
+  "validation": {
+    "required": "This field is required",
+    "email": "Invalid email format",
+    "min": "Must be at least {{count}} characters",
+    "match": "Passwords must match",
+    "age": "You must be over 18",
+    "selectCountry": "Please select a country",
+    "terms": "You must accept the terms"
+  }
+}

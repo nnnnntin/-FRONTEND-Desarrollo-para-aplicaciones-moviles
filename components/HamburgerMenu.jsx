@@ -14,7 +14,7 @@ import { useSelector } from 'react-redux';
 
 const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation }) => {
   const slideAnim = React.useRef(new Animated.Value(-300)).current;
-  
+
   const { tipoUsuario, datosUsuario } = useSelector(state => state.usuario);
 
   React.useEffect(() => {
@@ -35,19 +35,11 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
 
   const handleNavigation = (screenName) => {
     onClose();
-    
+
     setTimeout(() => {
       try {
         if (navigation && navigation.navigate) {
-          if (screenName === 'MetodosPago') {
-            navigation.navigate(screenName, { modoSeleccion: false });
-          } else if (screenName === 'Estadisticas') {
-            navigation.navigate(screenName);
-          } else if (screenName === 'GestionGanancias') {
-            navigation.navigate(screenName);
-          } else {
-            navigation.navigate(screenName);
-          }
+          navigation.navigate(screenName);
         } else {
           console.error('Navigation object no disponible o no tiene método navigate');
         }
@@ -70,42 +62,147 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
         title: 'Mi cuenta',
         icon: 'person-outline',
         onPress: () => handleNavigation('MiCuenta')
+      },
+      {
+        id: 3,
+        title: 'Notificaciones',
+        icon: 'notifications-outline',
+        onPress: () => handleNavigation('Notificaciones')
       }
     ];
 
-    if (tipoUsuario === 'cliente') {
+    if (tipoUsuario === 'admin') {
+      return [
+        {
+          id: 1,
+          title: 'Dashboard',
+          icon: 'grid-outline',
+          onPress: () => handleNavigation('DashboardAdmin')
+        },
+        {
+          id: 2,
+          title: 'Usuarios',
+          icon: 'people-outline',
+          onPress: () => handleNavigation('GestionUsuarios')
+        },
+        {
+          id: 3,
+          title: 'Espacios',
+          icon: 'business-outline',
+          onPress: () => handleNavigation('GestionPublicaciones')
+        },
+        {
+          id: 4,
+          title: 'Reservas',
+          icon: 'calendar-outline',
+          onPress: () => handleNavigation('GestionReservas')
+        },
+        {
+          id: 5,
+          title: 'Proveedores',
+          icon: 'construct-outline',
+          onPress: () => handleNavigation('GestionProveedores')
+        },
+        {
+          id: 6,
+          title: 'Transacciones',
+          icon: 'cash-outline',
+          onPress: () => handleNavigation('TransaccionesAdmin')
+        },
+        {
+          id: 7,
+          title: 'Comisiones',
+          icon: 'calculator-outline',
+          onPress: () => handleNavigation('ComisionesAdmin')
+        },
+        {
+          id: 8,
+          title: 'Reportes',
+          icon: 'stats-chart-outline',
+          onPress: () => handleNavigation('ReportesAdmin')
+        },
+        {
+          id: 9,
+          title: 'Soporte',
+          icon: 'help-circle-outline',
+          onPress: () => handleNavigation('SoporteAdmin')
+        },
+        {
+          id: 10,
+          title: 'Configuración',
+          icon: 'settings-outline',
+          onPress: () => handleNavigation('ConfiguracionAdmin')
+        }
+      ];
+    } else if (tipoUsuario === 'usuario') {
       return [
         ...baseItems,
         {
-          id: 3,
+          id: 4,
+          title: 'Mis reservas',
+          icon: 'calendar-outline',
+          onPress: () => handleNavigation('Reservas')
+        },
+        {
+          id: 5,
+          title: 'Membresías',
+          icon: 'star-outline',
+          onPress: () => handleNavigation('Membresias')
+        },
+        {
+          id: 6,
+          title: 'Métodos de pago',
+          icon: 'card-outline',
+          onPress: () => handleNavigation('MetodosPago')
+        }
+      ];
+    } else if (tipoUsuario === 'cliente') {
+      return [
+        ...baseItems,
+        {
+          id: 4,
+          title: 'Mis espacios',
+          icon: 'business-outline',
+          onPress: () => handleNavigation('InicioMain')
+        },
+        {
+          id: 5,
+          title: 'Crear publicación',
+          icon: 'add-circle-outline',
+          onPress: () => handleNavigation('CrearPublicacion')
+        },
+        {
+          id: 6,
           title: 'Estadísticas',
           icon: 'stats-chart-outline',
           onPress: () => handleNavigation('Estadisticas')
         },
         {
-          id: 4,
+          id: 7,
           title: 'Ganancias',
           icon: 'cash-outline',
           onPress: () => handleNavigation('GestionGanancias')
         }
       ];
-    } else {
+    } else if (tipoUsuario === 'proveedor') {
       return [
         ...baseItems,
         {
-          id: 3,
-          title: 'Reservas',
-          icon: 'calendar-outline',
-          onPress: () => handleNavigation('Reservas')
+          id: 4,
+          title: 'Mis servicios',
+          icon: 'construct-outline',
+          onPress: () => handleNavigation('ServiciosProveedor')
         },
         {
-          id: 4,
-          title: 'Pagos',
-          icon: 'card-outline',
-          onPress: () => handleNavigation('MetodosPago')
-        }
+          id: 5,
+          title: 'Solicitudes',
+          icon: 'briefcase-outline',
+          onPress: () => handleNavigation('SolicitudesServicio')
+        },
       ];
     }
+
+    return baseItems;
   };
 
   const menuItems = getMenuItems();
@@ -113,6 +210,21 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
   const handleLogout = () => {
     if (!isLoggingOut) {
       onLogout();
+    }
+  };
+
+  const getTipoUsuarioDisplay = () => {
+    switch (tipoUsuario) {
+      case 'usuario':
+        return 'Usuario';
+      case 'cliente':
+        return datosUsuario?.empresa || 'Cliente';
+      case 'proveedor':
+        return datosUsuario?.servicio || 'Proveedor';
+      case 'admin':
+        return 'Administrador';
+      default:
+        return '';
     }
   };
 
@@ -124,14 +236,14 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
       onRequestClose={onClose}
     >
       <StatusBar backgroundColor="rgba(0,0,0,0.5)" barStyle="light-content" />
-      
+
       <TouchableOpacity
         style={styles.overlay}
         activeOpacity={1}
         onPress={onClose}
       >
         <View style={styles.container}>
-          <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+          <TouchableOpacity activeOpacity={1} onPress={() => { }}>
             <Animated.View
               style={[
                 styles.menuContainer,
@@ -143,32 +255,37 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
               <SafeAreaView style={styles.safeArea}>
                 <View style={styles.header}>
                   <View style={styles.logoContainer}>
-                    <View style={styles.logoCircle}>
-                      <Ionicons name="business" size={24} color="#4a90e2" />
+                    <View style={[
+                      styles.logoCircle,
+                      tipoUsuario === 'admin' && { backgroundColor: '#ffe8e8' }
+                    ]}>
+                      <Ionicons
+                        name={tipoUsuario === 'admin' ? 'shield' : 'business'}
+                        size={24}
+                        color={tipoUsuario === 'admin' ? '#e74c3c' : '#4a90e2'}
+                      />
                     </View>
                     <View>
                       <Text style={styles.appName}>Officereserve</Text>
-                      {tipoUsuario === 'cliente' && (
-                        <Text style={styles.userType}>
-                          {datosUsuario?.empresa || 'Cliente'}
-                        </Text>
-                      )}
+                      <Text style={styles.userType}>
+                        {getTipoUsuarioDisplay()}
+                      </Text>
                     </View>
                   </View>
                 </View>
 
-                <View style={styles.menuItemsContainer}>
+                <View style={[styles.menuItemsContainer, tipoUsuario === 'admin' && styles.menuItemsContainerAdmin]}>
                   {menuItems.map((item) => (
                     <TouchableOpacity
                       key={item.id}
-                      style={styles.menuItem}
+                      style={[styles.menuItem, tipoUsuario === 'admin' && styles.menuItemAdmin]}
                       onPress={item.onPress}
                     >
                       <View style={styles.menuItemContent}>
-                        <Ionicons 
-                          name={item.icon} 
-                          size={22} 
-                          color="#4a90e2" 
+                        <Ionicons
+                          name={item.icon}
+                          size={22}
+                          color={tipoUsuario === 'admin' ? '#e74c3c' : '#4a90e2'}
                           style={styles.menuIcon}
                         />
                         <Text style={styles.menuItemText}>{item.title}</Text>
@@ -186,10 +303,10 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
                     onPress={handleLogout}
                     disabled={isLoggingOut}
                   >
-                    <Ionicons 
-                      name="log-out-outline" 
-                      size={22} 
-                      color="#e74c3c" 
+                    <Ionicons
+                      name="log-out-outline"
+                      size={22}
+                      color="#e74c3c"
                       style={styles.logoutIcon}
                     />
                     <Text style={[
@@ -267,11 +384,17 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 20,
   },
+  menuItemsContainerAdmin: {
+    paddingTop: 10,
+  },
   menuItem: {
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#f5f5f5',
+  },
+  menuItemAdmin: {
+    paddingVertical: 12,
   },
   menuItemContent: {
     flexDirection: 'row',

@@ -1,15 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 const AgregarTarjeta = ({ navigation, route }) => {
@@ -23,23 +23,23 @@ const AgregarTarjeta = ({ navigation, route }) => {
 
   const formatearNumeroTarjeta = (texto) => {
     const numeros = texto.replace(/\D/g, '');
-    
+
     const numerosLimitados = numeros.slice(0, 16);
-    
+
     const numeroFormateado = numerosLimitados.replace(/(\d{4})(?=\d)/g, '$1 ');
-    
+
     return numeroFormateado;
   };
 
   const formatearFecha = (texto) => {
     const numeros = texto.replace(/\D/g, '');
-    
+
     const numerosLimitados = numeros.slice(0, 4);
-    
+
     if (numerosLimitados.length >= 2) {
       return numerosLimitados.slice(0, 2) + '/' + numerosLimitados.slice(2);
     }
-    
+
     return numerosLimitados;
   };
 
@@ -52,17 +52,17 @@ const AgregarTarjeta = ({ navigation, route }) => {
       Alert.alert('Error', 'Por favor ingresa un número de tarjeta válido');
       return false;
     }
-    
+
     if (!cvc || cvc.length < 3) {
       Alert.alert('Error', 'Por favor ingresa un CVC válido');
       return false;
     }
-    
+
     if (!fechaExpiracion || fechaExpiracion.length < 5) {
       Alert.alert('Error', 'Por favor ingresa una fecha de expiración válida');
       return false;
     }
-    
+
     return true;
   };
 
@@ -84,8 +84,8 @@ const AgregarTarjeta = ({ navigation, route }) => {
       'Tarjeta Agregada',
       `${tipoTarjeta} •••• ${ultimosCuatroDigitos} ha sido agregada exitosamente`,
       [
-        { 
-          text: 'OK', 
+        {
+          text: 'OK',
           onPress: () => navigation.goBack()
         }
       ]
@@ -95,10 +95,10 @@ const AgregarTarjeta = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
-      
+
       <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={handleGoBack} 
+        <TouchableOpacity
+          onPress={handleGoBack}
           style={styles.backButton}
           activeOpacity={0.7}
         >
@@ -122,7 +122,7 @@ const AgregarTarjeta = ({ navigation, route }) => {
               value={numeroTarjeta}
               onChangeText={(texto) => setNumeroTarjeta(formatearNumeroTarjeta(texto))}
               keyboardType="numeric"
-              maxLength={19} 
+              maxLength={19}
             />
           </View>
 
@@ -151,7 +151,7 @@ const AgregarTarjeta = ({ navigation, route }) => {
             />
           </View>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.agregarButton}
             onPress={handleAgregar}
           >

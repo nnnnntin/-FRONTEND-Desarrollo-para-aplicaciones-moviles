@@ -1,5 +1,16 @@
 import { useState } from 'react';
-import { Alert, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { 
+  Alert, 
+  Image, 
+  StyleSheet, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  View,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform
+} from 'react-native';
 import { useAuth } from '../hooks/useAuth';
 import RestablecerContraseña from './RestablecerContraseña';
 import RestablecerMail from './RestablecerMail';
@@ -16,11 +27,19 @@ const Login = ({ navigation, setIsLogged }) => {
   };
 
   const handleAutoLogin = async () => {
-    const result = await autoLogin(tipoUsuario === 'cliente');
-    if (result.success) {
-      setTimeout(() => {
-        Alert.alert('Éxito', `Auto login exitoso como ${tipoUsuario}`);
-      }, 300);
+    if (isLoading) return; 
+    
+    try {
+      const result = await autoLogin(tipoUsuario);
+      if (result.success) {
+        console.log(`✅ Auto login exitoso como ${tipoUsuario}`);
+        await new Promise(resolve => setTimeout(resolve, 200));
+      } else {
+        Alert.alert('Error', result.error || 'Error en auto login');
+      }
+    } catch (error) {
+      console.error('Error en handleAutoLogin:', error);
+      Alert.alert('Error', 'Error inesperado en auto login');
     }
   };
 
@@ -48,184 +67,262 @@ const Login = ({ navigation, setIsLogged }) => {
 
   if (currentView === 'forgotPassword') {
     return (
-      <View style={styles.container}>
-        <Image 
-          source={require('../assets/images/logo.png')} 
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text style={styles.title}>Officereserve</Text>
-        
-        <RestablecerContraseña 
-          onBack={handleBackToLogin}
-          onSuccess={handleRecoverySuccess}
-          onForgotEmail={handleForgotEmail}
-        />
-      </View>
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.container}>
+            <Image
+              source={require('../assets/images/logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+            <Text style={styles.title}>Officereserve</Text>
+
+            <RestablecerContraseña
+              onBack={handleBackToLogin}
+              onSuccess={handleRecoverySuccess}
+              onForgotEmail={handleForgotEmail}
+            />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     );
   }
 
   if (currentView === 'forgotEmail') {
     return (
-      <View style={styles.container}>
-        <Image 
-          source={require('../assets/images/logo.png')} 
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text style={styles.title}>Officereserve</Text>
-        
-        <RestablecerMail 
-          onBack={handleBackToLogin}
-          onSuccess={handleRecoverySuccess}
-        />
-      </View>
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.container}>
+            <Image
+              source={require('../assets/images/logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+            <Text style={styles.title}>Officereserve</Text>
+
+            <RestablecerMail
+              onBack={handleBackToLogin}
+              onSuccess={handleRecoverySuccess}
+            />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Image 
-        source={require('../assets/images/logo.png')} 
-        style={styles.logo}
-        resizeMode="contain"
-      />
-      
-      <Text style={styles.title}>Officereserve</Text>
-      <Text style={styles.subtitle}>Iniciar sesión</Text>
-
-      {__DEV__ && (
-        <TouchableOpacity 
-          style={[
-            styles.autoLoginButton,
-            isLoading && styles.buttonDisabled
-          ]} 
-          onPress={handleAutoLogin}
-          disabled={isLoading}
-        >
-          <Text style={styles.autoLoginText}>
-            {isLoading ? '🔄 CARGANDO...' : `AUTO LOGIN ${tipoUsuario.toUpperCase()} (DEV)`}
-          </Text>
-        </TouchableOpacity>
-      )}
-
-      <View style={styles.tipoUsuarioContainer}>
-        <Text style={styles.tipoUsuarioLabel}>Ingresar como:</Text>
-        <View style={styles.tipoUsuarioButtons}>
-          <TouchableOpacity
-            style={[
-              styles.tipoUsuarioButton,
-              tipoUsuario === 'usuario' && styles.tipoUsuarioButtonActive
-            ]}
-            onPress={() => setTipoUsuario('usuario')}
-            disabled={isLoading}
-          >
-            <Text style={[
-              styles.tipoUsuarioButtonText,
-              tipoUsuario === 'usuario' && styles.tipoUsuarioButtonTextActive
-            ]}>
-              Usuario
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[
-              styles.tipoUsuarioButton,
-              tipoUsuario === 'cliente' && styles.tipoUsuarioButtonActive
-            ]}
-            onPress={() => setTipoUsuario('cliente')}
-            disabled={isLoading}
-          >
-            <Text style={[
-              styles.tipoUsuarioButtonText,
-              tipoUsuario === 'cliente' && styles.tipoUsuarioButtonTextActive
-            ]}>
-              Cliente
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <Text style={styles.label}>Correo electrónico</Text>
-      <TextInput
-        style={[
-          styles.input,
-          isLoading && styles.inputDisabled
-        ]}
-        placeholder="Cualquier texto (ej: 11)"
-        placeholderTextColor="#999"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        editable={!isLoading}
-      />
-
-      <Text style={styles.label}>Contraseña</Text>
-      <TextInput
-        style={[
-          styles.input,
-          isLoading && styles.inputDisabled
-        ]}
-        placeholder="Cualquier texto (ej: 1)"
-        placeholderTextColor="#999"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        editable={!isLoading}
-      />
-
-      <TouchableOpacity 
-        style={[
-          styles.button,
-          isLoading && styles.buttonDisabled
-        ]} 
-        onPress={handleLogin}
-        disabled={isLoading}
+    <KeyboardAvoidingView 
+      style={styles.keyboardAvoidingView} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.buttonText}>
-          {isLoading ? 'INGRESANDO...' : 'INGRESAR'}
-        </Text>
-      </TouchableOpacity>
+        <View style={styles.container}>
+          <Image
+            source={require('../assets/images/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
 
-      <View style={styles.registerContainer}>
-        <TouchableOpacity 
-          onPress={handleForgotPassword}
-          disabled={isLoading}
-          style={styles.forgotButton}
-        >
-          <Text style={[
-            styles.forgotText,
-            isLoading && styles.linkDisabled
-          ]}>
-            ¿Olvidaste tu contraseña?
-          </Text>
-        </TouchableOpacity>
+          <Text style={styles.title}>Officereserve</Text>
+          <Text style={styles.subtitle}>Iniciar sesión</Text>
 
-        <Text style={styles.registerQuestion}>¿No tienes cuenta?</Text>
-        <TouchableOpacity 
-          onPress={goToRegister}
-          disabled={isLoading}
-        >
-          <Text style={[
-            styles.registerLink,
-            isLoading && styles.linkDisabled
-          ]}>
-            Registrarse
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+          {__DEV__ && (
+            <TouchableOpacity
+              style={[
+                styles.autoLoginButton,
+                isLoading && styles.buttonDisabled
+              ]}
+              onPress={handleAutoLogin}
+              disabled={isLoading}
+            >
+              <Text style={styles.autoLoginText}>
+                {isLoading ? '🔄 CARGANDO...' : `AUTO LOGIN ${tipoUsuario.toUpperCase()} (DEV)`}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          <View style={styles.tipoUsuarioContainer}>
+            <Text style={styles.tipoUsuarioLabel}>Ingresar como:</Text>
+            <View style={styles.tipoUsuarioButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.tipoUsuarioButton,
+                  tipoUsuario === 'usuario' && styles.tipoUsuarioButtonActive
+                ]}
+                onPress={() => setTipoUsuario('usuario')}
+                disabled={isLoading}
+              >
+                <Text style={[
+                  styles.tipoUsuarioButtonText,
+                  tipoUsuario === 'usuario' && styles.tipoUsuarioButtonTextActive
+                ]}>
+                  Usuario
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.tipoUsuarioButton,
+                  tipoUsuario === 'cliente' && styles.tipoUsuarioButtonActive
+                ]}
+                onPress={() => setTipoUsuario('cliente')}
+                disabled={isLoading}
+              >
+                <Text style={[
+                  styles.tipoUsuarioButtonText,
+                  tipoUsuario === 'cliente' && styles.tipoUsuarioButtonTextActive
+                ]}>
+                  Cliente
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.tipoUsuarioButton,
+                  tipoUsuario === 'proveedor' && styles.tipoUsuarioButtonActive
+                ]}
+                onPress={() => setTipoUsuario('proveedor')}
+                disabled={isLoading}
+              >
+                <Text style={[
+                  styles.tipoUsuarioButtonText,
+                  tipoUsuario === 'proveedor' && styles.tipoUsuarioButtonTextActive
+                ]}>
+                  Proveedor
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.adminButtonContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.adminButton,
+                  tipoUsuario === 'admin' && styles.adminButtonActive
+                ]}
+                onPress={() => setTipoUsuario('admin')}
+                disabled={isLoading}
+              >
+                <Text style={[
+                  styles.adminButtonText,
+                  tipoUsuario === 'admin' && styles.adminButtonTextActive
+                ]}>
+                  Administrador
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <Text style={styles.label}>Correo electrónico</Text>
+          <TextInput
+            style={[
+              styles.input,
+              isLoading && styles.inputDisabled
+            ]}
+            placeholder={tipoUsuario === 'admin' ? "admin@officereserve.com" : "Cualquier texto (ej: 11)"}
+            placeholderTextColor="#999"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            editable={!isLoading}
+          />
+
+          <Text style={styles.label}>Contraseña</Text>
+          <TextInput
+            style={[
+              styles.input,
+              isLoading && styles.inputDisabled
+            ]}
+            placeholder={tipoUsuario === 'admin' ? "admin123" : "Cualquier texto (ej: 1)"}
+            placeholderTextColor="#999"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            editable={!isLoading}
+          />
+
+          <TouchableOpacity
+            style={[
+              styles.button,
+              tipoUsuario === 'admin' && styles.buttonAdmin,
+              isLoading && styles.buttonDisabled
+            ]}
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            <Text style={styles.buttonText}>
+              {isLoading ? 'INGRESANDO...' : 'INGRESAR'}
+            </Text>
+          </TouchableOpacity>
+
+          {tipoUsuario !== 'admin' && (
+            <View style={styles.registerContainer}>
+              <TouchableOpacity
+                onPress={handleForgotPassword}
+                disabled={isLoading}
+                style={styles.forgotButton}
+              >
+                <Text style={[
+                  styles.forgotText,
+                  isLoading && styles.linkDisabled
+                ]}>
+                  ¿Olvidaste tu contraseña?
+                </Text>
+              </TouchableOpacity>
+
+              <Text style={styles.registerQuestion}>¿No tienes cuenta?</Text>
+              <TouchableOpacity
+                onPress={goToRegister}
+                disabled={isLoading}
+              >
+                <Text style={[
+                  styles.registerLink,
+                  isLoading && styles.linkDisabled
+                ]}>
+                  Registrarse
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  keyboardAvoidingView: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  scrollContainer: {
+    flexGrow: 1,
+  },
+  container: {
+    flex: 1,
     paddingHorizontal: 30,
+    paddingVertical: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    minHeight: '100%', // Asegura que ocupe toda la altura disponible
   },
   logo: {
     width: 120,
@@ -271,12 +368,16 @@ const styles = StyleSheet.create({
   tipoUsuarioButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: 8,
+    marginBottom: 8,
+  },
+  adminButtonContainer: {
+    width: '100%',
   },
   tipoUsuarioButton: {
     flex: 1,
     paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
     borderRadius: 8,
     backgroundColor: '#fff',
     borderWidth: 2,
@@ -287,13 +388,36 @@ const styles = StyleSheet.create({
     backgroundColor: '#4a90e2',
     borderColor: '#4a90e2',
   },
+  adminButton: {
+    width: '100%',
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#e1e5e9',
+    alignItems: 'center',
+  },
+  adminButtonActive: {
+    backgroundColor: '#e74c3c',
+    borderColor: '#e74c3c',
+  },
   tipoUsuarioButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#7f8c8d',
     fontWeight: '600',
     fontFamily: 'System',
   },
   tipoUsuarioButtonTextActive: {
+    color: '#fff',
+  },
+  adminButtonText: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    fontWeight: '600',
+    fontFamily: 'System',
+  },
+  adminButtonTextActive: {
     color: '#fff',
   },
   label: {
@@ -333,6 +457,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+  },
+  buttonAdmin: {
+    backgroundColor: '#e74c3c',
+    shadowColor: '#e74c3c',
   },
   buttonDisabled: {
     backgroundColor: '#9CA3AF',

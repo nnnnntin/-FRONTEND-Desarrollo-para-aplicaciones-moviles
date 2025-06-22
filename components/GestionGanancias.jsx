@@ -1,16 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
-    Alert,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSelector } from 'react-redux';
 
@@ -107,10 +107,10 @@ const GestionGanancias = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
-      
+
       <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={handleGoBack} 
+        <TouchableOpacity
+          onPress={handleGoBack}
           style={styles.backButton}
           activeOpacity={0.7}
         >
@@ -126,7 +126,7 @@ const GestionGanancias = ({ navigation }) => {
             <Text style={styles.gananciaLabel}>Disponible para transferir</Text>
             <Text style={styles.gananciaValor}>{formatearNumero(ganancias.disponible)}</Text>
           </View>
-          
+
           <View style={styles.gananciaSecundaria}>
             <View style={styles.gananciaItem}>
               <Text style={styles.gananciaItemLabel}>Pendiente</Text>
@@ -137,7 +137,7 @@ const GestionGanancias = ({ navigation }) => {
               <Text style={styles.gananciaItemValor}>{formatearNumero(ganancias.total)}</Text>
             </View>
           </View>
-          
+
           <Text style={styles.proximoPago}>
             Próximo pago disponible: {ganancias.proximoPago}
           </Text>
@@ -146,14 +146,14 @@ const GestionGanancias = ({ navigation }) => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Cuenta bancaria</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => setModalVisible(true)}
               style={styles.editButton}
             >
               <Ionicons name={cuentaGuardada ? "create-outline" : "add-circle-outline"} size={20} color="#4a90e2" />
             </TouchableOpacity>
           </View>
-          
+
           {cuentaGuardada ? (
             <View style={styles.cuentaCard}>
               <Ionicons name="business" size={24} color="#4a90e2" style={styles.bancoIcon} />
@@ -166,7 +166,7 @@ const GestionGanancias = ({ navigation }) => {
               </View>
             </View>
           ) : (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.agregarCuentaButton}
               onPress={() => setModalVisible(true)}
             >
@@ -176,7 +176,7 @@ const GestionGanancias = ({ navigation }) => {
           )}
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
             styles.transferirButton,
             (!cuentaGuardada || ganancias.disponible === 0) && styles.transferirButtonDisabled
@@ -190,7 +190,7 @@ const GestionGanancias = ({ navigation }) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Historial de transferencias</Text>
-          
+
           {transacciones.map((transaccion) => (
             <View key={transaccion.id} style={styles.transaccionItem}>
               <View style={styles.transaccionLeft}>
@@ -239,7 +239,7 @@ const GestionGanancias = ({ navigation }) => {
                       styles.bancoOption,
                       cuentaBancaria.banco === banco.id && styles.bancoOptionSelected
                     ]}
-                    onPress={() => setCuentaBancaria({...cuentaBancaria, banco: banco.id})}
+                    onPress={() => setCuentaBancaria({ ...cuentaBancaria, banco: banco.id })}
                   >
                     <View style={[styles.bancoColor, { backgroundColor: banco.color }]} />
                     <Text style={[
@@ -259,7 +259,7 @@ const GestionGanancias = ({ navigation }) => {
                     styles.tipoCuentaButton,
                     cuentaBancaria.tipoCuenta === 'ahorro' && styles.tipoCuentaButtonActive
                   ]}
-                  onPress={() => setCuentaBancaria({...cuentaBancaria, tipoCuenta: 'ahorro'})}
+                  onPress={() => setCuentaBancaria({ ...cuentaBancaria, tipoCuenta: 'ahorro' })}
                 >
                   <Text style={[
                     styles.tipoCuentaText,
@@ -273,7 +273,7 @@ const GestionGanancias = ({ navigation }) => {
                     styles.tipoCuentaButton,
                     cuentaBancaria.tipoCuenta === 'corriente' && styles.tipoCuentaButtonActive
                   ]}
-                  onPress={() => setCuentaBancaria({...cuentaBancaria, tipoCuenta: 'corriente'})}
+                  onPress={() => setCuentaBancaria({ ...cuentaBancaria, tipoCuenta: 'corriente' })}
                 >
                   <Text style={[
                     styles.tipoCuentaText,
@@ -289,7 +289,7 @@ const GestionGanancias = ({ navigation }) => {
                 style={styles.input}
                 placeholder="Ingresa el número de cuenta"
                 value={cuentaBancaria.numeroCuenta}
-                onChangeText={(text) => setCuentaBancaria({...cuentaBancaria, numeroCuenta: text})}
+                onChangeText={(text) => setCuentaBancaria({ ...cuentaBancaria, numeroCuenta: text })}
                 keyboardType="numeric"
               />
 
@@ -298,10 +298,10 @@ const GestionGanancias = ({ navigation }) => {
                 style={styles.input}
                 placeholder="Nombre completo del titular"
                 value={cuentaBancaria.titular}
-                onChangeText={(text) => setCuentaBancaria({...cuentaBancaria, titular: text})}
+                onChangeText={(text) => setCuentaBancaria({ ...cuentaBancaria, titular: text })}
               />
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.guardarButton}
                 onPress={handleGuardarCuenta}
               >

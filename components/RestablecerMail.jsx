@@ -20,7 +20,7 @@ const RestablecerMail = ({ onBack, onSuccess }) => {
       Alert.alert('Error', 'Por favor ingrese su nuevo correo electrónico');
       return;
     }
-    
+
     Alert.alert('Código enviado', `Se envió un código de seguridad a tu correo:\n${newEmail.substring(0, 2)}****@${newEmail.split('@')[1] || 'gmail.com'}`);
     setCurrentStep(3);
   };
@@ -30,7 +30,7 @@ const RestablecerMail = ({ onBack, onSuccess }) => {
       Alert.alert('Error', 'Por favor ingrese el código de verificación');
       return;
     }
-    
+
     Alert.alert('Éxito', 'Correo electrónico actualizado correctamente', [
       { text: 'OK', onPress: onSuccess }
     ]);
@@ -47,7 +47,7 @@ const RestablecerMail = ({ onBack, onSuccess }) => {
           <>
             <Text style={styles.subtitle}>Recuperación de cuenta</Text>
             <Text style={styles.description}>Cédula</Text>
-            
+
             <Text style={styles.label}>Introduce tu cédula</Text>
             <TextInput
               style={styles.input}
@@ -56,6 +56,8 @@ const RestablecerMail = ({ onBack, onSuccess }) => {
               value={cedula}
               onChangeText={setCedula}
               keyboardType="numeric"
+              returnKeyType="done"
+              maxLength={10}
             />
 
             <TouchableOpacity style={styles.button} onPress={handleStep1}>
@@ -69,7 +71,7 @@ const RestablecerMail = ({ onBack, onSuccess }) => {
           <>
             <Text style={styles.subtitle}>Recuperación de cuenta</Text>
             <Text style={styles.description}>Correo electrónico</Text>
-            
+
             <Text style={styles.label}>Introduce tu correo electrónico</Text>
             <TextInput
               style={styles.input}
@@ -79,6 +81,7 @@ const RestablecerMail = ({ onBack, onSuccess }) => {
               onChangeText={setNewEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              returnKeyType="done"
             />
 
             <TouchableOpacity style={styles.button} onPress={handleStep2}>
@@ -97,7 +100,7 @@ const RestablecerMail = ({ onBack, onSuccess }) => {
             <Text style={styles.emailDisplay}>
               {newEmail.substring(0, 2)}****@{newEmail.split('@')[1] || 'gmail.com'}
             </Text>
-            
+
             <Text style={styles.label}>Código de verificación</Text>
             <TextInput
               style={styles.input}
@@ -106,6 +109,8 @@ const RestablecerMail = ({ onBack, onSuccess }) => {
               value={emailCode}
               onChangeText={setEmailCode}
               keyboardType="numeric"
+              returnKeyType="done"
+              maxLength={6}
             />
 
             <TouchableOpacity style={styles.button} onPress={handleStep3}>
@@ -119,8 +124,10 @@ const RestablecerMail = ({ onBack, onSuccess }) => {
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboard}>
       <View style={styles.container}>
-        {renderStep()}
-        
+        <View style={styles.content}>
+          {renderStep()}
+        </View>
+
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Text style={styles.backText}>Volver</Text>
         </TouchableOpacity>
@@ -134,6 +141,12 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     paddingHorizontal: 0,
+    minHeight: 400, // Altura mínima para asegurar espacio
+  },
+  content: {
+    width: '100%',
+    alignItems: 'center',
+    flex: 1,
   },
   subtitle: {
     fontSize: 18,
@@ -201,6 +214,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginTop: 30,
+    paddingVertical: 10,
   },
   backText: {
     fontSize: 16,

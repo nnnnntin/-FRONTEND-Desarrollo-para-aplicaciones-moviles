@@ -39,7 +39,8 @@
           "cameraPermission": "La aplicación accede a tu cámara para permitirte tomar una foto de perfil."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-localization"
     ]
   }
 }

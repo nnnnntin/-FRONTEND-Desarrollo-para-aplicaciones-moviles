@@ -13,7 +13,7 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
       Alert.alert('Error', 'Por favor ingrese su correo electrónico');
       return;
     }
-    
+
     Alert.alert('Código enviado', `Se envió un código de seguridad a tu correo:\n${email.substring(0, 2)}****@${email.split('@')[1] || 'gmail.com'}`);
     setCurrentStep(2);
   };
@@ -41,7 +41,7 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
       Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
       return;
     }
-    
+
     Alert.alert('Éxito', 'Contraseña restablecida correctamente', [
       { text: 'OK', onPress: onSuccess }
     ]);
@@ -58,7 +58,7 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
           <>
             <Text style={styles.subtitle}>Recuperación de cuenta</Text>
             <Text style={styles.description}>Correo electrónico</Text>
-            
+
             <Text style={styles.label}>Introduce tu correo electrónico</Text>
             <TextInput
               style={styles.input}
@@ -68,6 +68,8 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              returnKeyType="next"
+              blurOnSubmit={false}
             />
 
             <TouchableOpacity style={styles.button} onPress={handleStep1}>
@@ -90,7 +92,7 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
             <Text style={styles.emailDisplay}>
               {email.substring(0, 2)}****@{email.split('@')[1] || 'gmail.com'}
             </Text>
-            
+
             <Text style={styles.label}>Código de seguridad</Text>
             <TextInput
               style={styles.input}
@@ -99,6 +101,8 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
               value={securityCode}
               onChangeText={setSecurityCode}
               keyboardType="numeric"
+              returnKeyType="done"
+              maxLength={6}
             />
 
             <TouchableOpacity style={styles.button} onPress={handleStep2}>
@@ -112,7 +116,7 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
           <>
             <Text style={styles.subtitle}>Recuperación de cuenta</Text>
             <Text style={styles.description}>Contraseña nueva</Text>
-            
+
             <Text style={styles.label}>Introduce tu contraseña</Text>
             <TextInput
               style={styles.input}
@@ -121,6 +125,8 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
               value={newPassword}
               onChangeText={setNewPassword}
               secureTextEntry
+              returnKeyType="next"
+              blurOnSubmit={false}
             />
 
             <Text style={styles.label}>Confirmar contraseña</Text>
@@ -131,6 +137,7 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
+              returnKeyType="done"
             />
 
             <TouchableOpacity style={styles.button} onPress={handleStep3}>
@@ -144,8 +151,10 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
   return (
     <TouchableWithoutFeedback onPress={dismissKeyboard}>
       <View style={styles.container}>
-        {renderStep()}
-        
+        <View style={styles.content}>
+          {renderStep()}
+        </View>
+
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Text style={styles.backText}>Volver</Text>
         </TouchableOpacity>
@@ -159,6 +168,12 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     paddingHorizontal: 0,
+    minHeight: 400, // Altura mínima para asegurar espacio
+  },
+  content: {
+    width: '100%',
+    alignItems: 'center',
+    flex: 1,
   },
   subtitle: {
     fontSize: 18,
@@ -226,6 +241,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginTop: 30,
+    paddingVertical: 10,
   },
   backText: {
     fontSize: 16,
@@ -235,6 +251,7 @@ const styles = StyleSheet.create({
   },
   forgotEmailButton: {
     marginTop: 20,
+    paddingVertical: 10,
   },
   forgotEmailText: {
     fontSize: 16,

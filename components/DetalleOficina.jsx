@@ -2,6 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
   Alert,
+  Image,
+  Modal,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -22,46 +24,52 @@ const DetalleOficina = ({ navigation, route }) => {
 
   const { oficina, esPropia } = route.params;
   const { tipoUsuario } = useSelector(state => state.usuario);
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({});
 
+  const [modalVisible, setModalVisible] = useState(false);
+  const hoyISO = new Date().toISOString().split('T')[0];
+  const [fechaInput, setFechaInput] = useState(hoyISO);
+  const [horaInicioInput, setHoraInicioInput] = useState('09:00');
+  const [horaFinInput, setHoraFinInput] = useState('17:00');
+  const [cantidadPersonas, setCantidadPersonas] = useState(1);
+  const [serviciosAdicionales, setServiciosAdicionales] = useState([]);
+
   const detallesOficina = {
     1: {
-      descripcion: "Reservar la mejor oficina panorámica de la ciudad. Moderno diseño moderno, excelente iluminación y servicios brindados.",
+      descripcion: "Reservar la mejor oficina panorámica de la ciudad. Moderno diseño minimalista, excepcional iluminación y servicios brindados.",
       amenidades: [
         "Café premium gratis",
         "Wi-Fi de alta velocidad",
         "Estacionamiento incluido"
       ],
       equipamiento: [
-        "Wi-Fi gratis",
-        "computadoras e impresoras",
-        "Proyector HD"
+        "Computadoras e Impresoras",
+        "Videoconferencias"
       ],
       extras: [
         "Vigilancia 24 hrs acceso",
-        "con código de seguridad",
-        "Sistema de alarma"
+        "controlado con tarjeta",
+        "de seguridad"
       ],
       capacidad: [
-        "Lunes - viernes",
-        "08:00-18:00",
-        "8 personas"
+        "Límite: máx 8 pers",
+        "Horario: 06:00 - 18:00",
+        "Lun - Dom"
       ],
       precio: "1200USD",
-      imagen: require('../assets/images/oficina-skyview.jpg') 
+      imagen: 'https://images.unsplash.com/photo-1497366216548-37526070297c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
     },
     2: {
       descripcion: "Oficina con vista privilegiada al horizonte. Espacio cómodo y funcional con todos los servicios necesarios para tu productividad.",
       amenidades: [
         "Café premium gratis",
-        "Wi-Fi de alta velocidad", 
+        "Wi-Fi de alta velocidad",
         "Estacionamiento gratuito"
       ],
       equipamiento: [
-        "Wi-Fi gratis",
-        "computadoras e impresoras",
+        "Computadoras e Impresoras",
         "Sistema audiovisual"
       ],
       extras: [
@@ -70,12 +78,12 @@ const DetalleOficina = ({ navigation, route }) => {
         "Cámaras de seguridad"
       ],
       capacidad: [
-        "Lunes - viernes",
-        "07:00-19:00",
-        "12 personas"
+        "Límite: máx 12 pers",
+        "Horario: 07:00 - 19:00",
+        "Lun - Vie"
       ],
       precio: "1500USD",
-      imagen: require('../assets/images/oficina-mirador.jpg')
+      imagen: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
     },
     3: {
       descripcion: "Ubicada en el corazón de la ciudad, perfecta para reuniones de negocios. Diseño elegante y profesional.",
@@ -85,8 +93,7 @@ const DetalleOficina = ({ navigation, route }) => {
         "Recepcionista"
       ],
       equipamiento: [
-        "Wi-Fi gratis",
-        "computadoras e impresoras",
+        "Computadoras e Impresoras",
         "Mesa de conferencias"
       ],
       extras: [
@@ -95,23 +102,111 @@ const DetalleOficina = ({ navigation, route }) => {
         "Seguridad privada"
       ],
       capacidad: [
-        "Lunes - sábado",
-        "06:00-20:00",
-        "6 personas"
+        "Límite: máx 6 pers",
+        "Horario: 06:00 - 20:00",
+        "Lun - Sáb"
       ],
       precio: "900USD",
-      imagen: require('../assets/images/oficina-mirador.jpg')
+      imagen: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
     }
   };
 
   const detalle = detallesOficina[oficina.id] || detallesOficina[1];
 
+  const serviciosDisponibles = [
+    { id: 1, nombre: 'Catering básico', precio: 15, unidad: 'persona' },
+    { id: 2, nombre: 'Proyector y pantalla', precio: 50, unidad: 'día' },
+    { id: 3, nombre: 'Servicio de café premium', precio: 5, unidad: 'persona' },
+    { id: 4, nombre: 'Estacionamiento adicional', precio: 20, unidad: 'día' }
+  ];
+
   const handleReservar = () => {
-    navigation.navigate('MetodosPago', {
-      modoSeleccion: true,
-      oficina: oficina,
-      precio: detalle.precio
+    setModalVisible(true);
+  };
+
+  const handleOfrecerServicios = () => {
+    navigation.navigate('OfrecerServicios', { oficina });
+  };
+
+  const toggleServicio = servicio => {
+    setServiciosAdicionales(prev => {
+      const existe = prev.find(s => s.id === servicio.id);
+      if (existe) return prev.filter(s => s.id !== servicio.id);
+      return [...prev, servicio];
     });
+  };
+
+  const calcularPrecioTotal = () => {
+    const precioBase = parseFloat(detalle.precio.replace('USD', ''));
+    const precioServicios = serviciosAdicionales.reduce((tot, s) => {
+      return tot + (s.unidad === 'persona'
+        ? s.precio * cantidadPersonas
+        : s.precio);
+    }, 0);
+    return precioBase + precioServicios;
+  };
+
+  const handleConfirmarReserva = () => {
+    const capacidadMaxima = parseInt(detalle.capacidad[0].split('máx ')[1].split(' pers')[0]);
+
+    if (cantidadPersonas > capacidadMaxima) {
+      Alert.alert('Error', `La capacidad máxima es de ${capacidadMaxima} personas`);
+      return;
+    }
+
+    const parts = fechaInput.split('-').map(n => parseInt(n, 10));
+    if (parts.length !== 3) {
+      Alert.alert('Error', 'Formato de fecha inválido (debe ser YYYY-MM-DD)');
+      return;
+    }
+    const [year, month, day] = parts;
+    const [hI, mI] = horaInicioInput.split(':').map(n => parseInt(n, 10));
+    const [hF, mF] = horaFinInput.split(':').map(n => parseInt(n, 10));
+
+    const inicio = new Date(year, month - 1, day, hI, mI);
+    const fin = new Date(year, month - 1, day, hF, mF);
+
+    if (isNaN(inicio) || isNaN(fin)) {
+      Alert.alert('Error', 'Hora inválida (debe ser HH:MM en 24h)');
+      return;
+    }
+    if (fin <= inicio) {
+      Alert.alert('Error', 'La hora de fin debe ser posterior a la hora de inicio');
+      return;
+    }
+
+    const disponible = true;
+    if (!disponible) {
+      Alert.alert('No disponible', 'Este espacio no está disponible en el horario seleccionado');
+      return;
+    }
+
+    const precioTotal = calcularPrecioTotal();
+    Alert.alert(
+      'Confirmar reserva',
+      `¿Confirmar reserva por ${precioTotal.toFixed(2)}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Confirmar',
+          onPress: () => {
+            setModalVisible(false);
+            navigation.navigate('MetodosPago', {
+              modoSeleccion: true,
+              oficina: oficina,
+              precio: precioTotal.toFixed(2),
+              datosReserva: {
+                fecha: fechaInput,
+                horaInicio: horaInicioInput,
+                horaFin: horaFinInput,
+                cantidadPersonas,
+                serviciosAdicionales
+              }
+            });
+          }
+        }
+      ]
+    );
   };
 
   const handleGoBack = () => {
@@ -123,7 +218,7 @@ const DetalleOficina = ({ navigation, route }) => {
       descripcion: detalle.descripcion,
       precio: detalle.precio,
       horario: detalle.capacidad[1],
-      capacidadPersonas: detalle.capacidad[2].split(' ')[0]
+      capacidadPersonas: detalle.capacidad[0].split('máx ')[1].split(' pers')[0]
     });
     setIsEditing(true);
   };
@@ -156,11 +251,13 @@ const DetalleOficina = ({ navigation, route }) => {
   const InfoSection = ({ title, items, iconName }) => (
     <View style={styles.infoSection}>
       <View style={styles.sectionHeader}>
-        <Ionicons name={iconName} size={20} color="#4a90e2" />
         <Text style={styles.sectionTitle}>{title}</Text>
       </View>
       {items.map((item, index) => (
-        <Text key={index} style={styles.infoItem}>• {item}</Text>
+        <View key={index} style={styles.infoItemContainer}>
+          <Ionicons name="checkmark-circle" size={12} color="#4a90e2" />
+          <Text style={styles.infoItem}>{item}</Text>
+        </View>
       ))}
     </View>
   );
@@ -168,14 +265,14 @@ const DetalleOficina = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
-      
+
       <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={handleGoBack} 
+        <TouchableOpacity
+          onPress={handleGoBack}
           style={styles.backButton}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={24} color="#4a90e2" />
+          <Ionicons name="arrow-back" size={24} color="#2c3e50" />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{oficina.nombre}</Text>
         {esPropia && tipoUsuario === 'cliente' && !isEditing && (
@@ -188,9 +285,13 @@ const DetalleOficina = ({ navigation, route }) => {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.imageContainer}>
-          <View style={[styles.imagePlaceholder, { backgroundColor: oficina.color }]}>
-            <Ionicons name="business" size={60} color="white" />
-            <Text style={styles.imageText}>{oficina.nombre}</Text>
+          <Image
+            source={{ uri: detalle.imagen }}
+            style={styles.espacioImage}
+            resizeMode="cover"
+          />
+          <View style={styles.imageOverlay}>
+            <Text style={styles.espacioNombreOverlay}>{oficina.nombre}</Text>
             {esPropia && (
               <View style={styles.propiaIndicator}>
                 <Text style={styles.propiaText}>Tu oficina</Text>
@@ -199,119 +300,309 @@ const DetalleOficina = ({ navigation, route }) => {
           </View>
         </View>
 
-        <View style={styles.section}>
+        <View style={styles.mainInfo}>
           <Text style={styles.sectionTitleMain}>Descripción</Text>
           {isEditing ? (
             <TextInput
               style={styles.editInput}
               value={editData.descripcion}
-              onChangeText={(text) => setEditData({...editData, descripcion: text})}
+              onChangeText={(text) => setEditData({ ...editData, descripcion: text })}
               multiline
               numberOfLines={4}
             />
           ) : (
             <Text style={styles.description}>{detalle.descripcion}</Text>
           )}
-        </View>
 
-        {!isEditing ? (
-          <>
-            <View style={styles.infoGrid}>
-              <View style={styles.infoRow}>
-                <InfoSection 
-                  title="Amenidades destacadas"
-                  items={detalle.amenidades}
-                  iconName="star"
-                />
-                <InfoSection 
-                  title="Equipamiento & Conectividad"
-                  items={detalle.equipamiento}
-                  iconName="laptop"
-                />
-              </View>
-              
-              <View style={styles.infoRow}>
-                <InfoSection 
-                  title="Extras & Seguridad"
-                  items={detalle.extras}
-                  iconName="shield-checkmark"
-                />
-                <InfoSection 
-                  title="Capacidad & Horario"
-                  items={detalle.capacidad}
-                  iconName="time"
-                />
-              </View>
-            </View>
+          {!isEditing ? (
+            <>
+              <View style={styles.infoGrid}>
+                <View style={styles.infoRow}>
+                  <InfoSection
+                    title="Amenidades Destacadas"
+                    items={detalle.amenidades}
+                    iconName="star"
+                  />
+                  <InfoSection
+                    title="Equipamiento & Conectividad"
+                    items={detalle.equipamiento}
+                    iconName="laptop"
+                  />
+                </View>
 
-            <View style={styles.bottomSection}>
-              <View style={styles.priceContainer}>
+                <View style={styles.infoRow}>
+                  <InfoSection
+                    title="Extras & Seguridad"
+                    items={detalle.extras}
+                    iconName="shield-checkmark"
+                  />
+                  <InfoSection
+                    title="Capacidad & Horario"
+                    items={detalle.capacidad}
+                    iconName="time"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.priceSection}>
                 <Text style={styles.priceLabel}>Precio</Text>
                 <Text style={styles.price}>{detalle.precio}</Text>
               </View>
-              
-              {(!esPropia || tipoUsuario !== 'cliente') && (
-                <TouchableOpacity 
-                  style={styles.reservarButton}
-                  onPress={handleReservar}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.reservarButtonText}>RESERVAR</Text>
-                </TouchableOpacity>
+
+              {esPropia && tipoUsuario === 'cliente' && (
+                <View style={styles.serviciosSection}>
+                  <Text style={styles.sectionTitleMain}>Servicios de tu espacio</Text>
+                  <View style={styles.serviciosContainer}>
+                    <View style={styles.serviciosTabs}>
+                      <TouchableOpacity
+                        style={[styles.servicioTab, styles.servicioTabActive]}
+                        onPress={() => navigation.navigate('ServiciosEspacio', { oficina })}
+                      >
+                        <Ionicons name="construct" size={20} color="#4a90e2" />
+                        <Text style={styles.servicioTabText}>Servicios incluidos</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.servicioTab}
+                        onPress={() => navigation.navigate('ServiciosOfrecidos', { oficina })}
+                      >
+                        <Ionicons name="people" size={20} color="#7f8c8d" />
+                        <Text style={[styles.servicioTabText, { color: '#7f8c8d' }]}>Proveedores externos</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.serviciosDescripcion}>
+                      Gestiona los servicios incluidos en tu espacio y los proveedores externos disponibles
+                    </Text>
+                  </View>
+                </View>
               )}
+            </>
+          ) : (
+            <View style={styles.editSection}>
+              <View style={styles.editField}>
+                <Text style={styles.editLabel}>Precio</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editData.precio}
+                  onChangeText={(text) => setEditData({ ...editData, precio: text })}
+                  placeholder="Ej: 1200USD"
+                />
+              </View>
+
+              <View style={styles.editField}>
+                <Text style={styles.editLabel}>Horario</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editData.horario}
+                  onChangeText={(text) => setEditData({ ...editData, horario: text })}
+                  placeholder="Ej: 08:00-18:00"
+                />
+              </View>
+
+              <View style={styles.editField}>
+                <Text style={styles.editLabel}>Capacidad (personas)</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editData.capacidadPersonas}
+                  onChangeText={(text) => setEditData({ ...editData, capacidadPersonas: text })}
+                  placeholder="Ej: 8"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={styles.editButtons}>
+                <TouchableOpacity
+                  style={[styles.editButtonStyle, styles.cancelButton]}
+                  onPress={handleCancel}
+                >
+                  <Text style={styles.cancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.editButtonStyle, styles.saveButton]}
+                  onPress={handleSave}
+                >
+                  <Text style={styles.saveButtonText}>Guardar</Text>
+                </TouchableOpacity>
+              </View>
             </View>
+          )}
+        </View>
+
+        {!isEditing && (
+          <>
+            {tipoUsuario === 'usuario' && !esPropia && (
+              <TouchableOpacity
+                style={styles.reservarButton}
+                onPress={handleReservar}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.reservarButtonText}>RESERVAR</Text>
+              </TouchableOpacity>
+            )}
+
+            {tipoUsuario === 'proveedor' && !esPropia && (
+              <TouchableOpacity
+                style={styles.ofrecerServiciosButton}
+                onPress={handleOfrecerServicios}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="construct" size={20} color="#fff" />
+                <Text style={styles.ofrecerServiciosButtonText}>OFRECER SERVICIOS</Text>
+              </TouchableOpacity>
+            )}
           </>
-        ) : (
-          <View style={styles.editSection}>
-            <View style={styles.editField}>
-              <Text style={styles.editLabel}>Precio</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editData.precio}
-                onChangeText={(text) => setEditData({...editData, precio: text})}
-                placeholder="Ej: 1200USD"
-              />
-            </View>
-
-            <View style={styles.editField}>
-              <Text style={styles.editLabel}>Horario</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editData.horario}
-                onChangeText={(text) => setEditData({...editData, horario: text})}
-                placeholder="Ej: 08:00-18:00"
-              />
-            </View>
-
-            <View style={styles.editField}>
-              <Text style={styles.editLabel}>Capacidad (personas)</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editData.capacidadPersonas}
-                onChangeText={(text) => setEditData({...editData, capacidadPersonas: text})}
-                placeholder="Ej: 8"
-                keyboardType="numeric"
-              />
-            </View>
-
-            <View style={styles.editButtons}>
-              <TouchableOpacity 
-                style={[styles.editButton, styles.cancelButton]}
-                onPress={handleCancel}
-              >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.editButton, styles.saveButton]}
-                onPress={handleSave}
-              >
-                <Text style={styles.saveButtonText}>Guardar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
         )}
+
+        <View style={styles.bottomSpacing} />
       </ScrollView>
+
+      {tipoUsuario === 'usuario' && (
+        <Modal
+          animationType="slide"
+          transparent={false}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#2c3e50" />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Reservar espacio</Text>
+              <View style={styles.placeholder} />
+            </View>
+
+            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+              <View style={styles.espacioInfoModal}>
+                <Text style={styles.espacioNombreModal}>{oficina.nombre}</Text>
+                <Text style={styles.espacioDireccionModal}>{oficina.direccion || 'Montevideo, Ciudad Vieja'}</Text>
+                <View style={styles.espacioDetallesModal}>
+                  <View style={styles.detalleItemModal}>
+                    <Ionicons name="people" size={16} color="#4a90e2" />
+                    <Text style={styles.detalleTextModal}>
+                      Hasta {parseInt(detalle.capacidad[0].split('máx ')[1].split(' pers')[0])} personas
+                    </Text>
+                  </View>
+                  <View style={styles.detalleItemModal}>
+                    <Ionicons name="pricetag" size={16} color="#27ae60" />
+                    <Text style={styles.detalleTextModal}>${detalle.precio}/día</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Fecha (YYYY-MM-DD)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={fechaInput}
+                  onChangeText={setFechaInput}
+                  placeholder="2025-06-20"
+                />
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Hora inicio (HH:MM)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={horaInicioInput}
+                  onChangeText={setHoraInicioInput}
+                  placeholder="09:00"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Hora fin (HH:MM)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={horaFinInput}
+                  onChangeText={setHoraFinInput}
+                  placeholder="17:00"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Cantidad de personas</Text>
+                <View style={styles.cantidadContainer}>
+                  <TouchableOpacity
+                    style={styles.cantidadButton}
+                    onPress={() => setCantidadPersonas(Math.max(1, cantidadPersonas - 1))}
+                  >
+                    <Ionicons name="remove" size={24} color="#4a90e2" />
+                  </TouchableOpacity>
+                  <Text style={styles.cantidadText}>{cantidadPersonas}</Text>
+                  <TouchableOpacity
+                    style={styles.cantidadButton}
+                    onPress={() => {
+                      const capacidadMaxima = parseInt(detalle.capacidad[0].split('máx ')[1].split(' pers')[0]);
+                      setCantidadPersonas(Math.min(capacidadMaxima, cantidadPersonas + 1));
+                    }}
+                  >
+                    <Ionicons name="add" size={24} color="#4a90e2" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Servicios adicionales</Text>
+                {serviciosDisponibles.map(s => (
+                  <TouchableOpacity
+                    key={s.id}
+                    style={[
+                      styles.servicioItem,
+                      serviciosAdicionales.some(x => x.id === s.id) && styles.servicioItemActive
+                    ]}
+                    onPress={() => toggleServicio(s)}
+                  >
+                    <View style={styles.servicioInfo}>
+                      <Text style={styles.servicioNombre}>{s.nombre}</Text>
+                      <Text style={styles.servicioPrecio}>
+                        ${s.precio}/{s.unidad}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={serviciosAdicionales.some(x => x.id === s.id) ? 'checkbox' : 'square-outline'}
+                      size={24}
+                      color="#4a90e2"
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.resumenSection}>
+                <Text style={styles.resumenTitle}>Resumen de reserva</Text>
+                <View style={styles.resumenItem}>
+                  <Text style={styles.resumenLabel}>Precio base</Text>
+                  <Text style={styles.resumenValue}>${detalle.precio.replace('USD', '')}</Text>
+                </View>
+                {serviciosAdicionales.map(s => (
+                  <View key={s.id} style={styles.resumenItem}>
+                    <Text style={styles.resumenLabel}>
+                      {s.nombre}{s.unidad === 'persona' && ` (x${cantidadPersonas})`}
+                    </Text>
+                    <Text style={styles.resumenValue}>
+                      ${s.unidad === 'persona' ? s.precio * cantidadPersonas : s.precio}
+                    </Text>
+                  </View>
+                ))}
+                <View style={[styles.resumenItem, styles.resumenTotal]}>
+                  <Text style={styles.resumenTotalLabel}>Total</Text>
+                  <Text style={styles.resumenTotalValue}>${calcularPrecioTotal().toFixed(2)}</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity style={styles.modalReservarButton} onPress={handleConfirmarReserva}>
+                <Text style={styles.modalReservarButtonText}>Continuar con el pago</Text>
+              </TouchableOpacity>
+              <View style={styles.bottomSpacing} />
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 };
@@ -344,7 +635,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#2c3e50',
-    fontFamily: 'System',
     flex: 1,
     textAlign: 'center',
     marginHorizontal: 10,
@@ -356,29 +646,32 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   imageContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  imagePlaceholder: {
-    width: '100%',
-    height: 250,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
     position: 'relative',
+    height: 250,
   },
-  imageText: {
-    color: 'white',
-    fontSize: 18,
+  espacioImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imageOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  espacioNombreOverlay: {
+    fontSize: 24,
     fontWeight: 'bold',
-    marginTop: 10,
-    textAlign: 'center',
+    color: '#fff',
+    flex: 1,
   },
   propiaIndicator: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: 'rgba(39, 174, 96, 0.9)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
@@ -386,89 +679,130 @@ const styles = StyleSheet.create({
   propiaText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#27ae60',
-    fontFamily: 'System',
+    color: '#fff',
   },
-  section: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+  mainInfo: {
+    backgroundColor: '#fff',
+    padding: 20,
   },
-  sectionTitleMain: {
-    fontSize: 20,
+  espacioNombre: {
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#2c3e50',
-    marginBottom: 10,
-    fontFamily: 'System',
+    marginBottom: 15,
+  },
+  sectionTitleMain: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 8,
+    marginTop: 5,
   },
   description: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#5a6c7d',
-    lineHeight: 24,
-    fontFamily: 'System',
+    lineHeight: 20,
+    marginBottom: 25,
   },
   infoGrid: {
-    paddingHorizontal: 20,
+    marginTop: 10,
   },
   infoRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 15,
+    gap: 10,
   },
   infoSection: {
     flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
     padding: 15,
-    marginHorizontal: 5,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: 10,
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#2c3e50',
-    marginLeft: 8,
-    fontFamily: 'System',
+  },
+  infoItemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   infoItem: {
     fontSize: 12,
     color: '#5a6c7d',
-    marginBottom: 4,
-    fontFamily: 'System',
+    marginLeft: 6,
+    flex: 1,
   },
-  bottomSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 30,
+  priceSection: {
+    marginTop: 20,
     alignItems: 'center',
-  },
-  priceContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
   },
   priceLabel: {
     fontSize: 16,
-    color: '#5a6c7d',
-    fontFamily: 'System',
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 5,
   },
   price: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#2c3e50',
-    fontFamily: 'System',
+    color: '#4a90e2',
+  },
+  serviciosSection: {
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#ecf0f1',
+  },
+  serviciosContainer: {
+    marginTop: 10,
+  },
+  serviciosTabs: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 15,
+  },
+  servicioTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+    gap: 8,
+  },
+  servicioTabActive: {
+    backgroundColor: '#e3f2fd',
+    borderColor: '#4a90e2',
+  },
+  servicioTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4a90e2',
+  },
+  serviciosDescripcion: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   reservarButton: {
     backgroundColor: '#4a90e2',
-    paddingVertical: 15,
-    paddingHorizontal: 60,
+    marginHorizontal: 20,
+    marginTop: 20,
+    paddingVertical: 16,
     borderRadius: 8,
+    alignItems: 'center',
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -479,11 +813,30 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-    fontFamily: 'System',
+  },
+  ofrecerServiciosButton: {
+    backgroundColor: '#27ae60',
+    marginHorizontal: 20,
+    marginTop: 20,
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  ofrecerServiciosButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   editSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 30,
+    marginTop: 20,
   },
   editField: {
     marginBottom: 20,
@@ -493,18 +846,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#2c3e50',
     marginBottom: 8,
-    fontFamily: 'System',
   },
   editInput: {
-    backgroundColor: '#fff',
+    backgroundColor: '#f8f9fa',
     borderRadius: 8,
     paddingHorizontal: 15,
     paddingVertical: 12,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: '#e1e5e9',
     color: '#2c3e50',
-    fontFamily: 'System',
   },
   editButtons: {
     flexDirection: 'row',
@@ -512,21 +863,19 @@ const styles = StyleSheet.create({
     marginTop: 30,
     gap: 15,
   },
-  cancelButton: {
+  editButtonStyle: {
     flex: 1,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#dee2e6',
     paddingVertical: 15,
     borderRadius: 8,
     alignItems: 'center',
   },
+  cancelButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+  },
   saveButton: {
-    flex: 1,
     backgroundColor: '#4a90e2',
-    paddingVertical: 15,
-    borderRadius: 8,
-    alignItems: 'center',
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -537,13 +886,204 @@ const styles = StyleSheet.create({
     color: '#6c757d',
     fontSize: 16,
     fontWeight: '600',
-    fontFamily: 'System',
   },
   saveButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-    fontFamily: 'System',
+  },
+  bottomSpacing: {
+    height: 30,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: '#fff',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  modalCloseButton: {
+    padding: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 10,
+  },
+  modalContent: {
+    flex: 1,
+  },
+  espacioInfoModal: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ecf0f1',
+  },
+  espacioNombreModal: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 5,
+  },
+  espacioDireccionModal: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    marginBottom: 10,
+  },
+  espacioDetallesModal: {
+    flexDirection: 'row',
+    gap: 20,
+  },
+  detalleItemModal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  detalleTextModal: {
+    fontSize: 14,
+    color: '#5a6c7d',
+  },
+  section: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ecf0f1',
+  },
+  input: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+    fontSize: 16,
+  },
+  cantidadContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
+  },
+  cantidadButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+  },
+  cantidadText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    minWidth: 40,
+    textAlign: 'center',
+  },
+  servicioItem: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+  },
+  servicioItemActive: {
+    borderColor: '#4a90e2',
+    backgroundColor: '#f0f8ff',
+  },
+  servicioInfo: {
+    flex: 1,
+  },
+  servicioNombre: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  servicioPrecio: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    marginTop: 2,
+  },
+  resumenSection: {
+    backgroundColor: '#fff',
+    margin: 20,
+    padding: 20,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  resumenTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 15,
+  },
+  resumenItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  resumenLabel: {
+    fontSize: 14,
+    color: '#5a6c7d',
+  },
+  resumenValue: {
+    fontSize: 14,
+    color: '#2c3e50',
+  },
+  resumenTotal: {
+    borderTopWidth: 1,
+    borderTopColor: '#ecf0f1',
+    paddingTop: 10,
+    marginTop: 10,
+  },
+  resumenTotalLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+  },
+  resumenTotalValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#4a90e2',
+  },
+  modalReservarButton: {
+    backgroundColor: '#4a90e2',
+    marginHorizontal: 20,
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  modalReservarButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

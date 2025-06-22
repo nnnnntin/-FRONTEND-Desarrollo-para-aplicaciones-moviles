@@ -1,7 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { 
+  Alert, 
+  Image, 
+  ScrollView, 
+  StyleSheet, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  View,
+  KeyboardAvoidingView,
+  Platform
+} from 'react-native';
+
+const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
+const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
 const Registro = ({ navigation }) => {
   const [nombre, setNombre] = useState('');
@@ -11,7 +25,9 @@ const Registro = ({ navigation }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [tipoUsuario, setTipoUsuario] = useState('usuario');
   const [nombreEmpresa, setNombreEmpresa] = useState('');
+  const [tipoServicio, setTipoServicio] = useState('');
   const [profileImage, setProfileImage] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const irLogin = () => {
     navigation.navigate('login');
@@ -28,10 +44,28 @@ const Registro = ({ navigation }) => {
       return;
     }
 
+    if (tipoUsuario === 'proveedor' && !tipoServicio) {
+      Alert.alert('Error', 'Por favor ingrese el tipo de servicio que ofrece');
+      return;
+    }
+
     if (password !== confirmPassword) {
       Alert.alert('Error', 'Las contraseñas no coinciden');
       return;
     }
+
+    const registrationData = {
+      nombre,
+      cedula,
+      email,
+      password,
+      tipoUsuario,
+      profileImage, 
+      ...(tipoUsuario === 'cliente' && { nombreEmpresa }),
+      ...(tipoUsuario === 'proveedor' && { tipoServicio })
+    };
+
+    console.log('Registration data:', registrationData);
 
     Alert.alert('Éxito', `Registro exitoso como ${tipoUsuario}`, [
       { text: 'OK', onPress: irLogin }
@@ -64,11 +98,43 @@ const Registro = ({ navigation }) => {
     return true;
   };
 
+  const uploadToCloudinary = async (imageUri) => {
+    const formData = new FormData();
+    
+    formData.append('file', {
+      uri: imageUri,
+      name: 'profile_registration.jpeg',
+      type: 'image/jpeg'
+    });
+    
+    formData.append('upload_preset', UPLOAD_PRESET);
+    
+    try {
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      const data = await response.json();
+      
+      if (data.secure_url) {
+        return data.secure_url;
+      } else {
+        throw new Error('Error al subir imagen a Cloudinary');
+      }
+    } catch (error) {
+      console.error('Error uploading to Cloudinary:', error);
+      throw error;
+    }
+  };
+
   const takePhoto = async () => {
     const hasPermission = await requestCameraPermission();
     if (!hasPermission) return;
 
     try {
+      setUploadingImage(true);
+      
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -77,10 +143,14 @@ const Registro = ({ navigation }) => {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setProfileImage(result.assets[0].uri);
+        const cloudinaryUrl = await uploadToCloudinary(result.assets[0].uri);
+        setProfileImage(cloudinaryUrl);
+        Alert.alert('Éxito', 'Foto subida correctamente');
       }
     } catch (error) {
       Alert.alert('Error', 'No se pudo tomar la foto');
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -89,6 +159,8 @@ const Registro = ({ navigation }) => {
     if (!hasPermission) return;
 
     try {
+      setUploadingImage(true);
+      
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -97,14 +169,20 @@ const Registro = ({ navigation }) => {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setProfileImage(result.assets[0].uri);
+        const cloudinaryUrl = await uploadToCloudinary(result.assets[0].uri);
+        setProfileImage(cloudinaryUrl);
+        Alert.alert('Éxito', 'Foto subida correctamente');
       }
     } catch (error) {
       Alert.alert('Error', 'No se pudo seleccionar la foto');
+    } finally {
+      setUploadingImage(false);
     }
   };
 
   const showImageOptions = () => {
+    if (uploadingImage) return;
+    
     Alert.alert(
       'Seleccionar foto de perfil',
       'Selecciona una opción',
@@ -127,150 +205,209 @@ const Registro = ({ navigation }) => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <View style={styles.container}>
-        <Image 
-          source={require('../assets/images/logo.png')} 
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        
-        <Text style={styles.title}>Officereserve</Text>
-        <Text style={styles.subtitle}>Registrarse</Text>
+    <KeyboardAvoidingView 
+      style={styles.keyboardAvoidingView} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.container}>
+          <Image
+            source={require('../assets/images/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
 
-        <TouchableOpacity onPress={showImageOptions} style={styles.photoContainer}>
-          {profileImage ? (
-            <Image source={{ uri: profileImage }} style={styles.profileImage} />
-          ) : (
-            <View style={styles.photoPlaceholder}>
-              <Ionicons name="camera" size={40} color="#7f8c8d" />
-              <Text style={styles.photoText}>Agregar foto</Text>
+          <Text style={styles.title}>Officereserve</Text>
+          <Text style={styles.subtitle}>Registrarse</Text>
+
+          <TouchableOpacity onPress={showImageOptions} style={styles.photoContainer} disabled={uploadingImage}>
+            {uploadingImage ? (
+              <View style={styles.photoPlaceholder}>
+                <Text style={styles.uploadingText}>Subiendo...</Text>
+              </View>
+            ) : profileImage ? (
+              <Image source={{ uri: profileImage }} style={styles.profileImage} />
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <Ionicons name="camera" size={40} color="#7f8c8d" />
+                <Text style={styles.photoText}>Agregar foto</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.tipoUsuarioContainer}>
+            <Text style={styles.label}>Registrarse como:</Text>
+            <View style={styles.tipoUsuarioButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.tipoUsuarioButton,
+                  tipoUsuario === 'usuario' && styles.tipoUsuarioButtonActive
+                ]}
+                onPress={() => setTipoUsuario('usuario')}
+              >
+                <Text style={[
+                  styles.tipoUsuarioButtonText,
+                  tipoUsuario === 'usuario' && styles.tipoUsuarioButtonTextActive
+                ]}>
+                  Usuario
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.tipoUsuarioButton,
+                  tipoUsuario === 'cliente' && styles.tipoUsuarioButtonActive
+                ]}
+                onPress={() => setTipoUsuario('cliente')}
+              >
+                <Text style={[
+                  styles.tipoUsuarioButtonText,
+                  tipoUsuario === 'cliente' && styles.tipoUsuarioButtonTextActive
+                ]}>
+                  Cliente
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.tipoUsuarioButton,
+                  tipoUsuario === 'proveedor' && styles.tipoUsuarioButtonActive
+                ]}
+                onPress={() => setTipoUsuario('proveedor')}
+              >
+                <Text style={[
+                  styles.tipoUsuarioButtonText,
+                  tipoUsuario === 'proveedor' && styles.tipoUsuarioButtonTextActive
+                ]}>
+                  Proveedor
+                </Text>
+              </TouchableOpacity>
             </View>
+          </View>
+
+          <View style={styles.rowContainer}>
+            <View style={styles.halfInputContainer}>
+              <Text style={styles.label}>Nombre</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Nombre completo"
+                placeholderTextColor="#999"
+                value={nombre}
+                onChangeText={setNombre}
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+            </View>
+            <View style={styles.halfInputContainer}>
+              <Text style={styles.label}>Cédula</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Cédula"
+                placeholderTextColor="#999"
+                value={cedula}
+                onChangeText={setCedula}
+                keyboardType="numeric"
+                returnKeyType="next"
+                blurOnSubmit={false}
+                maxLength={10}
+              />
+            </View>
+          </View>
+
+          {tipoUsuario === 'cliente' && (
+            <>
+              <Text style={styles.label}>Nombre de la empresa</Text>
+              <TextInput
+                style={styles.fullInput}
+                placeholder="Nombre de tu empresa"
+                placeholderTextColor="#999"
+                value={nombreEmpresa}
+                onChangeText={setNombreEmpresa}
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+            </>
           )}
-        </TouchableOpacity>
 
-        <View style={styles.tipoUsuarioContainer}>
-          <Text style={styles.label}>Registrarse como:</Text>
-          <View style={styles.tipoUsuarioButtons}>
-            <TouchableOpacity
-              style={[
-                styles.tipoUsuarioButton,
-                tipoUsuario === 'usuario' && styles.tipoUsuarioButtonActive
-              ]}
-              onPress={() => setTipoUsuario('usuario')}
-            >
-              <Text style={[
-                styles.tipoUsuarioButtonText,
-                tipoUsuario === 'usuario' && styles.tipoUsuarioButtonTextActive
-              ]}>
-                Usuario
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[
-                styles.tipoUsuarioButton,
-                tipoUsuario === 'cliente' && styles.tipoUsuarioButtonActive
-              ]}
-              onPress={() => setTipoUsuario('cliente')}
-            >
-              <Text style={[
-                styles.tipoUsuarioButtonText,
-                tipoUsuario === 'cliente' && styles.tipoUsuarioButtonTextActive
-              ]}>
-                Cliente/Empresa
-              </Text>
-            </TouchableOpacity>
-          </View>
+          {tipoUsuario === 'proveedor' && (
+            <>
+              <Text style={styles.label}>Tipo de servicio</Text>
+              <TextInput
+                style={styles.fullInput}
+                placeholder="Ej: Limpieza, Catering, Seguridad, etc."
+                placeholderTextColor="#999"
+                value={tipoServicio}
+                onChangeText={setTipoServicio}
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+            </>
+          )}
+
+          <Text style={styles.label}>Correo electrónico</Text>
+          <TextInput
+            style={styles.fullInput}
+            placeholder="Introduce tu correo electrónico"
+            placeholderTextColor="#999"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            returnKeyType="next"
+            blurOnSubmit={false}
+          />
+
+          <Text style={styles.label}>Contraseña</Text>
+          <TextInput
+            style={styles.fullInput}
+            placeholder="Introduce tu contraseña"
+            placeholderTextColor="#999"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            returnKeyType="next"
+            blurOnSubmit={false}
+          />
+
+          <Text style={styles.label}>Confirmar contraseña</Text>
+          <TextInput
+            style={styles.fullInput}
+            placeholder="Confirme su contraseña"
+            placeholderTextColor="#999"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+            returnKeyType="done"
+          />
+
+          <TouchableOpacity style={styles.button} onPress={registrarse}>
+            <Text style={styles.buttonText}>Registrarse</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={irLogin} style={styles.backContainer}>
+            <Text style={styles.backLink}>Volver</Text>
+          </TouchableOpacity>
         </View>
-
-        <View style={styles.rowContainer}>
-          <View style={styles.halfInputContainer}>
-            <Text style={styles.label}>Nombre</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Nombre completo"
-              placeholderTextColor="#999"
-              value={nombre}
-              onChangeText={setNombre}
-            />
-          </View>
-          <View style={styles.halfInputContainer}>
-            <Text style={styles.label}>Cédula</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Cédula"
-              placeholderTextColor="#999"
-              value={cedula}
-              onChangeText={setCedula}
-              keyboardType="numeric"
-            />
-          </View>
-        </View>
-
-        {tipoUsuario === 'cliente' && (
-          <>
-            <Text style={styles.label}>Nombre de la empresa</Text>
-            <TextInput
-              style={styles.fullInput}
-              placeholder="Nombre de tu empresa"
-              placeholderTextColor="#999"
-              value={nombreEmpresa}
-              onChangeText={setNombreEmpresa}
-            />
-          </>
-        )}
-
-        <Text style={styles.label}>Correo electrónico</Text>
-        <TextInput
-          style={styles.fullInput}
-          placeholder="Introduce tu correo electrónico"
-          placeholderTextColor="#999"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-
-        <Text style={styles.label}>Contraseña</Text>
-        <TextInput
-          style={styles.fullInput}
-          placeholder="Introduce tu contraseña"
-          placeholderTextColor="#999"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-
-        <Text style={styles.label}>Confirmar contraseña</Text>
-        <TextInput
-          style={styles.fullInput}
-          placeholder="Confirme su contraseña"
-          placeholderTextColor="#999"
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry
-        />
-
-        <TouchableOpacity style={styles.button} onPress={registrarse}>
-          <Text style={styles.buttonText}>Registrarse</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={irLogin} style={styles.backContainer}>
-          <Text style={styles.backLink}>Volver</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
+  keyboardAvoidingView: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
   scrollContainer: {
     flexGrow: 1,
+    paddingBottom: 20,
   },
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
     paddingHorizontal: 30,
     paddingVertical: 40,
     alignItems: 'center',
@@ -318,6 +455,11 @@ const styles = StyleSheet.create({
     marginTop: 5,
     fontFamily: 'System',
   },
+  uploadingText: {
+    fontSize: 14,
+    color: '#4a90e2',
+    fontFamily: 'System',
+  },
   tipoUsuarioContainer: {
     width: '100%',
     marginBottom: 20,
@@ -325,13 +467,13 @@ const styles = StyleSheet.create({
   tipoUsuarioButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: 8,
     marginTop: 8,
   },
   tipoUsuarioButton: {
     flex: 1,
     paddingVertical: 10,
-    paddingHorizontal: 15,
+    paddingHorizontal: 12,
     borderRadius: 8,
     backgroundColor: '#fff',
     borderWidth: 2,
@@ -343,7 +485,7 @@ const styles = StyleSheet.create({
     borderColor: '#4a90e2',
   },
   tipoUsuarioButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#7f8c8d',
     fontWeight: '600',
     fontFamily: 'System',

@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import {
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 const DetalleReserva = ({ navigation, route }) => {
@@ -38,7 +38,7 @@ const DetalleReserva = ({ navigation, route }) => {
 
     let oficinaId = 1;
     let oficinaColor = '#4a90e2';
-    
+
     if (reserva.oficina.nombre.includes('Skyview')) {
       oficinaId = 1;
       oficinaColor = '#27ae60';
@@ -49,13 +49,13 @@ const DetalleReserva = ({ navigation, route }) => {
       oficinaId = 3;
       oficinaColor = '#8e44ad';
     }
-    
+
     const oficinaParaDetalle = {
       id: oficinaId,
       nombre: reserva.oficina.nombre,
       color: oficinaColor
     };
-    
+
     navigation.navigate('DetalleOficina', { oficina: oficinaParaDetalle });
   };
 
@@ -66,10 +66,10 @@ const DetalleReserva = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
-      
+
       <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={handleGoBack} 
+        <TouchableOpacity
+          onPress={handleGoBack}
           style={styles.backButton}
           activeOpacity={0.7}
         >
@@ -97,7 +97,7 @@ const DetalleReserva = ({ navigation, route }) => {
 
         <View style={styles.infoSection}>
           <Text style={styles.infoSectionTitle}>Información:</Text>
-          
+
           <View style={styles.infoContainer}>
             <Text style={styles.infoText}>
               <Text style={styles.infoBold}>Reserva válida hasta {detalleReserva.validaHasta}</Text> por{' '}
@@ -105,21 +105,21 @@ const DetalleReserva = ({ navigation, route }) => {
               <Text style={styles.infoBold}>{reserva.fechaReserva}</Text> con{' '}
               <Text style={styles.infoBold}>{detalleReserva.metodoPago}</Text>.
             </Text>
-            
+
             <Text style={styles.infoText}>
               <Text style={styles.infoBold}>Capacidad para:</Text> {detalleReserva.capacidad}.
             </Text>
-            
+
             <Text style={styles.infoText}>
               <Text style={styles.infoBold}>Ubicación:</Text> {detalleReserva.ubicacion}.
             </Text>
-            
+
             <Text style={styles.infoText}>
               <Text style={styles.infoBold}>Horario:</Text> {detalleReserva.horario}.
             </Text>
           </View>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.verPublicacionContainer}
             onPress={handleVerPublicacion}
             activeOpacity={0.7}
@@ -132,7 +132,7 @@ const DetalleReserva = ({ navigation, route }) => {
       </ScrollView>
 
       <View style={styles.bottomButtonContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.inicioButton}
           onPress={handleIrInicio}
           activeOpacity={0.8}
