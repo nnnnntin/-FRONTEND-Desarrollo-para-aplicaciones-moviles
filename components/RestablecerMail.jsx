@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     paddingHorizontal: 0,
-    minHeight: 400, // Altura mínima para asegurar espacio
+    minHeight: 400,
   },
   content: {
     width: '100%',

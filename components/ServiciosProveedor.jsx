@@ -309,12 +309,6 @@ const ServiciosProveedor = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#2c3e50" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mis servicios</Text>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('CrearServicio')}
-          style={styles.addButton}
-        >
-          <Ionicons name="add" size={24} color="#4a90e2" />
-        </TouchableOpacity>
       </View>
 
       <View style={styles.proveedorInfo}>

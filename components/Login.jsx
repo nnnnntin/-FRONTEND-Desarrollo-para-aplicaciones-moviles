@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: '100%', // Asegura que ocupe toda la altura disponible
+    minHeight: '100%', 
   },
   logo: {
     width: 120,

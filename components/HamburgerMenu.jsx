@@ -160,12 +160,6 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
       return [
         ...baseItems,
         {
-          id: 4,
-          title: 'Mis espacios',
-          icon: 'business-outline',
-          onPress: () => handleNavigation('InicioMain')
-        },
-        {
           id: 5,
           title: 'Crear publicación',
           icon: 'add-circle-outline',

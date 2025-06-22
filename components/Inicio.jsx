@@ -356,16 +356,6 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
           </TouchableOpacity>
         )}
 
-        {tipoUsuario === 'proveedor' && (
-          <TouchableOpacity
-            style={styles.crearServicioButton}
-            onPress={handleCrearServicio}
-          >
-            <Ionicons name="construct" size={24} color="#fff" />
-            <Text style={styles.crearServicioText}>Ofrecer nuevo servicio</Text>
-          </TouchableOpacity>
-        )}
-
         {oficinas.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons

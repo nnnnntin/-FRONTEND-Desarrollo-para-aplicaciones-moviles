@@ -12,46 +12,73 @@ import {
   View
 } from 'react-native';
 
-const EstadoPago = ({ estado, onContinuar, oficina, precio, onVerDetalles, onReportarProblema }) => {
+const EstadoPago = ({ estado, onContinuar, oficina, precio, onVerDetalles, onReportarProblema, modoSuscripcion, planSuscripcion }) => {
   const renderContent = () => {
     switch (estado) {
       case 'procesando':
         return (
           <View style={styles.estadoContainer}>
             <ActivityIndicator size={80} color="#4a90e2" />
-            <Text style={styles.estadoTitulo}>Procesando pago...</Text>
+            <Text style={styles.estadoTitulo}>
+              {modoSuscripcion ? 'Procesando suscripción...' : 'Procesando pago...'}
+            </Text>
             <Text style={styles.estadoSubtitulo}>Por favor espere</Text>
           </View>
         );
 
       case 'confirmado':
-        return (
-          <View style={styles.estadoContainer}>
-            <View style={[styles.estadoIcono, styles.estadoExito]}>
-              <Ionicons name="checkmark" size={50} color="white" />
+        if (modoSuscripcion) {
+          return (
+            <View style={styles.estadoContainer}>
+              <View style={[styles.estadoIcono, styles.estadoExito]}>
+                <Ionicons name="checkmark" size={50} color="white" />
+              </View>
+              <Text style={styles.estadoTitulo}>¡Suscripción completada!</Text>
+              <Text style={styles.estadoSubtitulo}>
+                Ahora tienes acceso al plan {planSuscripcion?.nombre}
+              </Text>
+              <View style={styles.detallesSuscripcion}>
+                <Text style={styles.detalleItem}>Plan: {planSuscripcion?.nombre}</Text>
+                <Text style={styles.detalleItem}>Precio: {planSuscripcion?.precio}/{planSuscripcion?.periodo}</Text>
+                <Text style={styles.detalleItem}>Próximo cobro: {new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.botonContinuar}
+                onPress={onContinuar}
+              >
+                <Text style={styles.textoBotonContinuar}>Continuar</Text>
+              </TouchableOpacity>
             </View>
-            <Text style={styles.estadoTitulo}>Pago confirmado</Text>
-            <View style={styles.detallesReserva}>
-              <Text style={styles.detalleItem}>Reservaste: {oficina?.nombre}</Text>
-              <Text style={styles.detalleItem}>Capacidad: 8 personas</Text>
-              <Text style={styles.detalleItem}>Horario: 13:00 - 18:00</Text>
-              <Text style={styles.detalleItem}>Ubicación: Montevideo, Ciudad Vieja ***</Text>
+          );
+        } else {
+          return (
+            <View style={styles.estadoContainer}>
+              <View style={[styles.estadoIcono, styles.estadoExito]}>
+                <Ionicons name="checkmark" size={50} color="white" />
+              </View>
+              <Text style={styles.estadoTitulo}>Pago confirmado</Text>
+              <View style={styles.detallesReserva}>
+                <Text style={styles.detalleItem}>Reservaste: {oficina?.nombre}</Text>
+                <Text style={styles.detalleItem}>Capacidad: 8 personas</Text>
+                <Text style={styles.detalleItem}>Horario: 13:00 - 18:00</Text>
+                <Text style={styles.detalleItem}>Ubicación: Montevideo, Ciudad Vieja ***</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.botonDetalles}
+                onPress={onVerDetalles}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.textoBotonDetalles}>Ver detalles</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.botonContinuar}
+                onPress={onContinuar}
+              >
+                <Text style={styles.textoBotonContinuar}>Continuar</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={styles.botonDetalles}
-              onPress={onVerDetalles}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.textoBotonDetalles}>Ver detalles</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.botonContinuar}
-              onPress={onContinuar}
-            >
-              <Text style={styles.textoBotonContinuar}>Continuar</Text>
-            </TouchableOpacity>
-          </View>
-        );
+          );
+        }
 
       case 'error':
         return (
@@ -59,7 +86,9 @@ const EstadoPago = ({ estado, onContinuar, oficina, precio, onVerDetalles, onRep
             <View style={[styles.estadoIcono, styles.estadoError]}>
               <Ionicons name="close" size={50} color="white" />
             </View>
-            <Text style={styles.estadoTitulo}>Error en el pago</Text>
+            <Text style={styles.estadoTitulo}>
+              {modoSuscripcion ? 'Error en la suscripción' : 'Error en el pago'}
+            </Text>
             <Text style={styles.estadoSubtitulo}>Reintentar</Text>
             <TouchableOpacity
               style={styles.problemaLink}
@@ -116,7 +145,14 @@ const MetodosPago = ({ navigation, route }) => {
   const [estadoPago, setEstadoPago] = useState(null);
   const [transaccionActual, setTransaccionActual] = useState(null);
 
-  const { modoSeleccion = false, oficina, precio } = route?.params || {};
+  const { 
+    modoSeleccion = false, 
+    modoSuscripcion = false, 
+    planSuscripcion = null,
+    oficina, 
+    precio,
+    descripcion
+  } = route?.params || {};
 
   const handleGoBack = () => {
     if (estadoPago) {
@@ -152,9 +188,13 @@ const MetodosPago = ({ navigation, route }) => {
 
   const handleSeleccionarTarjeta = (tarjeta) => {
     if (modoSeleccion) {
+      const mensaje = modoSuscripcion 
+        ? `¿Confirmas la suscripción al plan ${planSuscripcion?.nombre} por ${precio} con la tarjeta ${tarjeta.tipo} •••• ${tarjeta.ultimosCuatroDigitos}?`
+        : `¿Confirmas el pago de ${precio} con la tarjeta ${tarjeta.tipo} •••• ${tarjeta.ultimosCuatroDigitos}?`;
+
       Alert.alert(
-        'Confirmar Pago',
-        `¿Confirmas el pago de ${precio} con la tarjeta ${tarjeta.tipo} •••• ${tarjeta.ultimosCuatroDigitos}?`,
+        modoSuscripcion ? 'Confirmar Suscripción' : 'Confirmar Pago',
+        mensaje,
         [
           {
             text: 'Cancelar',
@@ -177,12 +217,14 @@ const MetodosPago = ({ navigation, route }) => {
 
       if (exito) {
         setEstadoPago('confirmado');
-        setTransaccionActual({
-          fecha: new Date().toLocaleDateString('es-ES'),
-          precio: precio,
-          oficina: oficina,
-          tarjeta: tarjeta
-        });
+        if (!modoSuscripcion) {
+          setTransaccionActual({
+            fecha: new Date().toLocaleDateString('es-ES'),
+            precio: precio,
+            oficina: oficina,
+            tarjeta: tarjeta
+          });
+        }
       } else {
         setEstadoPago('error');
       }
@@ -191,7 +233,11 @@ const MetodosPago = ({ navigation, route }) => {
 
   const handleContinuar = () => {
     if (estadoPago === 'confirmado') {
-      navigation.navigate('InicioMain');
+      if (modoSuscripcion) {
+        navigation.navigate('Membresias');
+      } else {
+        navigation.navigate('InicioMain');
+      }
     } else if (estadoPago === 'error') {
       setEstadoPago(null);
     }
@@ -240,6 +286,8 @@ const MetodosPago = ({ navigation, route }) => {
         precio={precio}
         onVerDetalles={handleVerDetalles}
         onReportarProblema={handleReportarProblema}
+        modoSuscripcion={modoSuscripcion}
+        planSuscripcion={planSuscripcion}
       />
     );
   }
@@ -263,11 +311,23 @@ const MetodosPago = ({ navigation, route }) => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {modoSeleccion && oficina && (
+        {modoSeleccion && (
           <View style={styles.reservaInfo}>
-            <Text style={styles.reservaTitulo}>Resumen de la reserva</Text>
-            <Text style={styles.reservaDetalle}>Oficina: {oficina.nombre}</Text>
-            <Text style={styles.reservaDetalle}>Precio: {precio}</Text>
+            <Text style={styles.reservaTitulo}>
+              {modoSuscripcion ? 'Resumen de la suscripción' : 'Resumen de la reserva'}
+            </Text>
+            {modoSuscripcion ? (
+              <>
+                <Text style={styles.reservaDetalle}>Plan: {planSuscripcion?.nombre}</Text>
+                <Text style={styles.reservaDetalle}>Precio: {precio}</Text>
+                <Text style={styles.reservaDetalle}>Descripción: {descripcion}</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.reservaDetalle}>Oficina: {oficina?.nombre}</Text>
+                <Text style={styles.reservaDetalle}>Precio: {precio}</Text>
+              </>
+            )}
           </View>
         )}
 
@@ -586,6 +646,20 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+  },
+  detallesSuscripcion: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 12,
+    marginVertical: 20,
+    width: '100%',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    borderLeftWidth: 4,
+    borderLeftColor: '#27ae60',
   },
   detalleItem: {
     fontSize: 14,

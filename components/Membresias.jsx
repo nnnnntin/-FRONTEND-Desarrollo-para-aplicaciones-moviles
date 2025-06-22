@@ -77,31 +77,13 @@ const Membresias = ({ navigation }) => {
       return;
     }
 
-    Alert.alert(
-      'Confirmar suscripción',
-      `¿Deseas suscribirte al plan ${plan.nombre} por ${plan.precio}/${plan.periodo}?`,
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Confirmar',
-          onPress: () => {
-            dispatch(actualizarMembresia({
-              id: plan.id,
-              nombre: plan.nombre,
-              precio: plan.precio,
-              activa: true,
-              fechaInicio: new Date().toISOString(),
-              fechaProximoPago: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-            }));
-            Alert.alert('¡Éxito!', `Te has suscrito al plan ${plan.nombre}`);
-            setSelectedPlan(plan.id);
-          },
-        },
-      ]
-    );
+    navigation.navigate('MetodosPago', {
+      modoSeleccion: true,
+      modoSuscripcion: true,
+      planSuscripcion: plan,
+      precio: plan.precio,
+      descripcion: `Plan ${plan.nombre}`
+    });
   };
 
   const handleCancelarMembresia = () => {
@@ -124,6 +106,18 @@ const Membresias = ({ navigation }) => {
         },
       ]
     );
+  };
+
+  const completarSuscripcion = (plan) => {
+    dispatch(actualizarMembresia({
+      id: plan.id,
+      nombre: plan.nombre,
+      precio: plan.precio,
+      activa: true,
+      fechaInicio: new Date().toISOString(),
+      fechaProximoPago: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    }));
+    setSelectedPlan(plan.id);
   };
 
   const renderPlan = (plan) => {
