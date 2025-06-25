@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -11,6 +12,12 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  actualizarMetodoPagoPredeterminado,
+  eliminarMetodoPago,
+  obtenerMetodosPagoUsuario
+} from '../store/slices/usuarioSlice';
 
 const EstadoPago = ({ estado, onContinuar, oficina, precio, onVerDetalles, onReportarProblema, modoSuscripcion, planSuscripcion }) => {
   const renderContent = () => {
@@ -61,7 +68,7 @@ const EstadoPago = ({ estado, onContinuar, oficina, precio, onVerDetalles, onRep
                 <Text style={styles.detalleItem}>Reservaste: {oficina?.nombre}</Text>
                 <Text style={styles.detalleItem}>Capacidad: 8 personas</Text>
                 <Text style={styles.detalleItem}>Horario: 13:00 - 18:00</Text>
-                <Text style={styles.detalleItem}>Ubicación: Montevideo, Ciudad Vieja ***</Text>
+                <Text style={styles.detalleItem}>Ubicación: Montevideo, Ciudad Vieja</Text>
               </View>
               <TouchableOpacity
                 style={styles.botonDetalles}
@@ -127,23 +134,17 @@ const EstadoPago = ({ estado, onContinuar, oficina, precio, onVerDetalles, onRep
 };
 
 const MetodosPago = ({ navigation, route }) => {
-  const [tarjetas, setTarjetas] = useState([
-    {
-      id: 1,
-      tipo: 'Visa',
-      ultimosCuatroDigitos: '1234',
-      icono: 'card'
-    },
-    {
-      id: 2,
-      tipo: 'Mastercard',
-      ultimosCuatroDigitos: '5678',
-      icono: 'card'
-    }
-  ]);
+  const dispatch = useDispatch();
+  
+  
+  const usuario = useSelector(state => state.auth.usuario);
+  const metodosPago = useSelector(state => state.usuario.metodosPago);
+  const loadingMetodosPago = useSelector(state => state.usuario.loadingMetodosPago);
+  const errorMetodosPago = useSelector(state => state.usuario.errorMetodosPago);
 
   const [estadoPago, setEstadoPago] = useState(null);
   const [transaccionActual, setTransaccionActual] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const { 
     modoSeleccion = false, 
@@ -154,6 +155,32 @@ const MetodosPago = ({ navigation, route }) => {
     descripcion
   } = route?.params || {};
 
+  
+  useEffect(() => {
+    loadMetodosPago();
+  }, []);
+
+  const loadMetodosPago = () => {
+    if (usuario?.id || usuario?._id) {
+      const userId = usuario.id || usuario._id;
+      console.log('🔄 Cargando métodos de pago para usuario:', userId);
+      dispatch(obtenerMetodosPagoUsuario(userId));
+    }
+  };
+
+  
+  useEffect(() => {
+    if (errorMetodosPago) {
+      Alert.alert('Error', errorMetodosPago);
+    }
+  }, [errorMetodosPago]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    loadMetodosPago();
+    setRefreshing(false);
+  };
+
   const handleGoBack = () => {
     if (estadoPago) {
       setEstadoPago(null);
@@ -163,13 +190,20 @@ const MetodosPago = ({ navigation, route }) => {
   };
 
   const handleAgregarTarjeta = () => {
-    navigation.navigate('AgregarTarjeta');
+    navigation.navigate('AgregarTarjeta', {
+      usuarioId: usuario?.id || usuario?._id,
+      onTarjetaAgregada: () => {
+        
+        loadMetodosPago();
+      }
+    });
   };
 
-  const handleEliminarTarjeta = (id, tipo, ultimosCuatroDigitos) => {
+  const handleEliminarTarjeta = (metodoId, tipo, ultimosDigitos) => {
+    const tipoDisplay = mapearTipoTarjeta(tipo);
     Alert.alert(
       'Eliminar Tarjeta',
-      `¿Estás seguro de que quieres eliminar la tarjeta ${tipo} •••• ${ultimosCuatroDigitos}?`,
+      `¿Estás seguro de que quieres eliminar la tarjeta ${tipoDisplay} •••• ${ultimosDigitos}?`,
       [
         {
           text: 'Cancelar',
@@ -179,18 +213,22 @@ const MetodosPago = ({ navigation, route }) => {
           text: 'Eliminar',
           style: 'destructive',
           onPress: () => {
-            setTarjetas(tarjetas.filter(tarjeta => tarjeta.id !== id));
+            const userId = usuario?.id || usuario?._id;
+            if (userId) {
+              dispatch(eliminarMetodoPago({ usuarioId: userId, metodoId }));
+            }
           },
         },
       ]
     );
   };
 
-  const handleSeleccionarTarjeta = (tarjeta) => {
+  const handleSeleccionarTarjeta = (metodo) => {
     if (modoSeleccion) {
+      const tipoDisplay = mapearTipoTarjeta(metodo.tipo);
       const mensaje = modoSuscripcion 
-        ? `¿Confirmas la suscripción al plan ${planSuscripcion?.nombre} por ${precio} con la tarjeta ${tarjeta.tipo} •••• ${tarjeta.ultimosCuatroDigitos}?`
-        : `¿Confirmas el pago de ${precio} con la tarjeta ${tarjeta.tipo} •••• ${tarjeta.ultimosCuatroDigitos}?`;
+        ? `¿Confirmas la suscripción al plan ${planSuscripcion?.nombre} por ${precio} con la tarjeta ${tipoDisplay} •••• ${metodo.ultimosDigitos}?`
+        : `¿Confirmas el pago de ${precio} con la tarjeta ${tipoDisplay} •••• ${metodo.ultimosDigitos}?`;
 
       Alert.alert(
         modoSuscripcion ? 'Confirmar Suscripción' : 'Confirmar Pago',
@@ -202,16 +240,24 @@ const MetodosPago = ({ navigation, route }) => {
           },
           {
             text: 'Confirmar',
-            onPress: () => procesarPago(tarjeta),
+            onPress: () => procesarPago(metodo),
           },
         ]
       );
     }
   };
 
-  const procesarPago = (tarjeta) => {
+  const handleMarcarPredeterminado = (metodoId) => {
+    const userId = usuario?.id || usuario?._id;
+    if (userId) {
+      dispatch(actualizarMetodoPagoPredeterminado({ usuarioId: userId, metodoId }));
+    }
+  };
+
+  const procesarPago = (metodo) => {
     setEstadoPago('procesando');
 
+    
     setTimeout(() => {
       const exito = Math.random() > 0.2;
 
@@ -222,7 +268,7 @@ const MetodosPago = ({ navigation, route }) => {
             fecha: new Date().toLocaleDateString('es-ES'),
             precio: precio,
             oficina: oficina,
-            tarjeta: tarjeta
+            metodo: metodo
           });
         }
       } else {
@@ -253,19 +299,64 @@ const MetodosPago = ({ navigation, route }) => {
     navigation.navigate('FormularioProblema');
   };
 
-  const obtenerIconoTarjeta = (tipo) => {
+  
+  const mapearTipoTarjeta = (tipo) => {
     switch (tipo) {
-      case 'Visa':
+      case 'tarjeta':
+        return 'Tarjeta';
+      case 'paypal':
+        return 'PayPal';
+      case 'cuenta_bancaria':
+        return 'Cuenta Bancaria';
+      default:
+        return tipo || 'Tarjeta';
+    }
+  };
+
+  
+  const detectarMarcaTarjeta = (metodo) => {
+    
+    if (metodo.tipo === 'paypal') return 'PayPal';
+    if (metodo.tipo === 'cuenta_bancaria') return 'Banco';
+    
+    
+    
+    const ultimosDigitos = metodo.ultimosDigitos || '';
+    
+    
+    if (ultimosDigitos.startsWith('4')) return 'Visa';
+    if (ultimosDigitos.startsWith('5')) return 'Mastercard';
+    
+    return 'Visa'; 
+  };
+
+  const obtenerIconoTarjeta = (metodo) => {
+    const marca = detectarMarcaTarjeta(metodo);
+    
+    switch (marca.toLowerCase()) {
+      case 'visa':
         return (
           <View style={[styles.iconoTarjeta, styles.iconoVisa]}>
             <Text style={styles.textoIconoVisa}>VISA</Text>
           </View>
         );
-      case 'Mastercard':
+      case 'mastercard':
         return (
           <View style={[styles.iconoTarjeta, styles.iconoMastercard]}>
             <View style={styles.circuloMastercard1} />
             <View style={styles.circuloMastercard2} />
+          </View>
+        );
+      case 'paypal':
+        return (
+          <View style={[styles.iconoTarjeta, styles.iconoPaypal]}>
+            <Text style={styles.textoIconoPaypal}>PP</Text>
+          </View>
+        );
+      case 'banco':
+        return (
+          <View style={[styles.iconoTarjeta, styles.iconoBanco]}>
+            <Ionicons name="business" size={20} color="#2c3e50" />
           </View>
         );
       default:
@@ -277,6 +368,7 @@ const MetodosPago = ({ navigation, route }) => {
     }
   };
 
+  
   if (estadoPago) {
     return (
       <EstadoPago
@@ -310,7 +402,18 @@ const MetodosPago = ({ navigation, route }) => {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing || loadingMetodosPago}
+            onRefresh={handleRefresh}
+            colors={['#4a90e2']}
+            tintColor="#4a90e2"
+          />
+        }
+      >
         {modoSeleccion && (
           <View style={styles.reservaInfo}>
             <Text style={styles.reservaTitulo}>
@@ -346,41 +449,102 @@ const MetodosPago = ({ navigation, route }) => {
           )}
         </View>
 
-        <View style={styles.tarjetasContainer}>
-          {tarjetas.map((tarjeta) => (
-            <TouchableOpacity
-              key={tarjeta.id}
-              style={[
-                styles.tarjetaItem,
-                modoSeleccion && styles.tarjetaItemSeleccionable
-              ]}
-              onPress={() => modoSeleccion ? handleSeleccionarTarjeta(tarjeta) : null}
-              activeOpacity={modoSeleccion ? 0.7 : 1}
-            >
-              <View style={styles.tarjetaInfo}>
-                {obtenerIconoTarjeta(tarjeta.tipo)}
-                <View style={styles.tarjetaTexto}>
-                  <Text style={styles.tipoTarjeta}>{tarjeta.tipo}</Text>
-                  <Text style={styles.numeroTarjeta}>•••• {tarjeta.ultimosCuatroDigitos}</Text>
-                </View>
-              </View>
-
-              {modoSeleccion ? (
-                <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
-              ) : (
+        {loadingMetodosPago && !refreshing ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#4a90e2" />
+            <Text style={styles.loadingText}>Cargando métodos de pago...</Text>
+          </View>
+        ) : (
+          <View style={styles.tarjetasContainer}>
+            {metodosPago.length > 0 ? (
+              metodosPago.map((metodo) => (
                 <TouchableOpacity
-                  style={styles.botonEliminar}
-                  onPress={() => handleEliminarTarjeta(tarjeta.id, tarjeta.tipo, tarjeta.ultimosCuatroDigitos)}
+                  key={metodo.id || metodo._id}
+                  style={[
+                    styles.tarjetaItem,
+                    modoSeleccion && styles.tarjetaItemSeleccionable,
+                    metodo.predeterminado && styles.tarjetaItemPredeterminada
+                  ]}
+                  onPress={() => modoSeleccion ? handleSeleccionarTarjeta(metodo) : null}
+                  activeOpacity={modoSeleccion ? 0.7 : 1}
+                >
+                  <View style={styles.tarjetaInfo}>
+                    {obtenerIconoTarjeta(metodo)}
+                    <View style={styles.tarjetaTexto}>
+                      <View style={styles.tarjetaHeader}>
+                        <Text style={styles.tipoTarjeta}>
+                          {mapearTipoTarjeta(metodo.tipo)}
+                        </Text>
+                        {metodo.predeterminado && (
+                          <View style={styles.badgePredeterminado}>
+                            <Text style={styles.textoPredeterminado}>Predeterminado</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.numeroTarjeta}>•••• {metodo.ultimosDigitos}</Text>
+                      {metodo.fechaExpiracion && (
+                        <Text style={styles.fechaExpiracion}>Exp: {metodo.fechaExpiracion}</Text>
+                      )}
+                    </View>
+                  </View>
+
+                  <View style={styles.accionesContainer}>
+                    {modoSeleccion ? (
+                      <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
+                    ) : (
+                      <View style={styles.botonesAcciones}>
+                        {!metodo.predeterminado && (
+                          <TouchableOpacity
+                            style={styles.botonPredeterminado}
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              handleMarcarPredeterminado(metodo.id || metodo._id);
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="star-outline" size={18} color="#f39c12" />
+                          </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                          style={styles.botonEliminar}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleEliminarTarjeta(
+                              metodo.id || metodo._id, 
+                              metodo.tipo, 
+                              metodo.ultimosDigitos
+                            );
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="trash-outline" size={18} color="#e74c3c" />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="card-outline" size={48} color="#bdc3c7" />
+                <Text style={styles.emptyStateTitle}>No tienes métodos de pago</Text>
+                <Text style={styles.emptyStateSubtext}>
+                  Agrega una tarjeta para realizar pagos más rápido
+                </Text>
+                <TouchableOpacity
+                  style={styles.botonAgregarEmpty}
+                  onPress={handleAgregarTarjeta}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="remove" size={20} color="#fff" />
+                  <Ionicons name="add" size={20} color="#4a90e2" />
+                  <Text style={styles.textoAgregarEmpty}>Agregar tarjeta</Text>
                 </TouchableOpacity>
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
+              </View>
+            )}
+          </View>
+        )}
 
-        {modoSeleccion && (
+        {modoSeleccion && metodosPago.length > 0 && (
           <View style={styles.agregarTarjetaContainer}>
             <TouchableOpacity
               style={styles.botonAgregarNueva}
@@ -432,6 +596,17 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    marginTop: 10,
   },
   reservaInfo: {
     backgroundColor: '#fff',
@@ -509,6 +684,10 @@ const styles = StyleSheet.create({
     borderColor: '#4a90e2',
     borderWidth: 1,
   },
+  tarjetaItemPredeterminada: {
+    borderColor: '#f39c12',
+    borderWidth: 2,
+  },
   tarjetaInfo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -550,36 +729,125 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#f79e1b',
   },
+  iconoPaypal: {
+    backgroundColor: '#003087',
+  },
+  textoIconoPaypal: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+    fontFamily: 'System',
+  },
+  iconoBanco: {
+    backgroundColor: '#ecf0f1',
+  },
   iconoGenerico: {
     backgroundColor: '#ecf0f1',
   },
   tarjetaTexto: {
     flex: 1,
   },
+  tarjetaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
   tipoTarjeta: {
     fontSize: 16,
     fontWeight: '600',
     color: '#2c3e50',
     fontFamily: 'System',
-    marginBottom: 2,
+    marginRight: 8,
+  },
+  badgePredeterminado: {
+    backgroundColor: '#f39c12',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  textoPredeterminado: {
+    fontSize: 10,
+    color: '#fff',
+    fontWeight: '600',
   },
   numeroTarjeta: {
     fontSize: 14,
     color: '#7f8c8d',
     fontFamily: 'System',
+    marginBottom: 2,
+  },
+  fechaExpiracion: {
+    fontSize: 12,
+    color: '#95a5a6',
+    fontFamily: 'System',
+  },
+  accionesContainer: {
+    marginLeft: 16,
+  },
+  botonesAcciones: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  botonPredeterminado: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#fff3cd',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#f39c12',
   },
   botonEliminar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#e74c3c',
+    backgroundColor: '#f8d7da',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 16,
+    borderWidth: 1,
+    borderColor: '#e74c3c',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  botonAgregarEmpty: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#4a90e2',
+    borderStyle: 'dashed',
+  },
+  textoAgregarEmpty: {
+    fontSize: 16,
+    color: '#4a90e2',
+    fontWeight: '600',
+    marginLeft: 8,
   },
   agregarTarjetaContainer: {
     paddingHorizontal: 20,
     paddingTop: 10,
+    paddingBottom: 20,
   },
   botonAgregarNueva: {
     backgroundColor: '#fff',
@@ -600,6 +868,7 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
   },
 
+  
   estadoContainer: {
     flex: 1,
     justifyContent: 'center',

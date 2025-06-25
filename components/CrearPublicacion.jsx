@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { agregarOficinaPropia } from '../store/slices/usuarioSlice';
+import { obtenerServiciosAdicionales } from '../store/slices/proveedoresSlice';
 
 const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
@@ -22,6 +23,7 @@ const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 const CrearPublicacion = ({ navigation }) => {
   const dispatch = useDispatch();
   const { oficinasPropias } = useSelector(state => state.usuario);
+  const { serviciosAdicionales, loading } = useSelector(state => state.proveedores);
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -51,18 +53,20 @@ const CrearPublicacion = ({ navigation }) => {
     { id: 'oficina', nombre: 'Oficina', icono: 'business' },
     { id: 'espacio', nombre: 'Espacio', icono: 'square' },
     { id: 'escritorio', nombre: 'Escritorio', icono: 'desktop' },
-    { id: 'edificio', nombre: 'Edificio', icono: 'business-outline' },
     { id: 'sala', nombre: 'Sala de reuniones', icono: 'people' }
   ];
 
-  const serviciosDisponibles = [
-    { id: 1, nombre: 'Limpieza diaria', proveedor: 'CleanPro Services', precio: '$50/día' },
-    { id: 2, nombre: 'Catering', proveedor: 'Gourmet Express', precio: '$15/persona' },
-    { id: 3, nombre: 'Seguridad 24/7', proveedor: 'SecureGuard', precio: '$200/mes' },
-    { id: 4, nombre: 'Internet fibra óptica', proveedor: 'NetSpeed', precio: '$80/mes' },
-    { id: 5, nombre: 'Mantenimiento', proveedor: 'FixIt Solutions', precio: '$150/mes' },
-    { id: 6, nombre: 'Recepcionista', proveedor: 'FrontDesk Pro', precio: '$800/mes' }
-  ];
+  useEffect(() => {
+    cargarServiciosDisponibles();
+  }, []);
+
+  const cargarServiciosDisponibles = async () => {
+    try {
+      await dispatch(obtenerServiciosAdicionales(0, 50));
+    } catch (error) {
+      console.error('Error cargando servicios:', error);
+    }
+  };
 
   const handleGoBack = () => {
     navigation.goBack();
@@ -70,9 +74,9 @@ const CrearPublicacion = ({ navigation }) => {
 
   const toggleServicio = (servicio) => {
     setServiciosSeleccionados(prev => {
-      const existe = prev.find(s => s.id === servicio.id);
+      const existe = prev.find(s => s._id === servicio._id);
       if (existe) {
-        return prev.filter(s => s.id !== servicio.id);
+        return prev.filter(s => s._id !== servicio._id);
       } else {
         return [...prev, servicio];
       }
@@ -90,20 +94,20 @@ const CrearPublicacion = ({ navigation }) => {
   };
 
   const uploadToCloudinary = async (imageUri) => {
-    const formData = new FormData();
+    const formDataImage = new FormData();
     
-    formData.append('file', {
+    formDataImage.append('file', {
       uri: imageUri,
       name: `office_image_${Date.now()}.jpeg`,
       type: 'image/jpeg'
     });
     
-    formData.append('upload_preset', UPLOAD_PRESET);
+    formDataImage.append('upload_preset', UPLOAD_PRESET);
     
     try {
       const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
         method: 'POST',
-        body: formData
+        body: formDataImage
       });
       
       const data = await response.json();
@@ -153,7 +157,7 @@ const CrearPublicacion = ({ navigation }) => {
     setImagenes(imagenes.filter((_, i) => i !== index));
   };
 
-  const handleGuardar = () => {
+  const handleGuardar = async () => {
     if (!formData.nombre || !formData.descripcion || !formData.direccion ||
       !formData.capacidad || !formData.precio) {
       Alert.alert('Error', 'Por favor completa todos los campos obligatorios');
@@ -368,33 +372,49 @@ const CrearPublicacion = ({ navigation }) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Servicios disponibles</Text>
-          {serviciosDisponibles.map(servicio => (
-            <TouchableOpacity
-              key={servicio.id}
-              style={[
-                styles.servicioItem,
-                serviciosSeleccionados.find(s => s.id === servicio.id) && styles.servicioItemActive
-              ]}
-              onPress={() => toggleServicio(servicio)}
-            >
-              <View style={styles.servicioInfo}>
-                <Text style={styles.servicioNombre}>{servicio.nombre}</Text>
-                <Text style={styles.servicioProveedor}>por {servicio.proveedor}</Text>
-              </View>
-              <View style={styles.servicioRight}>
-                <Text style={styles.servicioPrecio}>{servicio.precio}</Text>
-                <Ionicons
-                  name={serviciosSeleccionados.find(s => s.id === servicio.id) ? "checkbox" : "square-outline"}
-                  size={24}
-                  color="#4a90e2"
-                />
-              </View>
-            </TouchableOpacity>
-          ))}
+          {loading ? (
+            <Text style={styles.loadingText}>Cargando servicios...</Text>
+          ) : (serviciosAdicionales || []).length === 0 ? (
+            <Text style={styles.noServiciosText}>No hay servicios disponibles</Text>
+          ) : (
+            (serviciosAdicionales || []).map(servicio => (
+              <TouchableOpacity
+                key={servicio._id}
+                style={[
+                  styles.servicioItem,
+                  serviciosSeleccionados.find(s => s._id === servicio._id) && styles.servicioItemActive
+                ]}
+                onPress={() => toggleServicio(servicio)}
+              >
+                <View style={styles.servicioInfo}>
+                  <Text style={styles.servicioNombre}>{servicio.nombre}</Text>
+                  <Text style={styles.servicioProveedor}>
+                    {servicio.tipo ? `Categoría: ${servicio.tipo}` : 'Servicio general'}
+                  </Text>
+                </View>
+                <View style={styles.servicioRight}>
+                  <Text style={styles.servicioPrecio}>
+                    ${servicio.precio || 0}/{servicio.unidadPrecio || 'servicio'}
+                  </Text>
+                  <Ionicons
+                    name={serviciosSeleccionados.find(s => s._id === servicio._id) ? "checkbox" : "square-outline"}
+                    size={24}
+                    color="#4a90e2"
+                  />
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
         </View>
 
-        <TouchableOpacity style={styles.guardarButton} onPress={handleGuardar}>
-          <Text style={styles.guardarButtonText}>Crear publicación</Text>
+        <TouchableOpacity 
+          style={[styles.guardarButton, loading && styles.guardarButtonDisabled]} 
+          onPress={handleGuardar}
+          disabled={loading}
+        >
+          <Text style={styles.guardarButtonText}>
+            {loading ? 'Creando...' : 'Crear publicación'}
+          </Text>
         </TouchableOpacity>
 
         <View style={styles.bottomSpacing} />
@@ -636,6 +656,21 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 30,
+  },
+    loadingText: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  noServiciosText: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  guardarButtonDisabled: {
+    opacity: 0.6,
   },
 });
 

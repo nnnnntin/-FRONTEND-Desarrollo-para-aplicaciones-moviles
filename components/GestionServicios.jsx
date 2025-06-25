@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   FlatList,
   SafeAreaView,
@@ -9,95 +9,137 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  obtenerProveedores,
+  obtenerServiciosPorEspacio,
+  toggleServicioAdicional
+} from '../store/slices/proveedoresSlice';
 
 const GestionServicios = ({ navigation }) => {
+  const dispatch = useDispatch();
   const { oficinasPropias } = useSelector(state => state.usuario);
+  const { serviciosPorEspacio, proveedores, loading } = useSelector(state => state.proveedores);
+  
   const [tabActiva, setTabActiva] = useState('incluidos');
 
+  
   const misEspacios = [
     {
       id: 1,
       nombre: "Oficina Panorámica 'Skyview'",
       serviciosIncluidos: [
-        { id: 1, nombre: 'Wi-Fi Premium', activo: true },
-        { id: 2, nombre: 'Café gratis', activo: true },
-        { id: 3, nombre: 'Estacionamiento', activo: true },
-        { id: 4, nombre: 'Recepcionista', activo: false },
+        { _id: '1', nombre: 'Wi-Fi Premium', activo: true },
+        { _id: '2', nombre: 'Café gratis', activo: true },
+        { _id: '3', nombre: 'Estacionamiento', activo: true },
+        { _id: '4', nombre: 'Recepcionista', activo: false },
       ],
-      proveedoresExternos: [
-        {
-          id: 1,
-          proveedor: 'Cleaning Pro',
-          servicio: 'Limpieza profunda',
-          precio: 80,
-          calificacion: 4.8,
-          activo: true
-        },
-        {
-          id: 2,
-          proveedor: 'Tech Support 24/7',
-          servicio: 'Soporte técnico',
-          precio: 120,
-          calificacion: 4.9,
-          activo: true
-        },
-      ]
+      proveedoresExternos: []
     },
     {
       id: 2,
       nombre: "Oficina 'El mirador'",
       serviciosIncluidos: [
-        { id: 1, nombre: 'Wi-Fi Premium', activo: true },
-        { id: 2, nombre: 'Café gratis', activo: true },
-        { id: 3, nombre: 'Estacionamiento', activo: false },
-        { id: 4, nombre: 'Aire acondicionado', activo: true },
+        { _id: '5', nombre: 'Wi-Fi Premium', activo: true },
+        { _id: '6', nombre: 'Café gratis', activo: true },
+        { _id: '7', nombre: 'Estacionamiento', activo: false },
+        { _id: '8', nombre: 'Aire acondicionado', activo: true },
       ],
-      proveedoresExternos: [
-        {
-          id: 3,
-          proveedor: 'Catering Express',
-          servicio: 'Servicio de catering',
-          precio: 25,
-          calificacion: 4.5,
-          activo: false
-        },
-      ]
+      proveedoresExternos: []
     }
   ];
 
   const [espaciosData, setEspaciosData] = useState(misEspacios);
 
-  const toggleServicioIncluido = (espacioId, servicioId) => {
-    setEspaciosData(prev => prev.map(espacio => {
-      if (espacio.id === espacioId) {
-        return {
-          ...espacio,
-          serviciosIncluidos: espacio.serviciosIncluidos.map(servicio =>
-            servicio.id === servicioId
-              ? { ...servicio, activo: !servicio.activo }
-              : servicio
-          )
-        };
+  useEffect(() => {
+    cargarDatos();
+  }, []);
+
+  const cargarDatos = async () => {
+    try {
+      
+      await dispatch(obtenerProveedores(0, 50));
+      
+      
+      for (const espacioId of oficinasPropias) {
+        await dispatch(obtenerServiciosPorEspacio(espacioId));
       }
-      return espacio;
-    }));
+    } catch (error) {
+      console.error('Error cargando datos:', error);
+    }
   };
 
-  const toggleProveedorExterno = (espacioId, proveedorId) => {
-    setEspaciosData(prev => prev.map(espacio => {
-      if (espacio.id === espacioId) {
-        return {
-          ...espacio,
-          proveedoresExternos: espacio.proveedoresExternos.map(proveedor =>
-            proveedor.id === proveedorId
-              ? { ...proveedor, activo: !proveedor.activo }
-              : proveedor
-          )
-        };
+  const getProveedoresExternosPorEspacio = (espacioId) => {
+    
+    if (!proveedores) return [];
+    
+    return proveedores
+      .filter(proveedor => proveedor.espaciosAtendidos?.includes(espacioId))
+      .map(proveedor => ({
+        _id: proveedor._id,
+        proveedor: proveedor.empresa || proveedor.nombre,
+        servicio: proveedor.servicios?.[0]?.nombre || 'Servicio general',
+        precio: proveedor.servicios?.[0]?.precio || 0,
+        calificacion: proveedor.calificacion || 0,
+        activo: proveedor.activo || false
+      }));
+  };
+
+  const toggleServicioIncluido = async (espacioId, servicioId) => {
+    try {
+      
+      setEspaciosData(prev => prev.map(espacio => {
+        if (espacio.id === espacioId) {
+          return {
+            ...espacio,
+            serviciosIncluidos: espacio.serviciosIncluidos.map(servicio =>
+              servicio._id === servicioId
+                ? { ...servicio, activo: !servicio.activo }
+                : servicio
+            )
+          };
+        }
+        return espacio;
+      }));
+
+      
+      const servicio = espaciosData
+        .find(e => e.id === espacioId)
+        ?.serviciosIncluidos.find(s => s._id === servicioId);
+      
+      if (servicio) {
+        await dispatch(toggleServicioAdicional(servicioId, !servicio.activo));
       }
-      return espacio;
-    }));
+    } catch (error) {
+      console.error('Error toggling servicio:', error);
+      
+      setEspaciosData(prev => prev.map(espacio => {
+        if (espacio.id === espacioId) {
+          return {
+            ...espacio,
+            serviciosIncluidos: espacio.serviciosIncluidos.map(servicio =>
+              servicio._id === servicioId
+                ? { ...servicio, activo: !servicio.activo }
+                : servicio
+            )
+          };
+        }
+        return espacio;
+      }));
+    }
+  };
+
+  const toggleProveedorExterno = async (espacioId, proveedorId) => {
+    try {
+      
+      const proveedor = proveedores.find(p => p._id === proveedorId);
+      if (proveedor) {
+        await dispatch(toggleServicioAdicional(proveedorId, !proveedor.activo));
+        await cargarDatos(); 
+      }
+    } catch (error) {
+      console.error('Error toggling proveedor:', error);
+    }
   };
 
   const buscarProveedores = () => {
@@ -114,7 +156,8 @@ const GestionServicios = ({ navigation }) => {
       </View>
       <TouchableOpacity
         style={[styles.toggleButton, servicio.activo && styles.toggleButtonActive]}
-        onPress={() => toggleServicioIncluido(espacio.id, servicio.id)}
+        onPress={() => toggleServicioIncluido(espacio.id, servicio._id)}
+        disabled={loading}
       >
         <Ionicons
           name={servicio.activo ? 'checkmark' : 'close'}
@@ -142,7 +185,8 @@ const GestionServicios = ({ navigation }) => {
       </View>
       <TouchableOpacity
         style={[styles.toggleButton, proveedor.activo && styles.toggleButtonActive]}
-        onPress={() => toggleProveedorExterno(espacio.id, proveedor.id)}
+        onPress={() => toggleProveedorExterno(espacio.id, proveedor._id)}
+        disabled={loading}
       >
         <Ionicons
           name={proveedor.activo ? 'checkmark' : 'close'}
@@ -154,15 +198,22 @@ const GestionServicios = ({ navigation }) => {
   );
 
   const renderEspacio = ({ item: espacio }) => {
+    const serviciosIncluidos = espacio.serviciosIncluidos || [];
+    const proveedoresExternos = getProveedoresExternosPorEspacio(espacio.id);
+    
     const servicios = tabActiva === 'incluidos'
-      ? espacio.serviciosIncluidos
-      : espacio.proveedoresExternos;
+      ? serviciosIncluidos
+      : proveedoresExternos;
 
     return (
       <View style={styles.espacioContainer}>
         <Text style={styles.espacioNombre}>{espacio.nombre}</Text>
 
-        {servicios.length === 0 ? (
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Cargando servicios...</Text>
+          </View>
+        ) : servicios.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons
               name={tabActiva === 'incluidos' ? 'construct-outline' : 'people-outline'}
@@ -183,7 +234,7 @@ const GestionServicios = ({ navigation }) => {
         ) : (
           <FlatList
             data={servicios}
-            keyExtractor={(item) => `${espacio.id}-${item.id}`}
+            keyExtractor={(item) => `${espacio.id}-${item._id}`}
             renderItem={({ item }) =>
               tabActiva === 'incluidos'
                 ? renderServicioIncluido({ item, espacio })
@@ -253,6 +304,8 @@ const GestionServicios = ({ navigation }) => {
         renderItem={renderEspacio}
         style={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshing={loading}
+        onRefresh={cargarDatos}
       />
 
       {tabActiva === 'externos' && (
@@ -447,6 +500,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#7f8c8d',
   },
 });
 

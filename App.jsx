@@ -4,28 +4,36 @@ import { useCallback, useEffect, useState } from 'react';
 import { StatusBar, StyleSheet, Text, View } from 'react-native';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import Pantallas from './routes/Pantallas';
-import { loguear } from './store/slices/usuarioSlice';
+
+import { loguear } from './store/slices/authSlice';
 import { store } from './store/store';
 
 const AppContent = () => {
   const [isLogged, setIsLogged] = useState(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const usuario = useSelector(state => state.usuario);
+  
+  const auth = useSelector(state => state.auth);
   const dispatch = useDispatch();
 
   const handleSetIsLogged = useCallback(async (newLoginState) => {
     console.log(`🔄 Cambiando estado de login a: ${newLoginState}`);
     
     if (newLoginState) {
-      let userData = usuario?.datosUsuario;
+      
+      let userData = auth?.usuario;
       
       if (!userData) {
         try {
           const storedUser = await SecureStore.getItemAsync('usuario');
           if (storedUser) {
             const parsedUser = JSON.parse(storedUser);
-            dispatch(loguear(parsedUser));
-            userData = parsedUser.datosUsuario;
+            
+            dispatch(loguear({
+              usuario: parsedUser.usuario || parsedUser,
+              tipoUsuario: parsedUser.tipoUsuario || parsedUser.usuario?.tipoUsuario,
+              token: parsedUser.token
+            }));
+            userData = parsedUser.usuario || parsedUser;
             console.log(`🔄 Datos de usuario cargados desde storage`);
           }
         } catch (error) {
@@ -43,7 +51,12 @@ const AppContent = () => {
             const storedUser = await SecureStore.getItemAsync('usuario');
             if (storedUser) {
               const parsedUser = JSON.parse(storedUser);
-              dispatch(loguear(parsedUser));
+              
+              dispatch(loguear({
+                usuario: parsedUser.usuario || parsedUser,
+                tipoUsuario: parsedUser.tipoUsuario || parsedUser.usuario?.tipoUsuario,
+                token: parsedUser.token
+              }));
               setIsLogged(true);
               console.log(`✅ Login confirmado después de espera`);
             } else {
@@ -60,7 +73,7 @@ const AppContent = () => {
       setIsLogged(false);
       console.log(`✅ Logout confirmado`);
     }
-  }, [usuario, dispatch]);
+  }, [auth, dispatch]);
 
   const resetSession = useCallback(async () => {
     try {
@@ -86,9 +99,15 @@ const AppContent = () => {
         if (isLoggedStorage === 'true' && usuarioStorage) {
           try {
             const parsedUser = JSON.parse(usuarioStorage);
-            dispatch(loguear(parsedUser));
+            
+            dispatch(loguear({
+              usuario: parsedUser.usuario || parsedUser,
+              tipoUsuario: tipoUsuarioStorage || parsedUser.tipoUsuario || parsedUser.usuario?.tipoUsuario,
+              token: parsedUser.token
+            }));
             setIsLogged(true);
-            console.log(`✅ Sesión existente encontrada: ${parsedUser.datosUsuario?.tipoUsuario}`);
+            
+            console.log(`✅ Sesión existente encontrada: ${tipoUsuarioStorage || parsedUser.usuario?.tipoUsuario}`);
           } catch (parseError) {
             console.error('Error parseando datos de usuario:', parseError);
             setIsLogged(false);
@@ -118,8 +137,9 @@ const AppContent = () => {
 
   console.log('🔍 Estado actual:', { 
     isLogged, 
-    hasUserData: !!usuario?.datosUsuario,
-    userType: usuario?.datosUsuario?.tipoUsuario 
+    
+    hasUserData: !!auth?.usuario,
+    userType: auth?.usuario?.tipoUsuario || auth?.tipoUsuario
   });
 
   return (

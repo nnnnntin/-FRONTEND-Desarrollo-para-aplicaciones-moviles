@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -13,7 +13,8 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { obtenerServiciosPorEspacio } from '../store/slices/proveedoresSlice';
 
 const DetalleOficina = ({ navigation, route }) => {
   if (!route?.params?.oficina) {
@@ -23,7 +24,9 @@ const DetalleOficina = ({ navigation, route }) => {
   }
 
   const { oficina, esPropia } = route.params;
+  const dispatch = useDispatch();
   const { tipoUsuario } = useSelector(state => state.usuario);
+  const { serviciosPorEspacio, loading } = useSelector(state => state.proveedores);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({});
@@ -113,12 +116,35 @@ const DetalleOficina = ({ navigation, route }) => {
 
   const detalle = detallesOficina[oficina.id] || detallesOficina[1];
 
-  const serviciosDisponibles = [
-    { id: 1, nombre: 'Catering básico', precio: 15, unidad: 'persona' },
-    { id: 2, nombre: 'Proyector y pantalla', precio: 50, unidad: 'día' },
-    { id: 3, nombre: 'Servicio de café premium', precio: 5, unidad: 'persona' },
-    { id: 4, nombre: 'Estacionamiento adicional', precio: 20, unidad: 'día' }
-  ];
+  useEffect(() => {
+    if (oficina.id) {
+      cargarServiciosEspacio();
+    }
+  }, [oficina.id]);
+
+  const cargarServiciosEspacio = async () => {
+    try {
+      await dispatch(obtenerServiciosPorEspacio(oficina.id));
+    } catch (error) {
+      console.error('Error cargando servicios del espacio:', error);
+    }
+  };
+
+  const getServiciosDisponibles = () => {
+    const serviciosEspacio = serviciosPorEspacio[oficina.id] || [];
+    
+    
+    if (serviciosEspacio.length === 0) {
+      return [
+        { _id: 1, nombre: 'Catering básico', precio: 15, unidadPrecio: 'persona' },
+        { _id: 2, nombre: 'Proyector y pantalla', precio: 50, unidadPrecio: 'día' },
+        { _id: 3, nombre: 'Servicio de café premium', precio: 5, unidadPrecio: 'persona' },
+        { _id: 4, nombre: 'Estacionamiento adicional', precio: 20, unidadPrecio: 'día' }
+      ];
+    }
+    
+    return serviciosEspacio;
+  };
 
   const handleReservar = () => {
     setModalVisible(true);
@@ -130,8 +156,8 @@ const DetalleOficina = ({ navigation, route }) => {
 
   const toggleServicio = servicio => {
     setServiciosAdicionales(prev => {
-      const existe = prev.find(s => s.id === servicio.id);
-      if (existe) return prev.filter(s => s.id !== servicio.id);
+      const existe = prev.find(s => s._id === servicio._id);
+      if (existe) return prev.filter(s => s._id !== servicio._id);
       return [...prev, servicio];
     });
   };
@@ -139,7 +165,7 @@ const DetalleOficina = ({ navigation, route }) => {
   const calcularPrecioTotal = () => {
     const precioBase = parseFloat(detalle.precio.replace('USD', ''));
     const precioServicios = serviciosAdicionales.reduce((tot, s) => {
-      return tot + (s.unidad === 'persona'
+      return tot + (s.unidadPrecio === 'persona'
         ? s.precio * cantidadPersonas
         : s.precio);
     }, 0);
@@ -261,6 +287,8 @@ const DetalleOficina = ({ navigation, route }) => {
       ))}
     </View>
   );
+
+  const serviciosDisponibles = getServiciosDisponibles();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -456,6 +484,7 @@ const DetalleOficina = ({ navigation, route }) => {
         <View style={styles.bottomSpacing} />
       </ScrollView>
 
+      {/* Modal de reserva */}
       {tipoUsuario === 'usuario' && (
         <Modal
           animationType="slide"
@@ -549,28 +578,34 @@ const DetalleOficina = ({ navigation, route }) => {
 
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Servicios adicionales</Text>
-                {serviciosDisponibles.map(s => (
-                  <TouchableOpacity
-                    key={s.id}
-                    style={[
-                      styles.servicioItem,
-                      serviciosAdicionales.some(x => x.id === s.id) && styles.servicioItemActive
-                    ]}
-                    onPress={() => toggleServicio(s)}
-                  >
-                    <View style={styles.servicioInfo}>
-                      <Text style={styles.servicioNombre}>{s.nombre}</Text>
-                      <Text style={styles.servicioPrecio}>
-                        ${s.precio}/{s.unidad}
-                      </Text>
-                    </View>
-                    <Ionicons
-                      name={serviciosAdicionales.some(x => x.id === s.id) ? 'checkbox' : 'square-outline'}
-                      size={24}
-                      color="#4a90e2"
-                    />
-                  </TouchableOpacity>
-                ))}
+                {loading ? (
+                  <Text style={styles.loadingText}>Cargando servicios...</Text>
+                ) : serviciosDisponibles.length === 0 ? (
+                  <Text style={styles.noServiciosText}>No hay servicios adicionales disponibles</Text>
+                ) : (
+                  serviciosDisponibles.map(s => (
+                    <TouchableOpacity
+                      key={s._id}
+                      style={[
+                        styles.servicioItem,
+                        serviciosAdicionales.some(x => x._id === s._id) && styles.servicioItemActive
+                      ]}
+                      onPress={() => toggleServicio(s)}
+                    >
+                      <View style={styles.servicioInfo}>
+                        <Text style={styles.servicioNombre}>{s.nombre}</Text>
+                        <Text style={styles.servicioPrecio}>
+                          ${s.precio}/{s.unidadPrecio || 'servicio'}
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name={serviciosAdicionales.some(x => x._id === s._id) ? 'checkbox' : 'square-outline'}
+                        size={24}
+                        color="#4a90e2"
+                      />
+                    </TouchableOpacity>
+                  ))
+                )}
               </View>
 
               <View style={styles.resumenSection}>
@@ -580,12 +615,12 @@ const DetalleOficina = ({ navigation, route }) => {
                   <Text style={styles.resumenValue}>${detalle.precio.replace('USD', '')}</Text>
                 </View>
                 {serviciosAdicionales.map(s => (
-                  <View key={s.id} style={styles.resumenItem}>
+                  <View key={s._id} style={styles.resumenItem}>
                     <Text style={styles.resumenLabel}>
-                      {s.nombre}{s.unidad === 'persona' && ` (x${cantidadPersonas})`}
+                      {s.nombre}{s.unidadPrecio === 'persona' && ` (x${cantidadPersonas})`}
                     </Text>
                     <Text style={styles.resumenValue}>
-                      ${s.unidad === 'persona' ? s.precio * cantidadPersonas : s.precio}
+                      ${s.unidadPrecio === 'persona' ? s.precio * cantidadPersonas : s.precio}
                     </Text>
                   </View>
                 ))}
@@ -1084,6 +1119,18 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  noServiciosText: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    textAlign: 'center',
+    paddingVertical: 20,
   },
 });
 

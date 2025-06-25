@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -13,105 +15,92 @@ import {
   View,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { desloguear } from '../store/slices/usuarioSlice';
+
+import { desloguear } from '../store/slices/authSlice';
+import {
+  cargarEspaciosCliente,
+  cargarTodosLosEspacios,
+  clearError,
+  setFiltroTipo,
+  setRefreshing,
+  setTextoBusqueda
+} from '../store/slices/espaciosSlice';
 import HamburgerMenu from './HamburgerMenu';
 
 const Inicio = ({ navigation, setIsLogged, resetSession }) => {
-  const [searchText, setSearchText] = useState('');
   const [menuVisible, setMenuVisible] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [filtroTipo, setFiltroTipo] = useState('todos');
   const dispatch = useDispatch();
 
-  const { tipoUsuario, oficinasPropias, datosUsuario } = useSelector(state => state.usuario);
+  
+  const { tipoUsuario, usuario, token } = useSelector(state => state.auth);
+  
+  
+  const { oficinasPropias, serviciosContratados, serviciosOfrecidos } = useSelector(state => state.usuario);
+  
+  
+  const {
+    espaciosFiltrados,
+    filtroTipo,
+    textoBusqueda,
+    loading,
+    error,
+    refreshing
+  } = useSelector(state => state.espacios);
 
   const tipos = [
-    { id: 'todos', nombre: 'Todos', icono: 'apps' },
-    { id: 'oficina', nombre: 'Oficinas', icono: 'business' },
-    { id: 'espacio', nombre: 'Espacios', icono: 'square' },
-    { id: 'escritorio', nombre: 'Escritorios', icono: 'desktop' },
-    { id: 'edificio', nombre: 'Edificios', icono: 'business-outline' },
-    { id: 'sala', nombre: 'Salas', icono: 'people' }
+    { id: 'todos', nombre: 'Todos', icono: 'apps', endpoint: null },
+    { id: 'oficina', nombre: 'Oficinas', icono: 'business', endpoint: '/v1/oficinas' },
+    { id: 'espacio', nombre: 'Espacios', icono: 'square', endpoint: '/v1/espacios' },
+    { id: 'escritorio', nombre: 'Escritorios', icono: 'desktop', endpoint: '/v1/escritorios-flexibles' },
+    { id: 'edificio', nombre: 'Edificios', icono: 'business-outline', endpoint: '/v1/edificios' },
+    { id: 'sala', nombre: 'Salas', icono: 'people', endpoint: '/v1/salas-reunion' }
   ];
 
-  const todasLasOficinas = [
-    {
-      id: 1,
-      nombre: "Oficina Panorámica 'Skyview'",
-      tipo: 'oficina',
-      servicios: ['wifi', 'cafe', 'seguridad'],
-      color: '#4a90e2',
-      propietario: 'Cliente Demo',
-      precio: '1200',
-      capacidad: 8,
-      direccion: 'Montevideo, Ciudad Vieja'
-    },
-    {
-      id: 2,
-      nombre: "Oficina 'El mirador'",
-      tipo: 'oficina',
-      servicios: ['wifi', 'cafe', 'parking'],
-      color: '#27ae60',
-      propietario: 'Cliente Demo',
-      precio: '1500',
-      capacidad: 12,
-      direccion: 'Montevideo, Pocitos'
-    },
-    {
-      id: 3,
-      nombre: "Oficina 'Centro'",
-      tipo: 'oficina',
-      servicios: ['wifi', 'seguridad'],
-      color: '#e74c3c',
-      propietario: 'Otro Cliente',
-      precio: '900',
-      capacidad: 6,
-      direccion: 'Montevideo, Centro'
-    },
-    {
-      id: 4,
-      nombre: "Espacio Coworking",
-      tipo: 'espacio',
-      servicios: ['wifi', 'cafe', 'impresora'],
-      color: '#9b59b6',
-      propietario: 'Spaces Inc',
-      precio: '50',
-      capacidad: 1,
-      direccion: 'Montevideo, Cordón'
-    },
-    {
-      id: 5,
-      nombre: "Sala de Reuniones Premium",
-      tipo: 'sala',
-      servicios: ['wifi', 'proyector', 'pizarra'],
-      color: '#f39c12',
-      propietario: 'Business Center',
-      precio: '200',
-      capacidad: 20,
-      direccion: 'Montevideo, Carrasco'
-    }
-  ];
+  
+  useEffect(() => {
+    cargarEspacios();
+  }, [filtroTipo, tipoUsuario]);
 
-  const getOficinas = () => {
-    if (tipoUsuario === 'cliente') {
-      return todasLasOficinas.filter(oficina => oficinasPropias.includes(oficina.id));
-    } else if (tipoUsuario === 'usuario') {
-      return todasLasOficinas.filter(oficina =>
-        filtroTipo === 'todos' || oficina.tipo === filtroTipo
-      );
-    } else if (tipoUsuario === 'proveedor') {
-      return todasLasOficinas.filter(oficina =>
-        filtroTipo === 'todos' || oficina.tipo === filtroTipo
-      );
-    } else if (tipoUsuario === 'admin') {
-      return todasLasOficinas.filter(oficina =>
-        filtroTipo === 'todos' || oficina.tipo === filtroTipo
-      );
+  
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Error', error);
+      dispatch(clearError());
     }
-    return [];
+  }, [error, dispatch]);
+
+  const cargarEspacios = async () => {
+    try {
+      if (tipoUsuario === 'cliente') {
+        
+        console.log('🔥 Cargando espacios del cliente...');
+        await dispatch(cargarEspaciosCliente());
+      } else {
+        
+        await dispatch(cargarTodosLosEspacios({ filtroTipo }));
+      }
+    } catch (error) {
+      console.error('🔴 Error al cargar espacios:', error);
+    }
   };
 
-  const oficinas = getOficinas();
+  
+  const handleFiltroChange = (nuevoFiltro) => {
+    dispatch(setFiltroTipo(nuevoFiltro));
+  };
+
+  
+  const handleSearchChange = (texto) => {
+    dispatch(setTextoBusqueda(texto));
+  };
+
+  
+  const onRefresh = async () => {
+    dispatch(setRefreshing(true));
+    await cargarEspacios();
+    dispatch(setRefreshing(false));
+  };
 
   const toggleMenu = () => {
     setMenuVisible(!menuVisible);
@@ -121,11 +110,29 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
     setMenuVisible(false);
   };
 
-  const verDetalleOficina = (oficina) => {
-    const params = { oficina };
+  
+  const verDetalleOficina = (espacio) => {
+    const params = { 
+      oficina: espacio,
+      espacio: espacio.datosCompletos 
+    };
 
     if (tipoUsuario === 'cliente') {
-      params.esPropia = oficinasPropias.includes(oficina.id);
+      
+      let propietarioIdStr = null;
+      
+      if (espacio.datosCompletos.propietarioId) {
+        if (typeof espacio.datosCompletos.propietarioId === 'object') {
+          propietarioIdStr = espacio.datosCompletos.propietarioId._id || espacio.datosCompletos.propietarioId.$oid;
+        } else {
+          propietarioIdStr = espacio.datosCompletos.propietarioId;
+        }
+      }
+      
+      propietarioIdStr = propietarioIdStr?.toString();
+      const userIdStr = usuario?.id?.toString() || usuario?._id?.toString();
+      
+      params.esPropia = propietarioIdStr && userIdStr && propietarioIdStr === userIdStr;
     } else {
       params.esPropia = false;
     }
@@ -139,10 +146,6 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
 
   const handleCrearServicio = () => {
     navigation.navigate('CrearServicio');
-  };
-
-  const handleVerMembresias = () => {
-    navigation.navigate('Membresias');
   };
 
   const handleVerMapa = () => {
@@ -215,54 +218,82 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
     }
   };
 
-  const OficinaCard = ({ oficina }) => {
-    const esPropia = tipoUsuario === 'cliente' && oficinasPropias.includes(oficina.id);
+  const EspacioCard = ({ espacio }) => {
+    
+    let propietarioIdStr = null;
+    
+    if (espacio.datosCompletos.propietarioId) {
+      if (typeof espacio.datosCompletos.propietarioId === 'object') {
+        propietarioIdStr = espacio.datosCompletos.propietarioId._id || espacio.datosCompletos.propietarioId.$oid;
+      } else {
+        propietarioIdStr = espacio.datosCompletos.propietarioId;
+      }
+    }
+    
+    propietarioIdStr = propietarioIdStr?.toString();
+    const userIdStr = usuario?.id?.toString() || usuario?._id?.toString();
+    
+    const esPropio = tipoUsuario === 'cliente' && propietarioIdStr && userIdStr && propietarioIdStr === userIdStr;
 
     return (
       <View style={styles.card}>
-        <View style={[styles.cardImagePlaceholder, { backgroundColor: oficina.color }]}>
-          <Ionicons name={tipos.find(t => t.id === oficina.tipo)?.icono || 'business'} size={40} color="white" />
-          <Text style={styles.cardImageText}>{oficina.tipo}</Text>
-          {esPropia && (
+        <View style={[styles.cardImagePlaceholder, { backgroundColor: espacio.color }]}>
+          <Ionicons name={tipos.find(t => t.id === espacio.tipo)?.icono || 'business'} size={40} color="white" />
+          <Text style={styles.cardImageText}>{espacio.tipo}</Text>
+          {esPropio && (
             <View style={styles.propiaIndicator}>
               <Text style={styles.propiaText}>Tu espacio</Text>
+            </View>
+          )}
+          {!espacio.disponible && (
+            <View style={styles.noDisponibleIndicator}>
+              <Text style={styles.noDisponibleText}>No disponible</Text>
             </View>
           )}
         </View>
 
         <View style={styles.cardContent}>
-          <Text style={styles.cardTitle}>{oficina.nombre}</Text>
-          <Text style={styles.cardDireccion}>{oficina.direccion}</Text>
+          <Text style={styles.cardTitle}>{espacio.nombre}</Text>
+          <Text style={styles.cardDireccion}>{espacio.direccion}</Text>
 
           <View style={styles.cardInfo}>
             <View style={styles.infoItem}>
               <Ionicons name="people" size={16} color="#7f8c8d" />
-              <Text style={styles.infoText}>{oficina.capacidad} personas</Text>
+              <Text style={styles.infoText}>{espacio.capacidad} personas</Text>
             </View>
             <View style={styles.infoItem}>
               <Ionicons name="pricetag" size={16} color="#27ae60" />
-              <Text style={styles.infoText}>${oficina.precio}/día</Text>
+              <Text style={styles.infoText}>${espacio.precio}/día</Text>
             </View>
           </View>
 
-          <View style={styles.servicesContainer}>
-            <Text style={styles.servicesLabel}>Servicios</Text>
-            <View style={styles.servicesIcons}>
-              {oficina.servicios.map((service, index) => (
-                <View key={index} style={styles.serviceIcon}>
-                  {renderServiceIcon(service)}
-                </View>
-              ))}
+          {espacio.servicios.length > 0 && (
+            <View style={styles.servicesContainer}>
+              <Text style={styles.servicesLabel}>Servicios</Text>
+              <View style={styles.servicesIcons}>
+                {espacio.servicios.slice(0, 4).map((service, index) => (
+                  <View key={index} style={styles.serviceIcon}>
+                    {renderServiceIcon(service)}
+                  </View>
+                ))}
+                {espacio.servicios.length > 4 && (
+                  <View style={styles.serviceIcon}>
+                    <Text style={styles.moreServicesText}>+{espacio.servicios.length - 4}</Text>
+                  </View>
+                )}
+              </View>
             </View>
-          </View>
+          )}
 
           <TouchableOpacity
             style={[
               styles.verButton,
-              tipoUsuario === 'proveedor' && styles.verButtonProveedor
+              tipoUsuario === 'proveedor' && styles.verButtonProveedor,
+              !espacio.disponible && styles.verButtonDisabled
             ]}
-            onPress={() => verDetalleOficina(oficina)}
+            onPress={() => verDetalleOficina(espacio)}
             activeOpacity={0.7}
+            disabled={!espacio.disponible && tipoUsuario === 'usuario'}
           >
             <Text style={[
               styles.verButtonText,
@@ -299,7 +330,13 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color="#7f8c8d" style={styles.searchIcon} />
           <TextInput
@@ -310,12 +347,12 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
                   'Buscar oportunidades...'
             }
             placeholderTextColor="#999"
-            value={searchText}
-            onChangeText={setSearchText}
+            value={textoBusqueda}
+            onChangeText={handleSearchChange}
           />
         </View>
 
-        {tipoUsuario === 'usuario' && (
+        {(tipoUsuario === 'usuario' || tipoUsuario === 'proveedor' || tipoUsuario === 'administrador') && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -328,7 +365,7 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
                   styles.filtroButton,
                   filtroTipo === tipo.id && styles.filtroButtonActive
                 ]}
-                onPress={() => setFiltroTipo(tipo.id)}
+                onPress={() => handleFiltroChange(tipo.id)}
               >
                 <Ionicons
                   name={tipo.icono}
@@ -356,7 +393,12 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
           </TouchableOpacity>
         )}
 
-        {oficinas.length === 0 ? (
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#4a90e2" />
+            <Text style={styles.loadingText}>Cargando espacios...</Text>
+          </View>
+        ) : espaciosFiltrados.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons
               name={
@@ -370,7 +412,7 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
             <Text style={styles.emptyText}>
               {tipoUsuario === 'cliente' ? 'No tienes espacios publicados' :
                 tipoUsuario === 'proveedor' ? 'No hay oportunidades disponibles' :
-                  'No se encontraron espacios'}
+                  textoBusqueda ? 'No se encontraron espacios con ese criterio' : 'No hay espacios disponibles'}
             </Text>
             <Text style={styles.emptySubtext}>
               {tipoUsuario === 'cliente' ? 'Publica tu primer espacio y comienza a recibir reservas' :
@@ -395,9 +437,13 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
             )}
           </View>
         ) : (
-          <View style={styles.oficinasContainer}>
-            {oficinas.map((oficina) => (
-              <OficinaCard key={oficina.id} oficina={oficina} />
+          <View style={styles.espaciosContainer}>
+            <Text style={styles.espaciosCount}>
+              {espaciosFiltrados.length} espacio{espaciosFiltrados.length !== 1 ? 's' : ''} 
+              {textoBusqueda ? ` encontrado${espaciosFiltrados.length !== 1 ? 's' : ''}` : ' disponible'}
+            </Text>
+            {espaciosFiltrados.map((espacio) => (
+              <EspacioCard key={espacio.id} espacio={espacio} />
             ))}
           </View>
         )}
@@ -478,32 +524,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
   },
-  membresiaBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fffbf0',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 20,
-    borderWidth: 1,
-    borderColor: '#f39c12',
-  },
-  membresiaBannerText: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  membresiaTitulo: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    fontFamily: 'System',
-  },
-  membresiaSubtitulo: {
-    fontSize: 14,
-    color: '#7f8c8d',
-    marginTop: 2,
-    fontFamily: 'System',
-  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -573,29 +593,26 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontFamily: 'System',
   },
-  crearServicioButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
-    backgroundColor: '#27ae60',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 20,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    alignItems: 'center',
+    paddingVertical: 60,
   },
-  crearServicioText: {
-    color: '#fff',
+  loadingText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 8,
+    color: '#7f8c8d',
+    marginTop: 10,
     fontFamily: 'System',
   },
-  oficinasContainer: {
+  espaciosContainer: {
     paddingBottom: 20,
+  },
+  espaciosCount: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    marginBottom: 15,
+    fontFamily: 'System',
   },
   emptyContainer: {
     flex: 1,
@@ -608,6 +625,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#7f8c8d',
     marginTop: 20,
+    textAlign: 'center',
     fontFamily: 'System',
   },
   emptySubtext: {
@@ -671,6 +689,21 @@ const styles = StyleSheet.create({
     color: '#27ae60',
     fontFamily: 'System',
   },
+  noDisponibleIndicator: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(231, 76, 60, 0.9)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  noDisponibleText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#fff',
+    fontFamily: 'System',
+  },
   cardContent: {
     padding: 15,
   },
@@ -721,6 +754,14 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: '#f1f3f4',
     borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moreServicesText: {
+    fontSize: 12,
+    color: '#4a90e2',
+    fontWeight: 'bold',
+    fontFamily: 'System',
   },
   verButton: {
     backgroundColor: '#4a90e2',
@@ -731,6 +772,9 @@ const styles = StyleSheet.create({
   },
   verButtonProveedor: {
     backgroundColor: '#27ae60',
+  },
+  verButtonDisabled: {
+    backgroundColor: '#bdc3c7',
   },
   verButtonText: {
     color: '#fff',

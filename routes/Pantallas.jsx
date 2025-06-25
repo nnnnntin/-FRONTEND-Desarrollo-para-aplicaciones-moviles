@@ -2,16 +2,32 @@ import * as SecureStore from 'expo-secure-store';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { desloguear, loguear } from '../store/slices/usuarioSlice';
+
+import { desloguear, loguear } from '../store/slices/authSlice';
 import Aplicacion from './Aplicacion';
 import Pila from './Pila';
 
 const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
   const [isInitializing, setIsInitializing] = useState(true);
-  const isLoggedIn = useSelector(state => state.usuario.isLoggedIn);
-  const tipoUsuario = useSelector(state => state.usuario.tipoUsuario);
-  const datosUsuario = useSelector(state => state.usuario.datosUsuario);
+  
+  
+  const isLoggedIn = useSelector(state => state.auth.isLoggedIn);
+  const tipoUsuario = useSelector(state => state.auth.tipoUsuario);
+  const usuario = useSelector(state => state.auth.usuario); 
+  const esAdmin = useSelector(state => state.auth.esAdmin);
+  
   const dispatch = useDispatch();
+
+  
+  useEffect(() => {
+    console.log('🔍 Estado actual:', {
+      isLogged,
+      isLoggedIn,
+      tipoUsuario,
+      esAdmin,
+      hasUserData: !!usuario
+    });
+  }, [isLogged, isLoggedIn, tipoUsuario, esAdmin, usuario]);
 
   useEffect(() => {
     const verificarSesionGuardada = async () => {
@@ -23,13 +39,11 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
         if (sesionGuardada === 'true' && usuarioGuardado && tipoGuardado) {
           const datosUsuarioParseados = JSON.parse(usuarioGuardado);
           
+          
           dispatch(loguear({
+            usuario: datosUsuarioParseados,  
             tipoUsuario: tipoGuardado,
-            datosUsuario: datosUsuarioParseados,
-            oficinasPropias: datosUsuarioParseados.oficinasPropias || [],
-            serviciosOfrecidos: datosUsuarioParseados.serviciosOfrecidos || [],
-            serviciosContratados: datosUsuarioParseados.serviciosContratados || [],
-            membresia: datosUsuarioParseados.membresia || null
+            token: datosUsuarioParseados.token || null, 
           }));
           
           setIsLogged(true);
@@ -51,19 +65,46 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
     }
   }, [dispatch, setIsLogged, isLogged]);
 
+  
   useEffect(() => {
-    if (isLogged === false && isLoggedIn) {
-      dispatch(desloguear());
+    if (isLoggedIn && !isLogged) {
+      console.log('🔄 Sincronizando: Redux indica login exitoso, actualizando estado local');
+      setIsLogged(true);
+      
+      
+      const guardarSesion = async () => {
+        try {
+          await SecureStore.setItemAsync('isLogged', 'true');
+          await SecureStore.setItemAsync('usuario', JSON.stringify(usuario));
+          await SecureStore.setItemAsync('tipoUsuario', tipoUsuario || '');
+          console.log('✅ Sesión guardada en SecureStore');
+        } catch (error) {
+          console.error('Error al guardar sesión:', error);
+        }
+      };
+      
+      if (usuario && tipoUsuario) {
+        guardarSesion();
+      }
     }
-  }, [isLogged, isLoggedIn, dispatch]);
+  }, [isLoggedIn, isLogged, setIsLogged, usuario, tipoUsuario]);
 
   const resetSessionComplete = async () => {
     try {
+      console.log('🧹 Iniciando reset completo de sesión');
+      
+      
+      dispatch(desloguear());
+      
+      
       await SecureStore.deleteItemAsync('isLogged');
       await SecureStore.deleteItemAsync('usuario');
       await SecureStore.deleteItemAsync('tipoUsuario');
-      dispatch(desloguear());
+      
+      
       setIsLogged(false);
+      
+      console.log('🧹 Sesión completamente reseteada');
     } catch (error) {
       console.error('Error al resetear sesión completa:', error);
     }
@@ -77,18 +118,28 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
         {tipoUsuario && (
           <Text style={styles.loadingSubtext}>
             Cargando perfil de {tipoUsuario}...
+            {esAdmin && ' (Administrador)'}
           </Text>
         )}
-        {datosUsuario?.nombre && (
+        {usuario?.nombre && (
           <Text style={styles.loadingUser}>
-            Bienvenido, {datosUsuario.nombre}
+            Bienvenido, {usuario.nombre}
           </Text>
         )}
       </View>
     );
   }
 
-  const shouldShowApp = isLogged && isLoggedIn;
+  
+  const shouldShowApp = isLoggedIn && (isLogged || isLoggedIn);
+
+  console.log('🎯 Decisión de renderizado:', {
+    shouldShowApp,
+    isLoggedIn,
+    isLogged,
+    tipoUsuario,
+    esAdmin
+  });
 
   return (
     <View style={styles.container}>

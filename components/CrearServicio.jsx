@@ -11,10 +11,13 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { crearServicioAdicional } from '../store/slices/proveedoresSlice';
 
 const CrearServicio = ({ navigation }) => {
+  const dispatch = useDispatch();
   const { datosUsuario } = useSelector(state => state.usuario);
+  const { loading } = useSelector(state => state.proveedores);
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -85,34 +88,49 @@ const CrearServicio = ({ navigation }) => {
     return Object.keys(nuevosErrores).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validarFormulario()) {
       Alert.alert('Formulario incompleto', 'Por favor completa todos los campos obligatorios');
       return;
     }
 
-    Alert.alert(
-      'Crear servicio',
-      '¿Estás seguro de que quieres crear este servicio?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Crear',
-          onPress: () => {
-            Alert.alert(
-              'Servicio creado',
-              'Tu servicio ha sido creado exitosamente y está pendiente de revisión.',
-              [
-                {
-                  text: 'OK',
-                  onPress: () => navigation.navigate('ServiciosProveedor')
-                }
-              ]
-            );
-          }
-        }
-      ]
-    );
+    const servicioData = {
+      nombre: formData.nombre.trim(),
+      descripcion: formData.descripcion.trim(),
+      tipo: formData.categoria,
+      precio: parseFloat(formData.precio),
+      duracionEstimada: formData.duracion.trim(),
+      diasDisponibles: formData.disponibilidad,
+      requisitos: formData.requisitos.trim(),
+      experiencia: formData.experiencia.trim(),
+      certificaciones: formData.certificaciones.split(',').map(c => c.trim()).filter(c => c),
+      imagenes: formData.imagenes,
+      proveedorId: datosUsuario?._id,
+      activo: true,
+      requiereAprobacion: true
+    };
+
+    try {
+      const result = await dispatch(crearServicioAdicional(servicioData));
+      
+      if (result.success) {
+        Alert.alert(
+          'Servicio creado',
+          'Tu servicio ha sido creado exitosamente y está pendiente de revisión.',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate('ServiciosProveedor')
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Error', result.error || 'No se pudo crear el servicio');
+      }
+    } catch (error) {
+      console.error('Error creando servicio:', error);
+      Alert.alert('Error', 'Ocurrió un error al crear el servicio');
+    }
   };
 
   const selectCategoria = (categoriaId) => {
@@ -347,8 +365,14 @@ const CrearServicio = ({ navigation }) => {
             <Text style={styles.cancelButtonText}>Cancelar</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-            <Text style={styles.submitButtonText}>Crear servicio</Text>
+          <TouchableOpacity 
+            style={[styles.submitButton, loading && styles.submitButtonDisabled]} 
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            <Text style={styles.submitButtonText}>
+              {loading ? 'Creando...' : 'Crear servicio'}
+            </Text>
           </TouchableOpacity>
         </View>
 

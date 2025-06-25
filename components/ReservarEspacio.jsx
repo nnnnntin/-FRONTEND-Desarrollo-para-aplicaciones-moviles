@@ -1,8 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
-  Image,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -10,11 +9,18 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { obtenerServiciosPorEspacio } from '../store/slices/proveedoresSlice';
 
 const ReservarEspacio = ({ navigation, route }) => {
+  const dispatch = useDispatch();
   const { espacio } = route.params;
+  
+  
+  const { serviciosPorEspacio, loading } = useSelector(state => state.proveedores);
+  const serviciosAdicionales = serviciosPorEspacio[espacio.id] || [];
 
   const [mostrarDetalles, setMostrarDetalles] = useState(false);
 
@@ -24,19 +30,19 @@ const ReservarEspacio = ({ navigation, route }) => {
   const [horaFinInput, setHoraFinInput] = useState('17:00');
 
   const [cantidadPersonas, setCantidadPersonas] = useState(1);
-  const [serviciosAdicionales, setServiciosAdicionales] = useState([]);
+  const [serviciosSeleccionados, setServiciosSeleccionados] = useState([]);
 
-  const serviciosDisponibles = [
-    { id: 1, nombre: 'Catering básico', precio: 15, unidad: 'persona' },
-    { id: 2, nombre: 'Proyector y pantalla', precio: 50, unidad: 'día' },
-    { id: 3, nombre: 'Servicio de café premium', precio: 5, unidad: 'persona' },
-    { id: 4, nombre: 'Estacionamiento adicional', precio: 20, unidad: 'día' }
-  ];
+  
+  useEffect(() => {
+    if (espacio.id) {
+      dispatch(obtenerServiciosPorEspacio(espacio.id));
+    }
+  }, [dispatch, espacio.id]);
 
   const handleGoBack = () => navigation.goBack();
 
   const toggleServicio = servicio => {
-    setServiciosAdicionales(prev => {
+    setServiciosSeleccionados(prev => {
       const existe = prev.find(s => s.id === servicio.id);
       if (existe) return prev.filter(s => s.id !== servicio.id);
       return [...prev, servicio];
@@ -45,8 +51,8 @@ const ReservarEspacio = ({ navigation, route }) => {
 
   const calcularPrecioTotal = () => {
     const precioBase = parseFloat(espacio.precio);
-    const precioServicios = serviciosAdicionales.reduce((tot, s) => {
-      return tot + (s.unidad === 'persona'
+    const precioServicios = serviciosSeleccionados.reduce((tot, s) => {
+      return tot + (s.unidadPrecio === 'persona'
         ? s.precio * cantidadPersonas
         : s.precio);
     }, 0);
@@ -109,7 +115,7 @@ const ReservarEspacio = ({ navigation, route }) => {
                 horaInicio: horaInicioInput,
                 horaFin: horaFinInput,
                 cantidadPersonas,
-                serviciosAdicionales
+                serviciosAdicionales: serviciosSeleccionados
               }
             });
           }
@@ -258,44 +264,48 @@ const ReservarEspacio = ({ navigation, route }) => {
 
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Servicios adicionales</Text>
-              {serviciosDisponibles.map(s => (
-                <TouchableOpacity
-                  key={s.id}
-                  style={[
-                    styles.servicioItem,
-                    serviciosAdicionales.some(x => x.id === s.id) && styles.servicioItemActive
-                  ]}
-                  onPress={() => toggleServicio(s)}
-                >
-                  <View style={styles.servicioInfo}>
-                    <Text style={styles.servicioNombre}>{s.nombre}</Text>
-                    <Text style={styles.servicioPrecio}>
-                      ${s.precio}/{s.unidad}
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name={serviciosAdicionales.some(x => x.id === s.id) ? 'checkbox' : 'square-outline'}
-                    size={24}
-                    color="#4a90e2"
-                  />
-                </TouchableOpacity>
-              ))}
+              {loading ? (
+                <Text style={styles.loadingText}>Cargando servicios...</Text>
+              ) : (
+                serviciosAdicionales.map(s => (
+                  <TouchableOpacity
+                    key={s.id}
+                    style={[
+                      styles.servicioItem,
+                      serviciosSeleccionados.some(x => x.id === s.id) && styles.servicioItemActive
+                    ]}
+                    onPress={() => toggleServicio(s)}
+                  >
+                    <View style={styles.servicioInfo}>
+                      <Text style={styles.servicioNombre}>{s.nombre}</Text>
+                      <Text style={styles.servicioPrecio}>
+                        ${s.precio}/{s.unidadPrecio}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={serviciosSeleccionados.some(x => x.id === s.id) ? 'checkbox' : 'square-outline'}
+                      size={24}
+                      color="#4a90e2"
+                    />
+                  </TouchableOpacity>
+                ))
+              )}
             </View>
 
-            {serviciosAdicionales.length > 0 && (
+            {serviciosSeleccionados.length > 0 && (
               <View style={styles.resumenSection}>
                 <Text style={styles.resumenTitle}>Resumen de costos</Text>
                 <View style={styles.resumenItem}>
                   <Text style={styles.resumenLabel}>Precio base</Text>
                   <Text style={styles.resumenValue}>${espacio.precio}</Text>
                 </View>
-                {serviciosAdicionales.map(s => (
+                {serviciosSeleccionados.map(s => (
                   <View key={s.id} style={styles.resumenItem}>
                     <Text style={styles.resumenLabel}>
-                      {s.nombre}{s.unidad === 'persona' && ` (x${cantidadPersonas})`}
+                      {s.nombre}{s.unidadPrecio === 'persona' && ` (x${cantidadPersonas})`}
                     </Text>
                     <Text style={styles.resumenValue}>
-                      ${s.unidad === 'persona' ? s.precio * cantidadPersonas : s.precio}
+                      ${s.unidadPrecio === 'persona' ? s.precio * cantidadPersonas : s.precio}
                     </Text>
                   </View>
                 ))}

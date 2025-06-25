@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -13,11 +13,17 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  crearSolicitudServicio,
+  obtenerServiciosPorProveedor
+} from '../store/slices/proveedoresSlice';
 
 const OfrecerServicios = ({ navigation, route }) => {
   const { oficina } = route.params;
+  const dispatch = useDispatch();
   const { datosUsuario } = useSelector(state => state.usuario);
+  const { serviciosProveedor, loading } = useSelector(state => state.proveedores);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [servicioSeleccionado, setServicioSeleccionado] = useState(null);
@@ -28,135 +34,130 @@ const OfrecerServicios = ({ navigation, route }) => {
     condicionesEspeciales: ''
   });
 
-  const misServicios = [
-    {
-      id: 1,
-      nombre: 'Limpieza profunda de oficinas',
-      categoria: 'Limpieza',
-      descripcion: 'Servicio completo de limpieza para espacios de trabajo, incluyendo desinfección y mantenimiento.',
-      precio: 120,
-      duracion: '2-3 horas',
-      calificacion: 4.8,
-      trabajosCompletados: 45,
-      disponible: true,
-      imagenes: []
-    },
-    {
-      id: 2,
-      nombre: 'Mantenimiento de equipos audiovisuales',
-      categoria: 'Tecnología',
-      descripcion: 'Revisión, mantenimiento y reparación de equipos de audio, video y proyección.',
-      precio: 80,
-      duracion: '1-2 horas',
-      calificacion: 4.9,
-      trabajosCompletados: 32,
-      disponible: true,
-      imagenes: []
-    },
-    {
-      id: 3,
-      nombre: 'Seguridad para eventos corporativos',
-      categoria: 'Seguridad',
-      descripcion: 'Personal de seguridad capacitado para eventos empresariales y reuniones importantes.',
-      precio: 200,
-      duracion: 'Por evento',
-      calificacion: 4.7,
-      trabajosCompletados: 28,
-      disponible: false,
-      imagenes: []
+  useEffect(() => {
+    if (datosUsuario?._id) {
+      cargarMisServicios();
     }
-  ];
+  }, [datosUsuario]);
+
+  const cargarMisServicios = async () => {
+    try {
+      await dispatch(obtenerServiciosPorProveedor(datosUsuario._id));
+    } catch (error) {
+      console.error('Error cargando servicios del proveedor:', error);
+    }
+  };
 
   const handleOfrecerServicio = (servicio) => {
     setServicioSeleccionado(servicio);
     setPropuesta({
       mensaje: `Hola, me gustaría ofrecer mi servicio de ${servicio.nombre.toLowerCase()} en tu espacio "${oficina.nombre}".`,
-      precioEspecial: servicio.precio.toString(),
+      precioEspecial: servicio.precio?.toString() || '',
       disponibilidad: 'Disponible de lunes a viernes, horarios flexibles',
       condicionesEspeciales: ''
     });
     setModalVisible(true);
   };
 
-  const handleEnviarPropuesta = () => {
+  const handleEnviarPropuesta = async () => {
     if (!propuesta.mensaje.trim()) {
       Alert.alert('Error', 'El mensaje es obligatorio');
       return;
     }
 
-    Alert.alert(
-      'Enviar propuesta',
-      '¿Estás seguro de que quieres enviar esta propuesta al propietario del espacio?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Enviar',
-          onPress: () => {
-            setModalVisible(false);
-            Alert.alert(
-              'Propuesta enviada',
-              'Tu propuesta ha sido enviada al propietario del espacio. Te notificaremos cuando recibas una respuesta.',
-              [
-                {
-                  text: 'OK',
-                  onPress: () => navigation.goBack()
-                }
-              ]
-            );
-          }
-        }
-      ]
+    try {
+      const solicitudData = {
+        proveedorId: datosUsuario._id,
+        espacioId: oficina.id,
+        servicioId: servicioSeleccionado._id,
+        propuesta: {
+          mensaje: propuesta.mensaje,
+          precioOfrecido: parseFloat(propuesta.precioEspecial) || servicioSeleccionado.precio,
+          disponibilidad: propuesta.disponibilidad,
+          condicionesEspeciales: propuesta.condicionesEspeciales
+        },
+        estado: 'pendiente'
+      };
+
+      const result = await dispatch(crearSolicitudServicio(solicitudData));
+      
+      if (result.success) {
+        setModalVisible(false);
+        Alert.alert(
+          'Propuesta enviada',
+          'Tu propuesta ha sido enviada al propietario del espacio. Te notificaremos cuando recibas una respuesta.',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.goBack()
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Error', 'No se pudo enviar la propuesta. Inténtalo de nuevo.');
+      }
+    } catch (error) {
+      console.error('Error enviando propuesta:', error);
+      Alert.alert('Error', 'Ocurrió un error al enviar la propuesta');
+    }
+  };
+
+  const renderServicio = ({ item: servicio }) => {
+    const disponible = servicio.activo !== false; 
+    
+    return (
+      <View style={[styles.servicioCard, !disponible && styles.servicioNoDisponible]}>
+        <View style={styles.servicioHeader}>
+          <View style={styles.servicioInfo}>
+            <Text style={styles.servicioNombre}>{servicio.nombre}</Text>
+            <Text style={styles.servicioCategoria}>{servicio.tipo || 'General'}</Text>
+          </View>
+          <View style={styles.servicioStats}>
+            <View style={styles.statItem}>
+              <Ionicons name="star" size={16} color="#f39c12" />
+              <Text style={styles.statText}>{servicio.calificacion || 0}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Ionicons name="checkmark-done" size={16} color="#27ae60" />
+              <Text style={styles.statText}>{servicio.trabajosCompletados || 0}</Text>
+            </View>
+          </View>
+        </View>
+
+        <Text style={styles.servicioDescripcion}>
+          {servicio.descripcion || 'Servicio profesional de calidad'}
+        </Text>
+
+        <View style={styles.servicioDetalles}>
+          <View style={styles.detalleItem}>
+            <Ionicons name="pricetag" size={16} color="#4a90e2" />
+            <Text style={styles.detalleText}>${servicio.precio || 0}</Text>
+          </View>
+          <View style={styles.detalleItem}>
+            <Ionicons name="time" size={16} color="#7f8c8d" />
+            <Text style={styles.detalleText}>{servicio.duracionEstimada || 'Por definir'}</Text>
+          </View>
+        </View>
+
+        {disponible ? (
+          <TouchableOpacity
+            style={styles.ofrecerButton}
+            onPress={() => handleOfrecerServicio(servicio)}
+          >
+            <Ionicons name="send" size={16} color="#fff" />
+            <Text style={styles.ofrecerButtonText}>Ofrecer servicio</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.noDisponibleButton}>
+            <Ionicons name="ban" size={16} color="#e74c3c" />
+            <Text style={styles.noDisponibleText}>Servicio no disponible</Text>
+          </View>
+        )}
+      </View>
     );
   };
 
-  const renderServicio = ({ item: servicio }) => (
-    <View style={[styles.servicioCard, !servicio.disponible && styles.servicioNoDisponible]}>
-      <View style={styles.servicioHeader}>
-        <View style={styles.servicioInfo}>
-          <Text style={styles.servicioNombre}>{servicio.nombre}</Text>
-          <Text style={styles.servicioCategoria}>{servicio.categoria}</Text>
-        </View>
-        <View style={styles.servicioStats}>
-          <View style={styles.statItem}>
-            <Ionicons name="star" size={16} color="#f39c12" />
-            <Text style={styles.statText}>{servicio.calificacion}</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Ionicons name="checkmark-done" size={16} color="#27ae60" />
-            <Text style={styles.statText}>{servicio.trabajosCompletados}</Text>
-          </View>
-        </View>
-      </View>
-
-      <Text style={styles.servicioDescripcion}>{servicio.descripcion}</Text>
-
-      <View style={styles.servicioDetalles}>
-        <View style={styles.detalleItem}>
-          <Ionicons name="pricetag" size={16} color="#4a90e2" />
-          <Text style={styles.detalleText}>${servicio.precio}</Text>
-        </View>
-        <View style={styles.detalleItem}>
-          <Ionicons name="time" size={16} color="#7f8c8d" />
-          <Text style={styles.detalleText}>{servicio.duracion}</Text>
-        </View>
-      </View>
-
-      {servicio.disponible ? (
-        <TouchableOpacity
-          style={styles.ofrecerButton}
-          onPress={() => handleOfrecerServicio(servicio)}
-        >
-          <Ionicons name="send" size={16} color="#fff" />
-          <Text style={styles.ofrecerButtonText}>Ofrecer servicio</Text>
-        </TouchableOpacity>
-      ) : (
-        <View style={styles.noDisponibleButton}>
-          <Ionicons name="ban" size={16} color="#e74c3c" />
-          <Text style={styles.noDisponibleText}>No disponible para este espacio</Text>
-        </View>
-      )}
-    </View>
-  );
+  const misServicios = serviciosProveedor || [];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -204,7 +205,11 @@ const OfrecerServicios = ({ navigation, route }) => {
         <View style={styles.serviciosSection}>
           <Text style={styles.sectionTitle}>Mis servicios disponibles</Text>
 
-          {misServicios.length === 0 ? (
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>Cargando servicios...</Text>
+            </View>
+          ) : misServicios.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="construct-outline" size={60} color="#bdc3c7" />
               <Text style={styles.emptyText}>No tienes servicios creados</Text>
@@ -221,10 +226,12 @@ const OfrecerServicios = ({ navigation, route }) => {
           ) : (
             <FlatList
               data={misServicios}
-              keyExtractor={(item) => item.id.toString()}
+              keyExtractor={(item) => item._id?.toString()}
               renderItem={renderServicio}
               scrollEnabled={false}
               showsVerticalScrollIndicator={false}
+              refreshing={loading}
+              onRefresh={cargarMisServicios}
             />
           )}
         </View>
@@ -253,7 +260,7 @@ const OfrecerServicios = ({ navigation, route }) => {
                 <>
                   <View style={styles.servicioResumen}>
                     <Text style={styles.servicioResumenNombre}>{servicioSeleccionado.nombre}</Text>
-                    <Text style={styles.servicioResumenPrecio}>${servicioSeleccionado.precio}</Text>
+                    <Text style={styles.servicioResumenPrecio}>${servicioSeleccionado.precio || 0}</Text>
                   </View>
 
                   <View style={styles.inputGroup}>
@@ -318,11 +325,14 @@ const OfrecerServicios = ({ navigation, route }) => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.enviarButton}
+                style={[styles.enviarButton, loading && styles.enviarButtonDisabled]}
                 onPress={handleEnviarPropuesta}
+                disabled={loading}
               >
                 <Ionicons name="send" size={16} color="#fff" />
-                <Text style={styles.enviarButtonText}>Enviar propuesta</Text>
+                <Text style={styles.enviarButtonText}>
+                  {loading ? 'Enviando...' : 'Enviar propuesta'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -695,6 +705,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#7f8c8d',
+  },
+  enviarButtonDisabled: {
+    opacity: 0.6,
   },
 });
 

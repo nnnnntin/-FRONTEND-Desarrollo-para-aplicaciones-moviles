@@ -1,75 +1,252 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { 
-  Alert, 
-  Image, 
-  ScrollView, 
-  StyleSheet, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  View,
+import {
+  Alert,
+  Image,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
+
+import { useDispatch, useSelector } from 'react-redux';
+import { clearError, signupUsuario } from '../store/slices/authSlice';
 
 const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
 const Registro = ({ navigation }) => {
+  
+  const [username, setUsername] = useState('');
   const [nombre, setNombre] = useState('');
-  const [cedula, setCedula] = useState('');
+  const [apellidos, setApellidos] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [tipoUsuario, setTipoUsuario] = useState('usuario');
+
+  
+  const [telefono, setTelefono] = useState('');
+  const [documentoIdentidad, setDocumentoIdentidad] = useState('');
+  const [profileImage, setProfileImage] = useState(null);
+
+  
+  const [calle, setCalle] = useState('');
+  const [ciudad, setCiudad] = useState('Montevideo');
+  const [codigoPostal, setCodigoPostal] = useState('');
+  const [pais, setPais] = useState('Uruguay');
+
+  
   const [nombreEmpresa, setNombreEmpresa] = useState('');
   const [tipoServicio, setTipoServicio] = useState('');
-  const [profileImage, setProfileImage] = useState(null);
+
+  
   const [uploadingImage, setUploadingImage] = useState(false);
 
+  
+  const dispatch = useDispatch();
+  const { loading: isRegistering, error } = useSelector(state => state.auth);
+
   const irLogin = () => {
-    navigation.navigate('login');
+    navigation.navigate('Login');
   };
 
-  const registrarse = () => {
-    if (!nombre || !cedula || !email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Por favor complete todos los campos');
-      return;
+  const validarCampos = () => {
+    if (!username.trim()) {
+      Alert.alert('Error', 'El nombre de usuario es obligatorio');
+      return false;
     }
 
-    if (tipoUsuario === 'cliente' && !nombreEmpresa) {
-      Alert.alert('Error', 'Por favor ingrese el nombre de la empresa');
-      return;
+    if (username.length < 3) {
+      Alert.alert('Error', 'El nombre de usuario debe tener al menos 3 caracteres');
+      return false;
     }
 
-    if (tipoUsuario === 'proveedor' && !tipoServicio) {
-      Alert.alert('Error', 'Por favor ingrese el tipo de servicio que ofrece');
-      return;
+    if (!email.trim()) {
+      Alert.alert('Error', 'El correo electrónico es obligatorio');
+      return false;
+    }
+
+    if (!password) {
+      Alert.alert('Error', 'La contraseña es obligatoria');
+      return false;
+    }
+
+    if (password.length < 8) {
+      Alert.alert('Error', 'La contraseña debe tener al menos 8 caracteres');
+      return false;
     }
 
     if (password !== confirmPassword) {
       Alert.alert('Error', 'Las contraseñas no coinciden');
+      return false;
+    }
+
+    if (tipoUsuario === 'cliente' && !nombreEmpresa.trim()) {
+      Alert.alert('Error', 'El nombre de la empresa es obligatorio para clientes');
+      return false;
+    }
+
+    if (tipoUsuario === 'proveedor' && !tipoServicio.trim()) {
+      Alert.alert('Error', 'El tipo de servicio es obligatorio para proveedores');
+      return false;
+    }
+
+    return true;
+  };
+
+  const registrarse = async () => {
+    if (!validarCampos()) {
       return;
     }
 
-    const registrationData = {
-      nombre,
-      cedula,
-      email,
-      password,
-      tipoUsuario,
-      profileImage, 
-      ...(tipoUsuario === 'cliente' && { nombreEmpresa }),
-      ...(tipoUsuario === 'proveedor' && { tipoServicio })
-    };
+    if (isRegistering) {
+      return;
+    }
 
-    console.log('Registration data:', registrationData);
+    try {
+      
+      dispatch(clearError());
 
-    Alert.alert('Éxito', `Registro exitoso como ${tipoUsuario}`, [
-      { text: 'OK', onPress: irLogin }
-    ]);
+      
+      console.log('🔍 [Frontend] Estado de profileImage:', {
+        profileImage,
+        hasValue: !!profileImage,
+        type: typeof profileImage,
+        length: profileImage?.length,
+        isCloudinaryUrl: profileImage?.includes('cloudinary.com')
+      });
+
+      
+      const registrationData = {
+        tipoUsuario,
+        username: username.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+      };
+
+      
+      console.log('🔵 [Frontend] Despachando signupUsuario con:', registrationData);
+
+      const result = await dispatch(signupUsuario(registrationData));
+
+      if (signupUsuario.fulfilled.match(result)) {
+        console.log('🟢 [Frontend] Registro exitoso:', result.payload);
+
+        
+        if (result.payload?.userId) {
+          await actualizarDatosAdicionales(result.payload.userId);
+        }
+
+        
+        Alert.alert(
+          'Registro exitoso',
+          `¡Bienvenido ${result.payload.username || username}! Tu cuenta como ${tipoUsuario} ha sido creada exitosamente.${profileImage ? '\n\n✅ Foto de perfil guardada' : '\n\n⚠️ Sin foto de perfil'}${(tipoUsuario === 'cliente' && nombreEmpresa) ? `\n\nEmpresa: ${nombreEmpresa}` : ''}${(tipoUsuario === 'proveedor' && tipoServicio) ? `\n\nServicio: ${tipoServicio}` : ''}`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                navigation.navigate('Login');
+              }
+            }
+          ]
+        );
+      } else if (signupUsuario.rejected.match(result)) {
+        console.log('🔴 [Frontend] Error en registro:', result.payload);
+        Alert.alert('Error', result.payload || 'Error en el registro');
+      }
+
+    } catch (error) {
+      console.log('🔴 [Frontend] Error de conexión:', error);
+      Alert.alert('Error', 'Error de conexión. Por favor intenta nuevamente.');
+    }
+  };
+
+  
+  const actualizarDatosAdicionales = async (usuarioId) => {
+    try {
+      const updateData = {
+        nombre: nombre.trim() || username.trim(),
+        apellidos: apellidos.trim() || '',
+        
+        datosPersonales: {
+          telefono: telefono.trim() || undefined,
+          documentoIdentidad: documentoIdentidad.trim() || undefined,
+        },
+
+        direccion: {
+          calle: calle.trim() || undefined,
+          ciudad: ciudad.trim() || 'Montevideo',
+          codigoPostal: codigoPostal.trim() || undefined,
+          pais: pais.trim() || 'Uruguay',
+        },
+
+        preferencias: {
+          idiomaPreferido: 'es',
+          monedaPreferida: 'UYU',
+          notificaciones: {
+            email: true,
+            push: true,
+            sms: false
+          }
+        },
+      };
+
+      
+      if (profileImage && typeof profileImage === 'string' && profileImage.trim()) {
+        updateData.imagen = profileImage.trim();
+      }
+
+      
+      if (tipoUsuario === 'cliente' && nombreEmpresa.trim()) {
+        updateData.datosEmpresa = {
+          nombreEmpresa: nombreEmpresa.trim()
+        };
+      }
+
+      if (tipoUsuario === 'proveedor' && tipoServicio.trim()) {
+        updateData.datosEmpresa = {
+          nombreEmpresa: tipoServicio.trim()
+        };
+      }
+
+      
+      Object.keys(updateData.datosPersonales).forEach(key => {
+        if (updateData.datosPersonales[key] === undefined) {
+          delete updateData.datosPersonales[key];
+        }
+      });
+
+      Object.keys(updateData.direccion).forEach(key => {
+        if (updateData.direccion[key] === undefined) {
+          delete updateData.direccion[key];
+        }
+      });
+
+      console.log('🔄 [Frontend] Actualizando perfil con datos adicionales...');
+
+      const updateResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/v1/usuarios/${usuarioId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (updateResponse.ok) {
+        console.log('🟢 [Frontend] Perfil actualizado con datos adicionales');
+      } else {
+        console.log('🟡 [Frontend] Usuario creado pero no se pudieron agregar datos adicionales');
+      }
+      
+    } catch (updateError) {
+      console.log('🟡 [Frontend] Usuario creado pero error al actualizar perfil:', updateError);
+    }
   };
 
   const requestCameraPermission = async () => {
@@ -100,23 +277,23 @@ const Registro = ({ navigation }) => {
 
   const uploadToCloudinary = async (imageUri) => {
     const formData = new FormData();
-    
+
     formData.append('file', {
       uri: imageUri,
       name: 'profile_registration.jpeg',
       type: 'image/jpeg'
     });
-    
+
     formData.append('upload_preset', UPLOAD_PRESET);
-    
+
     try {
       const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
         method: 'POST',
         body: formData
       });
-      
+
       const data = await response.json();
-      
+
       if (data.secure_url) {
         return data.secure_url;
       } else {
@@ -134,7 +311,7 @@ const Registro = ({ navigation }) => {
 
     try {
       setUploadingImage(true);
-      
+
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -160,7 +337,7 @@ const Registro = ({ navigation }) => {
 
     try {
       setUploadingImage(true);
-      
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -182,7 +359,7 @@ const Registro = ({ navigation }) => {
 
   const showImageOptions = () => {
     if (uploadingImage) return;
-    
+
     Alert.alert(
       'Seleccionar foto de perfil',
       'Selecciona una opción',
@@ -205,11 +382,11 @@ const Registro = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.keyboardAvoidingView} 
+    <KeyboardAvoidingView
+      style={styles.keyboardAvoidingView}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -223,6 +400,13 @@ const Registro = ({ navigation }) => {
 
           <Text style={styles.title}>Officereserve</Text>
           <Text style={styles.subtitle}>Registrarse</Text>
+
+          {/* 🔥 CAMBIO: Mostrar error si existe */}
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
 
           <TouchableOpacity onPress={showImageOptions} style={styles.photoContainer} disabled={uploadingImage}>
             {uploadingImage ? (
@@ -248,6 +432,7 @@ const Registro = ({ navigation }) => {
                   tipoUsuario === 'usuario' && styles.tipoUsuarioButtonActive
                 ]}
                 onPress={() => setTipoUsuario('usuario')}
+                disabled={isRegistering}
               >
                 <Text style={[
                   styles.tipoUsuarioButtonText,
@@ -263,6 +448,7 @@ const Registro = ({ navigation }) => {
                   tipoUsuario === 'cliente' && styles.tipoUsuarioButtonActive
                 ]}
                 onPress={() => setTipoUsuario('cliente')}
+                disabled={isRegistering}
               >
                 <Text style={[
                   styles.tipoUsuarioButtonText,
@@ -278,6 +464,7 @@ const Registro = ({ navigation }) => {
                   tipoUsuario === 'proveedor' && styles.tipoUsuarioButtonActive
                 ]}
                 onPress={() => setTipoUsuario('proveedor')}
+                disabled={isRegistering}
               >
                 <Text style={[
                   styles.tipoUsuarioButtonText,
@@ -289,69 +476,163 @@ const Registro = ({ navigation }) => {
             </View>
           </View>
 
+          {/* Resto de los campos igual que antes */}
+          <Text style={styles.label}>Nombre de usuario *</Text>
+          <TextInput
+            style={[styles.fullInput, isRegistering && styles.inputDisabled]}
+            placeholder="Nombre de usuario único"
+            placeholderTextColor="#999"
+            value={username}
+            onChangeText={setUsername}
+            returnKeyType="next"
+            blurOnSubmit={false}
+            editable={!isRegistering}
+            autoCapitalize="none"
+          />
+
           <View style={styles.rowContainer}>
             <View style={styles.halfInputContainer}>
               <Text style={styles.label}>Nombre</Text>
               <TextInput
-                style={styles.input}
-                placeholder="Nombre completo"
+                style={[styles.input, isRegistering && styles.inputDisabled]}
+                placeholder="Tu nombre"
                 placeholderTextColor="#999"
                 value={nombre}
                 onChangeText={setNombre}
                 returnKeyType="next"
                 blurOnSubmit={false}
+                editable={!isRegistering}
               />
             </View>
             <View style={styles.halfInputContainer}>
-              <Text style={styles.label}>Cédula</Text>
+              <Text style={styles.label}>Apellidos</Text>
               <TextInput
-                style={styles.input}
-                placeholder="Cédula"
+                style={[styles.input, isRegistering && styles.inputDisabled]}
+                placeholder="Tus apellidos"
                 placeholderTextColor="#999"
-                value={cedula}
-                onChangeText={setCedula}
+                value={apellidos}
+                onChangeText={setApellidos}
+                returnKeyType="next"
+                blurOnSubmit={false}
+                editable={!isRegistering}
+              />
+            </View>
+          </View>
+
+          <View style={styles.rowContainer}>
+            <View style={styles.halfInputContainer}>
+              <Text style={styles.label}>Teléfono</Text>
+              <TextInput
+                style={[styles.input, isRegistering && styles.inputDisabled]}
+                placeholder="+598 9X XXX XXX"
+                placeholderTextColor="#999"
+                value={telefono}
+                onChangeText={setTelefono}
+                keyboardType="phone-pad"
+                returnKeyType="next"
+                blurOnSubmit={false}
+                editable={!isRegistering}
+              />
+            </View>
+            <View style={styles.halfInputContainer}>
+              <Text style={styles.label}>Documento</Text>
+              <TextInput
+                style={[styles.input, isRegistering && styles.inputDisabled]}
+                placeholder="C.I. o Pasaporte"
+                placeholderTextColor="#999"
+                value={documentoIdentidad}
+                onChangeText={setDocumentoIdentidad}
+                returnKeyType="next"
+                blurOnSubmit={false}
+                editable={!isRegistering}
+              />
+            </View>
+          </View>
+
+          <Text style={styles.sectionTitle}>Dirección (opcional)</Text>
+
+          <Text style={styles.label}>Calle</Text>
+          <TextInput
+            style={[styles.fullInput, isRegistering && styles.inputDisabled]}
+            placeholder="Calle y número"
+            placeholderTextColor="#999"
+            value={calle}
+            onChangeText={setCalle}
+            returnKeyType="next"
+            blurOnSubmit={false}
+            editable={!isRegistering}
+          />
+
+          <View style={styles.rowContainer}>
+            <View style={styles.halfInputContainer}>
+              <Text style={styles.label}>Ciudad</Text>
+              <TextInput
+                style={[styles.input, isRegistering && styles.inputDisabled]}
+                placeholder="Ciudad"
+                placeholderTextColor="#999"
+                value={ciudad}
+                onChangeText={setCiudad}
+                returnKeyType="next"
+                blurOnSubmit={false}
+                editable={!isRegistering}
+              />
+            </View>
+            <View style={styles.halfInputContainer}>
+              <Text style={styles.label}>Código Postal</Text>
+              <TextInput
+                style={[styles.input, isRegistering && styles.inputDisabled]}
+                placeholder="Código postal"
+                placeholderTextColor="#999"
+                value={codigoPostal}
+                onChangeText={setCodigoPostal}
                 keyboardType="numeric"
                 returnKeyType="next"
                 blurOnSubmit={false}
-                maxLength={10}
+                editable={!isRegistering}
               />
             </View>
           </View>
 
           {tipoUsuario === 'cliente' && (
             <>
-              <Text style={styles.label}>Nombre de la empresa</Text>
+              <Text style={styles.sectionTitle}>Información de Empresa</Text>
+              <Text style={styles.label}>Nombre de la empresa *</Text>
               <TextInput
-                style={styles.fullInput}
+                style={[styles.fullInput, isRegistering && styles.inputDisabled]}
                 placeholder="Nombre de tu empresa"
                 placeholderTextColor="#999"
                 value={nombreEmpresa}
                 onChangeText={setNombreEmpresa}
                 returnKeyType="next"
                 blurOnSubmit={false}
+                editable={!isRegistering}
               />
             </>
           )}
 
           {tipoUsuario === 'proveedor' && (
             <>
-              <Text style={styles.label}>Tipo de servicio</Text>
+              <Text style={styles.sectionTitle}>Información de Servicio</Text>
+              <Text style={styles.label}>Tipo de servicio *</Text>
               <TextInput
-                style={styles.fullInput}
+                style={[styles.fullInput, isRegistering && styles.inputDisabled]}
                 placeholder="Ej: Limpieza, Catering, Seguridad, etc."
                 placeholderTextColor="#999"
                 value={tipoServicio}
                 onChangeText={setTipoServicio}
                 returnKeyType="next"
                 blurOnSubmit={false}
+                editable={!isRegistering}
               />
             </>
           )}
 
-          <Text style={styles.label}>Correo electrónico</Text>
+          <Text style={styles.sectionTitle}>Datos de Acceso</Text>
+
+          <Text style={styles.label}>Correo electrónico *</Text>
           <TextInput
-            style={styles.fullInput}
-            placeholder="Introduce tu correo electrónico"
+            style={[styles.fullInput, isRegistering && styles.inputDisabled]}
+            placeholder="tu@email.com"
             placeholderTextColor="#999"
             value={email}
             onChangeText={setEmail}
@@ -359,37 +640,58 @@ const Registro = ({ navigation }) => {
             autoCapitalize="none"
             returnKeyType="next"
             blurOnSubmit={false}
+            editable={!isRegistering}
           />
 
-          <Text style={styles.label}>Contraseña</Text>
+          <Text style={styles.label}>Contraseña *</Text>
           <TextInput
-            style={styles.fullInput}
-            placeholder="Introduce tu contraseña"
+            style={[styles.fullInput, isRegistering && styles.inputDisabled]}
+            placeholder="Mínimo 8 caracteres"
             placeholderTextColor="#999"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
             returnKeyType="next"
             blurOnSubmit={false}
+            editable={!isRegistering}
           />
 
-          <Text style={styles.label}>Confirmar contraseña</Text>
+          <Text style={styles.label}>Confirmar contraseña *</Text>
           <TextInput
-            style={styles.fullInput}
-            placeholder="Confirme su contraseña"
+            style={[styles.fullInput, isRegistering && styles.inputDisabled]}
+            placeholder="Repite tu contraseña"
             placeholderTextColor="#999"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
             returnKeyType="done"
+            editable={!isRegistering}
           />
 
-          <TouchableOpacity style={styles.button} onPress={registrarse}>
-            <Text style={styles.buttonText}>Registrarse</Text>
+          <TouchableOpacity
+            style={[
+              styles.button,
+              isRegistering && styles.buttonDisabled
+            ]}
+            onPress={registrarse}
+            disabled={isRegistering}
+          >
+            <Text style={styles.buttonText}>
+              {isRegistering ? 'Registrando...' : 'Registrarse'}
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={irLogin} style={styles.backContainer}>
-            <Text style={styles.backLink}>Volver</Text>
+          <TouchableOpacity
+            onPress={irLogin}
+            style={styles.backContainer}
+            disabled={isRegistering}
+          >
+            <Text style={[
+              styles.backLink,
+              isRegistering && styles.linkDisabled
+            ]}>
+              Volver al login
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -397,10 +699,11 @@ const Registro = ({ navigation }) => {
   );
 };
 
+
 const styles = StyleSheet.create({
   keyboardAvoidingView: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#ffffff',
   },
   scrollContainer: {
     flexGrow: 1,
@@ -428,6 +731,31 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#7f8c8d',
     marginBottom: 20,
+    fontFamily: 'System',
+  },
+  
+  errorContainer: {
+    width: '100%',
+    backgroundColor: '#fee',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#fcc',
+  },
+  errorText: {
+    color: '#c33',
+    fontSize: 14,
+    textAlign: 'center',
+    fontFamily: 'System',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginTop: 20,
+    marginBottom: 15,
+    alignSelf: 'flex-start',
     fontFamily: 'System',
   },
   photoContainer: {
@@ -534,6 +862,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'System',
   },
+  inputDisabled: {
+    backgroundColor: '#f5f5f5',
+    color: '#999',
+  },
   button: {
     width: '100%',
     height: 50,
@@ -547,6 +879,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+  },
+  buttonDisabled: {
+    backgroundColor: '#9CA3AF',
+    shadowOpacity: 0.1,
   },
   buttonText: {
     color: '#ffffff',
@@ -563,6 +899,9 @@ const styles = StyleSheet.create({
     color: '#4a90e2',
     fontWeight: '600',
     fontFamily: 'System',
+  },
+  linkDisabled: {
+    color: '#9CA3AF',
   },
 });
 

@@ -5,6 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Button } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 
+
 import AgregarTarjeta from '../components/AgregarTarjeta';
 import BuscarProveedores from '../components/BuscarProveedores';
 import CrearPublicacion from '../components/CrearPublicacion';
@@ -44,13 +45,15 @@ import TransaccionesAdmin from '../components/TransaccionesAdmin';
 
 import Listar from './Listar';
 
-import { desloguear } from '../store/slices/usuarioSlice';
+
+import { desloguear } from '../store/slices/authSlice';
 
 const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
 
 const InicioStack = ({ setIsLogged, resetSession }) => {
-  const { tipoUsuario } = useSelector(state => state.usuario);
+  
+  const { tipoUsuario } = useSelector(state => state.auth);
   
   return (
     <Stack.Navigator
@@ -102,7 +105,7 @@ const InicioStack = ({ setIsLogged, resetSession }) => {
         }}
       />
       
-      {tipoUsuario === 'admin' && (
+      {tipoUsuario === 'administrador' && (
         <>
           <Stack.Screen 
             name="DashboardAdmin" 
@@ -263,7 +266,7 @@ const InicioStack = ({ setIsLogged, resetSession }) => {
 
 const getListarTitle = (tipoUsuario) => {
   switch (tipoUsuario) {
-    case 'admin':
+    case 'administrador': 
       return 'Panel de Administración';
     case 'cliente':
       return 'Gestión de Servicios';
@@ -277,7 +280,7 @@ const getListarTitle = (tipoUsuario) => {
 
 const getHeaderColor = (tipoUsuario) => {
   switch (tipoUsuario) {
-    case 'admin':
+    case 'administrador': 
       return '#2c3e50';
     case 'cliente':
       return '#3498db';
@@ -291,7 +294,8 @@ const getHeaderColor = (tipoUsuario) => {
 
 const Aplicacion = ({setIsLogged, resetSession}) => {
     const dispatch = useDispatch();
-    const { tipoUsuario } = useSelector(state => state.usuario);
+    
+    const { tipoUsuario } = useSelector(state => state.auth);
 
     const cerrarSesion = async () => {
         try {
@@ -324,14 +328,14 @@ const Aplicacion = ({setIsLogged, resetSession}) => {
                 return 'Mis espacios';
             case 'proveedor':
                 return 'Oportunidades de servicio';
-            case 'admin':
+            case 'administrador': 
                 return 'Panel de Administración';
             default:
                 return 'Inicio';
         }
     };
 
-    if (tipoUsuario === 'admin') {
+    if (tipoUsuario === 'administrador') {
         return (
             <Stack.Navigator
                 screenOptions={{
@@ -411,7 +415,7 @@ const Aplicacion = ({setIsLogged, resetSession}) => {
                     title: getListarTitle(tipoUsuario),
                     headerShown: false,
                     drawerIcon: ({ color, size }) => {
-                        const iconName = tipoUsuario === 'admin' ? 'settings' : 
+                        const iconName = tipoUsuario === 'administrador' ? 'settings' : 
                                         tipoUsuario === 'cliente' ? 'business' :
                                         tipoUsuario === 'proveedor' ? 'construct' : 'list';
                         return <Ionicons name={`${iconName}-outline`} size={size} color={color} />;

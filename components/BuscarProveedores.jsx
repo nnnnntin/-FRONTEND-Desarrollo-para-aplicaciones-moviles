@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -12,16 +12,30 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  crearSolicitudServicio,
+  filtrarProveedores,
+  obtenerProveedores,
+  setProveedorSeleccionado
+} from '../store/slices/proveedoresSlice';
 
 const BuscarProveedores = ({ navigation, route }) => {
   const { oficina } = route.params;
+  const dispatch = useDispatch();
+  
+  const { 
+    proveedores, 
+    proveedorSeleccionado, 
+    loading, 
+    error 
+  } = useSelector(state => state.proveedores);
 
   const [searchText, setSearchText] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('todos');
   const [filtroCalificacion, setFiltroCalificacion] = useState(0);
   const [filtroPrecio, setFiltroPrecio] = useState('todos');
   const [modalVisible, setModalVisible] = useState(false);
-  const [proveedorSeleccionado, setProveedorSeleccionado] = useState(null);
 
   const categorias = [
     { id: 'todos', nombre: 'Todos', icono: 'apps' },
@@ -33,144 +47,113 @@ const BuscarProveedores = ({ navigation, route }) => {
     { id: 'eventos', nombre: 'Eventos', icono: 'calendar' }
   ];
 
-  const proveedoresDisponibles = [
-    {
-      id: 1,
-      nombre: 'María González',
-      empresa: 'Cleaning Pro',
-      servicio: 'Limpieza profunda de oficinas',
-      categoria: 'limpieza',
-      descripcion: 'Especialista en limpieza comercial con 8 años de experiencia. Uso productos ecológicos.',
-      precio: 120,
-      calificacion: 4.8,
-      trabajosCompletados: 156,
-      disponibilidad: 'Lun - Vie, 6AM - 6PM',
-      certificaciones: ['ISO 14001', 'Higiene Industrial'],
-      distancia: 2.3,
-      imagen: null
-    },
-    {
-      id: 2,
-      nombre: 'Carlos Rodríguez',
-      empresa: 'Tech Support 24/7',
-      servicio: 'Soporte técnico audiovisual',
-      categoria: 'tecnologia',
-      descripcion: 'Técnico certificado en equipos audiovisuales y sistemas de conferencia.',
-      precio: 150,
-      calificacion: 4.9,
-      trabajosCompletados: 89,
-      disponibilidad: '24/7',
-      certificaciones: ['CompTIA A+', 'Cisco CCNA'],
-      distancia: 1.8,
-      imagen: null
-    },
-    {
-      id: 3,
-      nombre: 'Ana Martínez',
-      empresa: 'Catering Express',
-      servicio: 'Catering corporativo',
-      categoria: 'catering',
-      descripcion: 'Chef profesional especializada en eventos corporativos y reuniones ejecutivas.',
-      precio: 35,
-      calificacion: 4.6,
-      trabajosCompletados: 234,
-      disponibilidad: 'Lun - Sáb, 7AM - 9PM',
-      certificaciones: ['Manipulación de alimentos', 'HACCP'],
-      distancia: 3.1,
-      imagen: null
-    },
-    {
-      id: 4,
-      nombre: 'Roberto Silva',
-      empresa: 'Security Plus',
-      servicio: 'Seguridad para eventos',
-      categoria: 'seguridad',
-      descripcion: 'Ex-policía con 15 años de experiencia en seguridad privada y eventos corporativos.',
-      precio: 200,
-      calificacion: 4.7,
-      trabajosCompletados: 78,
-      disponibilidad: 'Disponible 24/7',
-      certificaciones: ['Seguridad Privada', 'Primeros Auxilios'],
-      distancia: 4.2,
-      imagen: null
-    },
-    {
-      id: 5,
-      nombre: 'Laura Pérez',
-      empresa: 'Mantenimiento Integral',
-      servicio: 'Mantenimiento de oficinas',
-      categoria: 'mantenimiento',
-      descripcion: 'Técnica en mantenimiento con especialización en sistemas eléctricos y plomería.',
-      precio: 80,
-      calificacion: 4.5,
-      trabajosCompletados: 145,
-      disponibilidad: 'Lun - Vie, 8AM - 5PM',
-      certificaciones: ['Electricista', 'Plomería básica'],
-      distancia: 2.9,
-      imagen: null
+  useEffect(() => {
+    cargarProveedores();
+  }, []);
+
+  useEffect(() => {
+    aplicarFiltros();
+  }, [filtroCategoria, filtroCalificacion, filtroPrecio, searchText]);
+
+  const cargarProveedores = async () => {
+    try {
+      await dispatch(obtenerProveedores(0, 50));
+    } catch (error) {
+      console.error('Error cargando proveedores:', error);
     }
-  ];
+  };
+
+  const aplicarFiltros = async () => {
+    try {
+      const filtros = {};
+      
+      if (filtroCategoria !== 'todos') {
+        filtros.tipo = filtroCategoria;
+      }
+      
+      if (filtroCalificacion > 0) {
+        filtros.calificacionMinima = filtroCalificacion;
+      }
+      
+      if (searchText.trim()) {
+        filtros.busqueda = searchText.trim();
+      }
+      
+      await dispatch(filtrarProveedores(filtros));
+    } catch (error) {
+      console.error('Error aplicando filtros:', error);
+    }
+  };
 
   const getProveedoresFiltrados = () => {
-    let filtrados = proveedoresDisponibles;
+    let filtrados = proveedores || [];
 
+    
     if (searchText) {
       filtrados = filtrados.filter(p =>
-        p.nombre.toLowerCase().includes(searchText.toLowerCase()) ||
-        p.empresa.toLowerCase().includes(searchText.toLowerCase()) ||
-        p.servicio.toLowerCase().includes(searchText.toLowerCase())
+        p.nombre?.toLowerCase().includes(searchText.toLowerCase()) ||
+        p.empresa?.toLowerCase().includes(searchText.toLowerCase()) ||
+        p.servicios?.some(s => s.nombre?.toLowerCase().includes(searchText.toLowerCase()))
       );
     }
 
-    if (filtroCategoria !== 'todos') {
-      filtrados = filtrados.filter(p => p.categoria === filtroCategoria);
-    }
-
-    if (filtroCalificacion > 0) {
-      filtrados = filtrados.filter(p => p.calificacion >= filtroCalificacion);
-    }
-
+    
     if (filtroPrecio !== 'todos') {
-      switch (filtroPrecio) {
-        case 'bajo':
-          filtrados = filtrados.filter(p => p.precio <= 100);
-          break;
-        case 'medio':
-          filtrados = filtrados.filter(p => p.precio > 100 && p.precio <= 150);
-          break;
-        case 'alto':
-          filtrados = filtrados.filter(p => p.precio > 150);
-          break;
-      }
+      filtrados = filtrados.filter(p => {
+        const precioPromedio = p.servicios?.reduce((sum, s) => sum + (s.precio || 0), 0) / (p.servicios?.length || 1);
+        switch (filtroPrecio) {
+          case 'bajo':
+            return precioPromedio <= 100;
+          case 'medio':
+            return precioPromedio > 100 && precioPromedio <= 150;
+          case 'alto':
+            return precioPromedio > 150;
+          default:
+            return true;
+        }
+      });
     }
 
-    return filtrados.sort((a, b) => b.calificacion - a.calificacion);
+    return filtrados.sort((a, b) => (b.calificacion || 0) - (a.calificacion || 0));
   };
 
   const handleVerPerfil = (proveedor) => {
-    setProveedorSeleccionado(proveedor);
+    dispatch(setProveedorSeleccionado(proveedor));
     setModalVisible(true);
   };
 
-  const handleAgregarProveedor = (proveedor) => {
+  const handleAgregarProveedor = async (proveedor) => {
     Alert.alert(
-      'Agregar proveedor',
-      `¿Quieres agregar a ${proveedor.nombre} (${proveedor.empresa}) a tu espacio "${oficina.nombre}"?`,
+      'Enviar solicitud',
+      `¿Quieres enviar una solicitud a ${proveedor.nombre} (${proveedor.empresa}) para ofrecer servicios en "${oficina.nombre}"?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Agregar',
-          onPress: () => {
-            Alert.alert(
-              'Proveedor agregado',
-              `${proveedor.nombre} ha sido agregado a tu espacio. Los clientes ahora podrán solicitar sus servicios.`,
-              [
-                {
-                  text: 'OK',
-                  onPress: () => navigation.goBack()
-                }
-              ]
-            );
+          text: 'Enviar solicitud',
+          onPress: async () => {
+            try {
+              const solicitudData = {
+                proveedorId: proveedor._id,
+                espacioId: oficina.id,
+                mensaje: `Hola ${proveedor.nombre}, me interesa que ofrezcas tus servicios en mi espacio "${oficina.nombre}". ¿Podrías enviarme una propuesta?`,
+                estado: 'enviada'
+              };
+              
+              const result = await dispatch(crearSolicitudServicio(solicitudData));
+              
+              if (result.success) {
+                Alert.alert(
+                  'Solicitud enviada',
+                  `Tu solicitud ha sido enviada a ${proveedor.nombre}. Te notificaremos cuando responda.`,
+                  [{ text: 'OK', onPress: () => navigation.goBack() }]
+                );
+              } else {
+                Alert.alert('Error', 'No se pudo enviar la solicitud. Inténtalo de nuevo.');
+              }
+            } catch (error) {
+              console.error('Error enviando solicitud:', error);
+              Alert.alert('Error', 'No se pudo enviar la solicitud. Inténtalo de nuevo.');
+            }
           }
         }
       ]
@@ -182,47 +165,57 @@ const BuscarProveedores = ({ navigation, route }) => {
       <View style={styles.proveedorHeader}>
         <View style={styles.proveedorAvatar}>
           <Text style={styles.proveedorInitials}>
-            {proveedor.nombre.split(' ').map(n => n[0]).join('')}
+            {proveedor.nombre?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'PR'}
           </Text>
         </View>
         <View style={styles.proveedorInfo}>
-          <Text style={styles.proveedorNombre}>{proveedor.nombre}</Text>
-          <Text style={styles.proveedorEmpresa}>{proveedor.empresa}</Text>
-          <Text style={styles.proveedorServicio}>{proveedor.servicio}</Text>
+          <Text style={styles.proveedorNombre}>{proveedor.nombre || 'Proveedor'}</Text>
+          <Text style={styles.proveedorEmpresa}>{proveedor.empresa || 'Sin empresa'}</Text>
+          <Text style={styles.proveedorServicio}>
+            {proveedor.servicios?.[0]?.nombre || 'Servicios varios'}
+          </Text>
         </View>
         <View style={styles.proveedorStats}>
           <View style={styles.statItem}>
             <Ionicons name="star" size={16} color="#f39c12" />
-            <Text style={styles.statText}>{proveedor.calificacion}</Text>
+            <Text style={styles.statText}>{proveedor.calificacion || 0}</Text>
           </View>
-          <Text style={styles.distanciaText}>{proveedor.distancia} km</Text>
+          <Text style={styles.distanciaText}>{proveedor.distancia || '2.5'} km</Text>
         </View>
       </View>
 
-      <Text style={styles.proveedorDescripcion}>{proveedor.descripcion}</Text>
+      <Text style={styles.proveedorDescripcion}>
+        {proveedor.descripcion || 'Proveedor de servicios profesionales con experiencia en el sector.'}
+      </Text>
 
       <View style={styles.proveedorDetalles}>
         <View style={styles.detalleRow}>
           <Ionicons name="pricetag" size={16} color="#4a90e2" />
-          <Text style={styles.detalleText}>${proveedor.precio}/servicio</Text>
+          <Text style={styles.detalleText}>
+            ${proveedor.servicios?.[0]?.precio || 100}/servicio
+          </Text>
         </View>
         <View style={styles.detalleRow}>
           <Ionicons name="checkmark-done" size={16} color="#27ae60" />
-          <Text style={styles.detalleText}>{proveedor.trabajosCompletados} trabajos</Text>
+          <Text style={styles.detalleText}>
+            {proveedor.trabajosCompletados || 0} trabajos
+          </Text>
         </View>
         <View style={styles.detalleRow}>
           <Ionicons name="time" size={16} color="#7f8c8d" />
-          <Text style={styles.detalleText}>{proveedor.disponibilidad}</Text>
+          <Text style={styles.detalleText}>
+            {proveedor.disponibilidad || 'Lun - Vie, 8AM - 6PM'}
+          </Text>
         </View>
       </View>
 
       <View style={styles.certificaciones}>
-        {proveedor.certificaciones.slice(0, 2).map((cert, index) => (
+        {(proveedor.certificaciones || ['Certificado profesional']).slice(0, 2).map((cert, index) => (
           <View key={index} style={styles.certificacionTag}>
             <Text style={styles.certificacionText}>{cert}</Text>
           </View>
         ))}
-        {proveedor.certificaciones.length > 2 && (
+        {(proveedor.certificaciones || []).length > 2 && (
           <Text style={styles.masCertificaciones}>
             +{proveedor.certificaciones.length - 2} más
           </Text>
@@ -243,7 +236,7 @@ const BuscarProveedores = ({ navigation, route }) => {
           onPress={() => handleAgregarProveedor(proveedor)}
         >
           <Ionicons name="add" size={16} color="#fff" />
-          <Text style={styles.agregarText}>Agregar</Text>
+          <Text style={styles.agregarText}>Solicitar</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -272,6 +265,21 @@ const BuscarProveedores = ({ navigation, route }) => {
   );
 
   const proveedoresFiltrados = getProveedoresFiltrados();
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={60} color="#e74c3c" />
+          <Text style={styles.errorText}>Error al cargar proveedores</Text>
+          <Text style={styles.errorSubtext}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={cargarProveedores}>
+            <Text style={styles.retryButtonText}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -351,7 +359,11 @@ const BuscarProveedores = ({ navigation, route }) => {
         <Text style={styles.espacioText}>para {oficina.nombre}</Text>
       </View>
 
-      {proveedoresFiltrados.length === 0 ? (
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Cargando proveedores...</Text>
+        </View>
+      ) : proveedoresFiltrados.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="search-outline" size={60} color="#bdc3c7" />
           <Text style={styles.emptyText}>No se encontraron proveedores</Text>
@@ -362,11 +374,13 @@ const BuscarProveedores = ({ navigation, route }) => {
       ) : (
         <FlatList
           data={proveedoresFiltrados}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item._id || item.id?.toString()}
           renderItem={renderProveedor}
           style={styles.lista}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listaContent}
+          refreshing={loading}
+          onRefresh={cargarProveedores}
         />
       )}
 
@@ -393,7 +407,7 @@ const BuscarProveedores = ({ navigation, route }) => {
                 <View style={styles.perfilHeader}>
                   <View style={styles.perfilAvatar}>
                     <Text style={styles.perfilInitials}>
-                      {proveedorSeleccionado.nombre.split(' ').map(n => n[0]).join('')}
+                      {proveedorSeleccionado.nombre?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'PR'}
                     </Text>
                   </View>
                   <View style={styles.perfilInfo}>
@@ -401,24 +415,28 @@ const BuscarProveedores = ({ navigation, route }) => {
                     <Text style={styles.perfilEmpresa}>{proveedorSeleccionado.empresa}</Text>
                     <View style={styles.perfilRating}>
                       <Ionicons name="star" size={16} color="#f39c12" />
-                      <Text style={styles.perfilCalificacion}>{proveedorSeleccionado.calificacion}</Text>
-                      <Text style={styles.perfilTrabajos}>({proveedorSeleccionado.trabajosCompletados} trabajos)</Text>
+                      <Text style={styles.perfilCalificacion}>{proveedorSeleccionado.calificacion || 0}</Text>
+                      <Text style={styles.perfilTrabajos}>({proveedorSeleccionado.trabajosCompletados || 0} trabajos)</Text>
                     </View>
                   </View>
                 </View>
 
-                <Text style={styles.perfilDescripcion}>{proveedorSeleccionado.descripcion}</Text>
+                <Text style={styles.perfilDescripcion}>
+                  {proveedorSeleccionado.descripcion || 'Proveedor de servicios profesionales'}
+                </Text>
 
                 <View style={styles.perfilDetalles}>
-                  <Text style={styles.perfilSeccionTitulo}>Servicio</Text>
-                  <Text style={styles.perfilTexto}>{proveedorSeleccionado.servicio}</Text>
+                  <Text style={styles.perfilSeccionTitulo}>Servicios</Text>
+                  {(proveedorSeleccionado.servicios || []).map((servicio, index) => (
+                    <Text key={index} style={styles.perfilTexto}>• {servicio.nombre}</Text>
+                  ))}
 
                   <Text style={styles.perfilSeccionTitulo}>Disponibilidad</Text>
-                  <Text style={styles.perfilTexto}>{proveedorSeleccionado.disponibilidad}</Text>
+                  <Text style={styles.perfilTexto}>{proveedorSeleccionado.disponibilidad || 'Consultar disponibilidad'}</Text>
 
                   <Text style={styles.perfilSeccionTitulo}>Certificaciones</Text>
                   <View style={styles.certificacionesList}>
-                    {proveedorSeleccionado.certificaciones.map((cert, index) => (
+                    {(proveedorSeleccionado.certificaciones || ['Certificado profesional']).map((cert, index) => (
                       <View key={index} style={styles.certificacionItem}>
                         <Ionicons name="checkmark-circle" size={16} color="#27ae60" />
                         <Text style={styles.certificacionTexto}>{cert}</Text>
@@ -435,7 +453,7 @@ const BuscarProveedores = ({ navigation, route }) => {
                   }}
                 >
                   <Ionicons name="add" size={20} color="#fff" />
-                  <Text style={styles.agregarModalText}>Agregar a mi espacio</Text>
+                  <Text style={styles.agregarModalText}>Enviar solicitud</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -446,10 +464,51 @@ const BuscarProveedores = ({ navigation, route }) => {
   );
 };
 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#e74c3c',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  errorSubtext: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#4a90e2',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 20,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#7f8c8d',
   },
   header: {
     flexDirection: 'row',
@@ -876,11 +935,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 8,
     gap: 8,
-  },
-  agregarModalText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
   },
 });
 

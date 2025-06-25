@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -13,158 +13,104 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { 
+  obtenerProveedores,
+  filtrarProveedores,
+  activarProveedor,
+  eliminarProveedor,
+  actualizarProveedorThunk
+} from '../store/slices/proveedoresSlice';
 
 const GestionProveedores = ({ navigation }) => {
+  const dispatch = useDispatch();
+  const { proveedores, loading } = useSelector(state => state.proveedores);
+
   const [tabActiva, setTabActiva] = useState('todos');
   const [busqueda, setBusqueda] = useState('');
   const [modalDetalles, setModalDetalles] = useState(false);
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState(null);
 
-  const [proveedores] = useState([
-    {
-      id: 1,
-      nombre: 'María González',
-      empresa: 'Cleaning Pro Services',
-      email: 'maria@cleaningpro.com',
-      telefono: '+598 99 123 456',
-      servicios: ['Limpieza profunda', 'Limpieza regular', 'Sanitización'],
-      estado: 'activo',
-      fechaRegistro: '2024-02-20',
-      calificacion: 4.8,
-      serviciosCompletados: 156,
-      gananciasGeneradas: 18720,
-      comisionesPagadas: 3744,
-      documentos: {
-        rut: true,
-        certificadoDgi: true,
-        seguro: true,
-        certificadoSanitario: true
-      },
-      zonasCubiertas: ['Montevideo', 'Ciudad de la Costa']
-    },
-    {
-      id: 2,
-      nombre: 'Carlos Rodríguez',
-      empresa: 'TechSupport Solutions',
-      email: 'carlos@techsupport.com',
-      telefono: '+598 98 765 432',
-      servicios: ['Soporte IT', 'Instalación equipos', 'Mantenimiento'],
-      estado: 'pendiente',
-      fechaRegistro: '2025-06-15',
-      documentos: {
-        rut: true,
-        certificadoDgi: false,
-        seguro: false,
-        certificadoTecnico: false
-      },
-      documentosPendientes: ['Certificado DGI', 'Seguro de responsabilidad', 'Certificación técnica']
-    },
-    {
-      id: 3,
-      nombre: 'Ana Martínez',
-      empresa: 'Catering Gourmet',
-      email: 'ana@cateringgourmet.com',
-      telefono: '+598 91 234 567',
-      servicios: ['Catering eventos', 'Coffee break', 'Almuerzos ejecutivos'],
-      estado: 'activo',
-      fechaRegistro: '2024-05-10',
-      calificacion: 4.9,
-      serviciosCompletados: 89,
-      gananciasGeneradas: 24500,
-      comisionesPagadas: 4900,
-      documentos: {
-        rut: true,
-        certificadoDgi: true,
-        seguro: true,
-        habilitacionBromatologica: true
-      },
-      zonasCubiertas: ['Montevideo', 'Canelones']
-    },
-    {
-      id: 4,
-      nombre: 'Roberto Silva',
-      empresa: 'Seguridad Integral',
-      email: 'roberto@seguridadintegral.com',
-      telefono: '+598 94 567 890',
-      servicios: ['Seguridad privada', 'Monitoreo', 'Custodia'],
-      estado: 'suspendido',
-      fechaRegistro: '2024-01-15',
-      calificacion: 3.2,
-      serviciosCompletados: 45,
-      gananciasGeneradas: 8900,
-      comisionesPagadas: 1780,
-      razonSuspension: 'Múltiples quejas de clientes',
-      documentos: {
-        rut: true,
-        certificadoDgi: true,
-        seguro: true,
-        habilitacionPolicial: true
-      }
-    },
-    {
-      id: 5,
-      nombre: 'Laura Pérez',
-      empresa: 'Mantenimiento Express',
-      email: 'laura@mantenimientoexpress.com',
-      telefono: '+598 92 345 678',
-      servicios: ['Electricidad', 'Plomería', 'Pintura', 'Albañilería'],
-      estado: 'activo',
-      fechaRegistro: '2024-03-25',
-      calificacion: 4.6,
-      serviciosCompletados: 234,
-      gananciasGeneradas: 31200,
-      comisionesPagadas: 6240,
-      documentos: {
-        rut: true,
-        certificadoDgi: true,
-        seguro: true,
-        certificadoUte: true
-      },
-      zonasCubiertas: ['Todo Montevideo']
-    }
-  ]);
+  useEffect(() => {
+    cargarProveedores();
+  }, []);
 
-  const estadisticas = {
-    total: proveedores.length,
-    activos: proveedores.filter(p => p.estado === 'activo').length,
-    pendientes: proveedores.filter(p => p.estado === 'pendiente').length,
-    suspendidos: proveedores.filter(p => p.estado === 'suspendido').length,
-    serviciosTotales: proveedores.reduce((sum, p) => sum + (p.serviciosCompletados || 0), 0),
-    gananciasTotales: proveedores.reduce((sum, p) => sum + (p.gananciasGeneradas || 0), 0),
-    comisionesTotales: proveedores.reduce((sum, p) => sum + (p.comisionesPagadas || 0), 0)
+  useEffect(() => {
+    aplicarFiltros();
+  }, [tabActiva, busqueda]);
+
+  const cargarProveedores = async () => {
+    try {
+      await dispatch(obtenerProveedores(0, 100));
+    } catch (error) {
+      console.error('Error cargando proveedores:', error);
+    }
+  };
+
+  const aplicarFiltros = async () => {
+    try {
+      const filtros = {};
+      
+      if (tabActiva !== 'todos') {
+        if (tabActiva === 'activos') filtros.activo = true;
+        if (tabActiva === 'pendientes') filtros.verificado = false;
+        if (tabActiva === 'suspendidos') filtros.activo = false;
+      }
+      
+      if (busqueda.trim()) {
+        filtros.busqueda = busqueda.trim();
+      }
+      
+      await dispatch(filtrarProveedores(filtros));
+    } catch (error) {
+      console.error('Error aplicando filtros:', error);
+    }
   };
 
   const getProveedoresFiltrados = () => {
+    if (!proveedores) return [];
+
     let filtrados = proveedores;
 
     if (tabActiva !== 'todos') {
       filtrados = filtrados.filter(p => {
-        if (tabActiva === 'activos') return p.estado === 'activo';
-        if (tabActiva === 'pendientes') return p.estado === 'pendiente';
-        if (tabActiva === 'suspendidos') return p.estado === 'suspendido';
+        if (tabActiva === 'activos') return p.activo === true && p.verificado === true;
+        if (tabActiva === 'pendientes') return p.verificado === false;
+        if (tabActiva === 'suspendidos') return p.activo === false;
         return true;
       });
     }
 
     if (busqueda) {
       filtrados = filtrados.filter(p =>
-        p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-        p.empresa.toLowerCase().includes(busqueda.toLowerCase()) ||
-        p.email.toLowerCase().includes(busqueda.toLowerCase()) ||
-        p.servicios.some(s => s.toLowerCase().includes(busqueda.toLowerCase()))
+        p.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
+        p.empresa?.toLowerCase().includes(busqueda.toLowerCase()) ||
+        p.email?.toLowerCase().includes(busqueda.toLowerCase()) ||
+        p.servicios?.some(s => s.nombre?.toLowerCase().includes(busqueda.toLowerCase()))
       );
     }
 
     return filtrados;
   };
 
-  const getEstadoInfo = (estado) => {
-    switch (estado) {
-      case 'activo': return { color: '#27ae60', icono: 'checkmark-circle' };
-      case 'pendiente': return { color: '#f39c12', icono: 'time' };
-      case 'suspendido': return { color: '#e74c3c', icono: 'close-circle' };
-      default: return { color: '#7f8c8d', icono: 'help-circle' };
-    }
+  const getEstadisticas = () => {
+    if (!proveedores) return { total: 0, activos: 0, pendientes: 0, suspendidos: 0, serviciosTotales: 0, gananciasTotales: 0, comisionesTotales: 0 };
+
+    const total = proveedores.length;
+    const activos = proveedores.filter(p => p.activo === true && p.verificado === true).length;
+    const pendientes = proveedores.filter(p => p.verificado === false).length;
+    const suspendidos = proveedores.filter(p => p.activo === false).length;
+    const serviciosTotales = proveedores.reduce((sum, p) => sum + (p.trabajosCompletados || 0), 0);
+    const gananciasTotales = proveedores.reduce((sum, p) => sum + (p.gananciasGeneradas || 0), 0);
+    const comisionesTotales = proveedores.reduce((sum, p) => sum + (p.comisionesPagadas || 0), 0);
+
+    return { total, activos, pendientes, suspendidos, serviciosTotales, gananciasTotales, comisionesTotales };
+  };
+
+  const getEstadoInfo = (proveedor) => {
+    if (!proveedor.verificado) return { color: '#f39c12', icono: 'time', texto: 'pendiente' };
+    if (!proveedor.activo) return { color: '#e74c3c', icono: 'close-circle', texto: 'suspendido' };
+    return { color: '#27ae60', icono: 'checkmark-circle', texto: 'activo' };
   };
 
   const handleVerDetalles = (proveedor) => {
@@ -172,17 +118,35 @@ const GestionProveedores = ({ navigation }) => {
     setModalDetalles(true);
   };
 
-  const handleCambiarEstado = (proveedor, nuevoEstado) => {
+  const handleCambiarEstado = async (proveedor, nuevoEstado) => {
     Alert.alert(
       'Cambiar estado',
-      `¿Cambiar el estado de ${proveedor.empresa} a ${nuevoEstado}?`,
+      `¿Cambiar el estado de ${proveedor.empresa || proveedor.nombre} a ${nuevoEstado}?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Confirmar',
-          onPress: () => {
-            Alert.alert('Éxito', 'Estado actualizado correctamente');
-            setModalDetalles(false);
+          onPress: async () => {
+            try {
+              let result;
+              if (nuevoEstado === 'activo') {
+                result = await dispatch(activarProveedor(proveedor._id));
+              } else {
+                const datosActualizacion = { activo: nuevoEstado === 'activo' };
+                result = await dispatch(actualizarProveedorThunk(proveedor._id, datosActualizacion));
+              }
+
+              if (result.success) {
+                Alert.alert('Éxito', 'Estado actualizado correctamente');
+                setModalDetalles(false);
+                await cargarProveedores();
+              } else {
+                Alert.alert('Error', result.error || 'No se pudo actualizar el estado');
+              }
+            } catch (error) {
+              console.error('Error cambiando estado:', error);
+              Alert.alert('Error', 'Ocurrió un error al cambiar el estado');
+            }
           }
         }
       ]
@@ -207,13 +171,13 @@ const GestionProveedores = ({ navigation }) => {
   };
 
   const renderServicio = (servicio) => (
-    <View key={servicio} style={styles.servicioChip}>
-      <Text style={styles.servicioText}>{servicio}</Text>
+    <View key={servicio._id || servicio.nombre} style={styles.servicioChip}>
+      <Text style={styles.servicioText}>{servicio.nombre}</Text>
     </View>
   );
 
   const renderProveedor = ({ item }) => {
-    const estadoInfo = getEstadoInfo(item.estado);
+    const estadoInfo = getEstadoInfo(item);
 
     return (
       <TouchableOpacity
@@ -223,13 +187,13 @@ const GestionProveedores = ({ navigation }) => {
         <View style={styles.proveedorHeader}>
           <View style={styles.avatarContainer}>
             <Text style={styles.avatarText}>
-              {item.empresa.split(' ').map(w => w[0]).join('').slice(0, 2)}
+              {(item.empresa || item.nombre || 'PR').split(' ').map(w => w[0]).join('').slice(0, 2)}
             </Text>
           </View>
           <View style={styles.proveedorInfo}>
-            <Text style={styles.proveedorNombre}>{item.nombre}</Text>
-            <Text style={styles.proveedorEmpresa}>{item.empresa}</Text>
-            <Text style={styles.proveedorEmail}>{item.email}</Text>
+            <Text style={styles.proveedorNombre}>{item.nombre || 'Sin nombre'}</Text>
+            <Text style={styles.proveedorEmpresa}>{item.empresa || 'Sin empresa'}</Text>
+            <Text style={styles.proveedorEmail}>{item.email || 'Sin email'}</Text>
           </View>
           <View style={[styles.estadoIcon, { backgroundColor: estadoInfo.color + '20' }]}>
             <Ionicons name={estadoInfo.icono} size={24} color={estadoInfo.color} />
@@ -238,45 +202,53 @@ const GestionProveedores = ({ navigation }) => {
 
         <View style={styles.serviciosContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {item.servicios.map(servicio => renderServicio(servicio))}
+            {(item.servicios || []).slice(0, 3).map(servicio => renderServicio(servicio))}
+            {(item.servicios || []).length > 3 && (
+              <View style={styles.servicioChip}>
+                <Text style={styles.servicioText}>+{item.servicios.length - 3} más</Text>
+              </View>
+            )}
           </ScrollView>
         </View>
 
         <View style={styles.proveedorStats}>
-          {item.estado === 'activo' && (
+          {estadoInfo.texto === 'activo' && (
             <>
               <View style={styles.statItem}>
                 <Ionicons name="star" size={16} color="#f39c12" />
-                <Text style={styles.statText}>{item.calificacion}</Text>
+                <Text style={styles.statText}>{item.calificacion || 0}</Text>
               </View>
               <View style={styles.statItem}>
                 <Ionicons name="construct" size={16} color="#4a90e2" />
-                <Text style={styles.statText}>{item.serviciosCompletados} servicios</Text>
+                <Text style={styles.statText}>{item.trabajosCompletados || 0} servicios</Text>
               </View>
               <View style={styles.statItem}>
                 <Ionicons name="cash" size={16} color="#27ae60" />
-                <Text style={styles.statText}>${item.gananciasGeneradas}</Text>
+                <Text style={styles.statText}>${item.gananciasGeneradas || 0}</Text>
               </View>
             </>
           )}
-          {item.estado === 'pendiente' && (
+          {estadoInfo.texto === 'pendiente' && (
             <View style={styles.alertaBadge}>
               <Ionicons name="alert-circle" size={16} color="#f39c12" />
               <Text style={styles.alertaText}>
-                {item.documentosPendientes?.length || 0} documentos pendientes
+                Documentos pendientes de verificación
               </Text>
             </View>
           )}
-          {item.estado === 'suspendido' && (
+          {estadoInfo.texto === 'suspendido' && (
             <View style={styles.alertaBadge}>
               <Ionicons name="warning" size={16} color="#e74c3c" />
-              <Text style={styles.alertaText}>{item.razonSuspension}</Text>
+              <Text style={styles.alertaText}>Cuenta suspendida</Text>
             </View>
           )}
         </View>
       </TouchableOpacity>
     );
   };
+
+  const estadisticas = getEstadisticas();
+  const proveedoresFiltrados = getProveedoresFiltrados();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -364,13 +336,21 @@ const GestionProveedores = ({ navigation }) => {
         ))}
       </ScrollView>
 
-      <FlatList
-        data={getProveedoresFiltrados()}
-        renderItem={renderProveedor}
-        keyExtractor={(item) => item.id.toString()}
-        style={styles.lista}
-        contentContainerStyle={styles.listaContent}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Cargando proveedores...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={proveedoresFiltrados}
+          renderItem={renderProveedor}
+          keyExtractor={(item) => item._id?.toString()}
+          style={styles.lista}
+          contentContainerStyle={styles.listaContent}
+          refreshing={loading}
+          onRefresh={cargarProveedores}
+        />
+      )}
 
       <Modal
         visible={modalDetalles}
@@ -395,7 +375,7 @@ const GestionProveedores = ({ navigation }) => {
                 <View style={styles.modalProveedorHeader}>
                   <View style={styles.modalAvatar}>
                     <Text style={styles.modalAvatarText}>
-                      {proveedorSeleccionado.empresa.split(' ').map(w => w[0]).join('').slice(0, 2)}
+                      {(proveedorSeleccionado.empresa || proveedorSeleccionado.nombre || 'PR').split(' ').map(w => w[0]).join('').slice(0, 2)}
                     </Text>
                   </View>
                   <View style={styles.modalProveedorInfo}>
@@ -403,18 +383,18 @@ const GestionProveedores = ({ navigation }) => {
                     <Text style={styles.modalProveedorEmpresa}>{proveedorSeleccionado.empresa}</Text>
                     <View style={[
                       styles.modalEstadoBadge,
-                      { backgroundColor: getEstadoInfo(proveedorSeleccionado.estado).color + '20' }
+                      { backgroundColor: getEstadoInfo(proveedorSeleccionado).color + '20' }
                     ]}>
                       <Ionicons
-                        name={getEstadoInfo(proveedorSeleccionado.estado).icono}
+                        name={getEstadoInfo(proveedorSeleccionado).icono}
                         size={16}
-                        color={getEstadoInfo(proveedorSeleccionado.estado).color}
+                        color={getEstadoInfo(proveedorSeleccionado).color}
                       />
                       <Text style={[
                         styles.modalEstadoText,
-                        { color: getEstadoInfo(proveedorSeleccionado.estado).color }
+                        { color: getEstadoInfo(proveedorSeleccionado).color }
                       ]}>
-                        {proveedorSeleccionado.estado.charAt(0).toUpperCase() + proveedorSeleccionado.estado.slice(1)}
+                        {getEstadoInfo(proveedorSeleccionado).texto.charAt(0).toUpperCase() + getEstadoInfo(proveedorSeleccionado).texto.slice(1)}
                       </Text>
                     </View>
                   </View>
@@ -428,12 +408,12 @@ const GestionProveedores = ({ navigation }) => {
                   </View>
                   <View style={styles.modalInfoItem}>
                     <Ionicons name="call" size={16} color="#4a90e2" />
-                    <Text style={styles.modalInfoValue}>{proveedorSeleccionado.telefono}</Text>
+                    <Text style={styles.modalInfoValue}>{proveedorSeleccionado.telefono || 'No especificado'}</Text>
                   </View>
                   <View style={styles.modalInfoItem}>
                     <Ionicons name="calendar" size={16} color="#4a90e2" />
                     <Text style={styles.modalInfoValue}>
-                      Registrado el {proveedorSeleccionado.fechaRegistro}
+                      Registrado el {proveedorSeleccionado.fechaRegistro || 'Fecha no disponible'}
                     </Text>
                   </View>
                 </View>
@@ -441,93 +421,39 @@ const GestionProveedores = ({ navigation }) => {
                 <View style={styles.modalSeccion}>
                   <Text style={styles.modalSeccionTitle}>Servicios ofrecidos</Text>
                   <View style={styles.modalServiciosGrid}>
-                    {proveedorSeleccionado.servicios.map((servicio, index) => (
+                    {(proveedorSeleccionado.servicios || []).map((servicio, index) => (
                       <View key={index} style={styles.modalServicioChip}>
-                        <Text style={styles.modalServicioText}>{servicio}</Text>
+                        <Text style={styles.modalServicioText}>{servicio.nombre}</Text>
                       </View>
                     ))}
                   </View>
                 </View>
 
-                {proveedorSeleccionado.zonasCubiertas && (
-                  <View style={styles.modalSeccion}>
-                    <Text style={styles.modalSeccionTitle}>Zonas de cobertura</Text>
-                    <View style={styles.modalZonasContainer}>
-                      {proveedorSeleccionado.zonasCubiertas.map((zona, index) => (
-                        <View key={index} style={styles.modalZonaItem}>
-                          <Ionicons name="location" size={16} color="#4a90e2" />
-                          <Text style={styles.modalZonaText}>{zona}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                {proveedorSeleccionado.estado === 'activo' && (
+                {getEstadoInfo(proveedorSeleccionado).texto === 'activo' && (
                   <View style={styles.modalSeccion}>
                     <Text style={styles.modalSeccionTitle}>Estadísticas</Text>
                     <View style={styles.modalEstadisticas}>
                       <View style={styles.modalEstatItem}>
                         <Ionicons name="star" size={20} color="#f39c12" />
-                        <Text style={styles.modalEstatValor}>{proveedorSeleccionado.calificacion}</Text>
+                        <Text style={styles.modalEstatValor}>{proveedorSeleccionado.calificacion || 0}</Text>
                         <Text style={styles.modalEstatLabel}>Calificación</Text>
                       </View>
                       <View style={styles.modalEstatItem}>
                         <Ionicons name="construct" size={20} color="#4a90e2" />
-                        <Text style={styles.modalEstatValor}>{proveedorSeleccionado.serviciosCompletados}</Text>
+                        <Text style={styles.modalEstatValor}>{proveedorSeleccionado.trabajosCompletados || 0}</Text>
                         <Text style={styles.modalEstatLabel}>Servicios</Text>
                       </View>
                       <View style={styles.modalEstatItem}>
                         <Ionicons name="cash" size={20} color="#27ae60" />
-                        <Text style={styles.modalEstatValor}>${proveedorSeleccionado.gananciasGeneradas}</Text>
+                        <Text style={styles.modalEstatValor}>${proveedorSeleccionado.gananciasGeneradas || 0}</Text>
                         <Text style={styles.modalEstatLabel}>Ganancias</Text>
                       </View>
                     </View>
                   </View>
                 )}
 
-                {proveedorSeleccionado.documentos && (
-                  <View style={styles.modalSeccion}>
-                    <Text style={styles.modalSeccionTitle}>Documentación</Text>
-                    {Object.entries(proveedorSeleccionado.documentos).map(([doc, status]) => (
-                      <View key={doc} style={styles.modalDocumentoItem}>
-                        <Ionicons
-                          name={status ? 'checkmark-circle' : 'close-circle'}
-                          size={20}
-                          color={status ? '#27ae60' : '#e74c3c'}
-                        />
-                        <Text style={styles.modalDocumentoText}>
-                          {doc.replace(/([A-Z])/g, ' $1').charAt(0).toUpperCase() +
-                            doc.replace(/([A-Z])/g, ' $1').slice(1)}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
-                {proveedorSeleccionado.estado === 'pendiente' && proveedorSeleccionado.documentosPendientes && (
-                  <View style={styles.modalAlerta}>
-                    <Ionicons name="alert-circle" size={20} color="#f39c12" />
-                    <View style={styles.modalAlertaContent}>
-                      <Text style={styles.modalAlertaTitle}>Documentos pendientes:</Text>
-                      {proveedorSeleccionado.documentosPendientes.map((doc, index) => (
-                        <Text key={index} style={styles.modalAlertaText}>• {doc}</Text>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                {proveedorSeleccionado.estado === 'suspendido' && proveedorSeleccionado.razonSuspension && (
-                  <View style={[styles.modalAlerta, { backgroundColor: '#fee' }]}>
-                    <Ionicons name="warning" size={20} color="#e74c3c" />
-                    <Text style={[styles.modalAlertaText, { color: '#e74c3c' }]}>
-                      {proveedorSeleccionado.razonSuspension}
-                    </Text>
-                  </View>
-                )}
-
                 <View style={styles.modalAcciones}>
-                  {proveedorSeleccionado.estado === 'pendiente' && (
+                  {getEstadoInfo(proveedorSeleccionado).texto === 'pendiente' && (
                     <TouchableOpacity
                       style={[styles.modalBoton, styles.botonAprobar]}
                       onPress={() => handleCambiarEstado(proveedorSeleccionado, 'activo')}
@@ -537,7 +463,7 @@ const GestionProveedores = ({ navigation }) => {
                     </TouchableOpacity>
                   )}
 
-                  {proveedorSeleccionado.estado === 'activo' && (
+                  {getEstadoInfo(proveedorSeleccionado).texto === 'activo' && (
                     <TouchableOpacity
                       style={[styles.modalBoton, styles.botonSuspender]}
                       onPress={() => handleCambiarEstado(proveedorSeleccionado, 'suspendido')}
@@ -547,7 +473,7 @@ const GestionProveedores = ({ navigation }) => {
                     </TouchableOpacity>
                   )}
 
-                  {proveedorSeleccionado.estado === 'suspendido' && (
+                  {getEstadoInfo(proveedorSeleccionado).texto === 'suspendido' && (
                     <TouchableOpacity
                       style={[styles.modalBoton, styles.botonActivar]}
                       onPress={() => handleCambiarEstado(proveedorSeleccionado, 'activo')}
@@ -1013,6 +939,15 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#7f8c8d',
   },
 });
 

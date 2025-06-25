@@ -1,7 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import { useEffect } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
+  RefreshControl,
   SafeAreaView,
   StatusBar,
   StyleSheet,
@@ -9,138 +12,117 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  cargarNotificacionesUsuario,
+  clearError,
+  eliminarNotificacionPorId,
+  marcarNotificacionComoLeida,
+  marcarTodasNotificacionesComoLeidas,
+  selectError,
+  selectIsLoading,
+  selectNotificaciones,
+  selectTotalNoLeidas
+} from '../store/slices/notificacionesSlice';
 
 const Notificaciones = ({ navigation }) => {
-  const { tipoUsuario } = useSelector(state => state.usuario);
-  const [notificaciones, setNotificaciones] = useState(getNotificacionesPorTipo());
+  const dispatch = useDispatch();
+  
+  
+  const { usuario, token } = useSelector(state => state.auth);
+  const notificaciones = useSelector(selectNotificaciones);
+  const totalNoLeidas = useSelector(selectTotalNoLeidas);
+  const isLoading = useSelector(selectIsLoading);
+  const error = useSelector(selectError);
 
-  function getNotificacionesPorTipo() {
-    const notificacionesBase = {
-      usuario: [
-        {
-          id: 1,
-          tipo: 'reserva',
-          titulo: 'Reserva confirmada',
-          mensaje: 'Tu reserva para la Oficina Skyview ha sido confirmada para el 20/06/2025',
-          fecha: '15/06/2025',
-          leida: false,
-          icono: 'checkmark-circle',
-          color: '#27ae60'
-        },
-        {
-          id: 2,
-          tipo: 'membresia',
-          titulo: 'Membresía por vencer',
-          mensaje: 'Tu membresía Premium vence en 5 días. ¡Renuévala ahora!',
-          fecha: '14/06/2025',
-          leida: false,
-          icono: 'alert-circle',
-          color: '#f39c12'
-        },
-        {
-          id: 3,
-          tipo: 'reseña',
-          titulo: 'Deja tu reseña',
-          mensaje: 'Ya pasó tu reserva en Oficina Centro. ¿Qué tal estuvo?',
-          fecha: '13/06/2025',
-          leida: true,
-          icono: 'star',
-          color: '#3498db'
-        }
-      ],
-      cliente: [
-        {
-          id: 1,
-          tipo: 'nueva_reserva',
-          titulo: 'Nueva reserva',
-          mensaje: 'Juan Pérez ha reservado tu Oficina Skyview para el 20/06/2025',
-          fecha: '15/06/2025',
-          leida: false,
-          icono: 'calendar',
-          color: '#4a90e2'
-        },
-        {
-          id: 2,
-          tipo: 'ganancia',
-          titulo: 'Pago recibido',
-          mensaje: 'Has recibido $1,200 USD por la reserva de la Oficina Skyview',
-          fecha: '14/06/2025',
-          leida: false,
-          icono: 'cash',
-          color: '#27ae60'
-        },
-        {
-          id: 3,
-          tipo: 'servicio',
-          titulo: 'Servicio programado',
-          mensaje: 'Limpieza programada para mañana en Oficina Mirador',
-          fecha: '13/06/2025',
-          leida: true,
-          icono: 'construct',
-          color: '#9b59b6'
-        }
-      ],
-      proveedor: [
-        {
-          id: 1,
-          tipo: 'solicitud_servicio',
-          titulo: 'Nueva solicitud',
-          mensaje: 'Empresa ABC solicita servicio de limpieza para 3 oficinas',
-          fecha: '15/06/2025',
-          leida: false,
-          icono: 'briefcase',
-          color: '#3498db'
-        },
-        {
-          id: 2,
-          tipo: 'pago_servicio',
-          titulo: 'Pago procesado',
-          mensaje: 'Has recibido $450 USD por servicios completados',
-          fecha: '14/06/2025',
-          leida: false,
-          icono: 'cash',
-          color: '#27ae60'
-        },
-        {
-          id: 3,
-          tipo: 'calificacion',
-          titulo: 'Nueva calificación',
-          mensaje: 'Empresa XYZ te calificó con 5 estrellas',
-          fecha: '13/06/2025',
-          leida: true,
-          icono: 'star',
-          color: '#f39c12'
-        }
-      ]
-    };
+  useEffect(() => {
+    cargarNotificaciones();
+  }, []);
 
-    return notificacionesBase[tipoUsuario] || [];
-  }
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Error', error);
+      dispatch(clearError());
+    }
+  }, [error]);
 
-  const marcarComoLeida = (id) => {
-    setNotificaciones(prev =>
-      prev.map(notif =>
-        notif.id === id ? { ...notif, leida: true } : notif
-      )
-    );
+  const cargarNotificaciones = async () => {
+    if (!usuario || !token) {
+      console.warn('🟡 No hay usuario logueado o token disponible');
+      return;
+    }
+
+    const usuarioId = usuario._id || usuario.id;
+    if (!usuarioId) {
+      console.warn('🟡 No se pudo obtener el ID del usuario');
+      return;
+    }
+
+    console.log('🔵 Cargando notificaciones para usuario:', usuarioId);
+    dispatch(cargarNotificacionesUsuario(usuarioId, token, {
+      limit: 50,
+      leidas: false
+    }));
   };
 
-  const eliminarNotificacion = (id) => {
-    setNotificaciones(prev => prev.filter(notif => notif.id !== id));
+  const manejarMarcarComoLeida = (notificacion) => {
+    if (notificacion.leida) return;
+    
+    console.log('🔵 Marcando notificación como leída:', notificacion.id);
+    dispatch(marcarNotificacionComoLeida(notificacion.id, token));
+  };
+
+  const manejarEliminarNotificacion = async (notificacionId) => {
+    try {
+      console.log('🔵 Eliminando notificación:', notificacionId);
+      await dispatch(eliminarNotificacionPorId(notificacionId, token));
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo eliminar la notificación');
+    }
+  };
+
+  const manejarMarcarTodasComoLeidas = async () => {
+    if (totalNoLeidas === 0) return;
+
+    try {
+      const usuarioId = usuario._id || usuario.id;
+      if (!usuarioId) {
+        console.warn('🟡 No se pudo obtener el ID del usuario');
+        return;
+      }
+
+      console.log('🔵 Marcando todas las notificaciones como leídas');
+      await dispatch(marcarTodasNotificacionesComoLeidas(usuarioId, token));
+    } catch (error) {
+      Alert.alert('Error', 'No se pudieron marcar todas como leídas');
+    }
+  };
+
+  const onRefresh = async () => {
+    await cargarNotificaciones();
   };
 
   const handleGoBack = () => {
     navigation.goBack();
   };
 
+  
+  useEffect(() => {
+    return () => {
+      
+      
+    };
+  }, []);
+
   const renderNotificacion = ({ item }) => (
     <TouchableOpacity
       style={[
         styles.notificacionItem,
-        !item.leida && styles.notificacionNoLeida
+        !item.leida && styles.notificacionNoLeida,
+        item.prioridad === 'alta' && styles.notificacionPrioridadAlta
       ]}
-      onPress={() => marcarComoLeida(item.id)}
+      onPress={() => manejarMarcarComoLeida(item)}
+      activeOpacity={0.7}
     >
       <View style={[styles.iconoContainer, { backgroundColor: item.color + '20' }]}>
         <Ionicons name={item.icono} size={24} color={item.color} />
@@ -157,7 +139,7 @@ const Notificaciones = ({ navigation }) => {
 
       <TouchableOpacity
         style={styles.botonEliminar}
-        onPress={() => eliminarNotificacion(item.id)}
+        onPress={() => manejarEliminarNotificacion(item.id)}
       >
         <Ionicons name="close" size={20} color="#7f8c8d" />
       </TouchableOpacity>
@@ -176,14 +158,35 @@ const Notificaciones = ({ navigation }) => {
         >
           <Ionicons name="arrow-back" size={24} color="#2c3e50" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notificaciones</Text>
-        <View style={styles.placeholder} />
+        <Text style={styles.headerTitle}>
+          Notificaciones
+          {totalNoLeidas > 0 && (
+            <Text style={styles.contadorNoLeidas}> ({totalNoLeidas})</Text>
+          )}
+        </Text>
+        {totalNoLeidas > 0 && (
+          <TouchableOpacity
+            onPress={manejarMarcarTodasComoLeidas}
+            style={styles.marcarTodasButton}
+          >
+            <Ionicons name="checkmark-done" size={20} color="#4a90e2" />
+          </TouchableOpacity>
+        )}
+        {totalNoLeidas === 0 && <View style={styles.placeholder} />}
       </View>
 
-      {notificaciones.length === 0 ? (
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4a90e2" />
+          <Text style={styles.loadingText}>Cargando notificaciones...</Text>
+        </View>
+      ) : notificaciones.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="notifications-off-outline" size={60} color="#bdc3c7" />
           <Text style={styles.emptyText}>No tienes notificaciones</Text>
+          <Text style={styles.emptySubtext}>
+            Aquí aparecerán tus notificaciones cuando las recibas
+          </Text>
         </View>
       ) : (
         <FlatList
@@ -192,6 +195,9 @@ const Notificaciones = ({ navigation }) => {
           keyExtractor={item => item.id.toString()}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={isLoading} onRefresh={onRefresh} />
+          }
         />
       )}
     </SafeAreaView>
@@ -220,7 +226,7 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#2c3e50',
     fontFamily: 'System',
@@ -228,8 +234,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginHorizontal: 10,
   },
+  contadorNoLeidas: {
+    color: '#4a90e2',
+    fontSize: 16,
+  },
+  marcarTodasButton: {
+    padding: 5,
+  },
   placeholder: {
     width: 30,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    marginTop: 10,
+    fontFamily: 'System',
   },
   listContainer: {
     padding: 20,
@@ -250,6 +274,9 @@ const styles = StyleSheet.create({
   notificacionNoLeida: {
     borderLeftWidth: 4,
     borderLeftColor: '#4a90e2',
+  },
+  notificacionPrioridadAlta: {
+    borderLeftColor: '#e74c3c',
   },
   iconoContainer: {
     width: 44,
@@ -302,12 +329,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 60,
+    paddingHorizontal: 40,
   },
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
     color: '#7f8c8d',
     marginTop: 20,
+    textAlign: 'center',
+    fontFamily: 'System',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#bdc3c7',
+    marginTop: 8,
+    textAlign: 'center',
     fontFamily: 'System',
   },
 });

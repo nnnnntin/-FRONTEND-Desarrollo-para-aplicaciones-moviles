@@ -15,7 +15,8 @@ import { useSelector } from 'react-redux';
 const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation }) => {
   const slideAnim = React.useRef(new Animated.Value(-300)).current;
 
-  const { tipoUsuario, datosUsuario } = useSelector(state => state.usuario);
+  
+  const { tipoUsuario, usuario } = useSelector(state => state.auth);
 
   React.useEffect(() => {
     if (visible) {
@@ -71,7 +72,7 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
       }
     ];
 
-    if (tipoUsuario === 'admin') {
+    if (tipoUsuario === 'administrador') {
       return [
         {
           id: 1,
@@ -212,10 +213,12 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
       case 'usuario':
         return 'Usuario';
       case 'cliente':
-        return datosUsuario?.empresa || 'Cliente';
+        
+        return usuario?.empresa || 'Cliente';
       case 'proveedor':
-        return datosUsuario?.servicio || 'Proveedor';
-      case 'admin':
+        
+        return usuario?.servicio || 'Proveedor';
+      case 'administrador': 
         return 'Administrador';
       default:
         return '';
@@ -251,12 +254,12 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
                   <View style={styles.logoContainer}>
                     <View style={[
                       styles.logoCircle,
-                      tipoUsuario === 'admin' && { backgroundColor: '#ffe8e8' }
+                      tipoUsuario === 'administrador' && { backgroundColor: '#ffe8e8' }
                     ]}>
                       <Ionicons
-                        name={tipoUsuario === 'admin' ? 'shield' : 'business'}
+                        name={tipoUsuario === 'administrador' ? 'shield' : 'business'}
                         size={24}
-                        color={tipoUsuario === 'admin' ? '#e74c3c' : '#4a90e2'}
+                        color={tipoUsuario === 'administrador' ? '#e74c3c' : '#4a90e2'}
                       />
                     </View>
                     <View>
@@ -268,18 +271,18 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
                   </View>
                 </View>
 
-                <View style={[styles.menuItemsContainer, tipoUsuario === 'admin' && styles.menuItemsContainerAdmin]}>
+                <View style={[styles.menuItemsContainer, tipoUsuario === 'administrador' && styles.menuItemsContainerAdmin]}>
                   {menuItems.map((item) => (
                     <TouchableOpacity
                       key={item.id}
-                      style={[styles.menuItem, tipoUsuario === 'admin' && styles.menuItemAdmin]}
+                      style={[styles.menuItem, tipoUsuario === 'administrador' && styles.menuItemAdmin]}
                       onPress={item.onPress}
                     >
                       <View style={styles.menuItemContent}>
                         <Ionicons
                           name={item.icon}
                           size={22}
-                          color={tipoUsuario === 'admin' ? '#e74c3c' : '#4a90e2'}
+                          color={tipoUsuario === 'administrador' ? '#e74c3c' : '#4a90e2'}
                           style={styles.menuIcon}
                         />
                         <Text style={styles.menuItemText}>{item.title}</Text>

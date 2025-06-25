@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -13,10 +13,18 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  actualizarServicioAdicional,
+  eliminarServicioAdicional,
+  obtenerServiciosPorProveedor,
+  toggleServicioAdicional
+} from '../store/slices/proveedoresSlice';
 
 const ServiciosProveedor = ({ navigation }) => {
+  const dispatch = useDispatch();
   const { datosUsuario } = useSelector(state => state.usuario);
+  const { serviciosProveedor, loading } = useSelector(state => state.proveedores);
 
   const [tabActiva, setTabActiva] = useState('activos');
   const [modalVisible, setModalVisible] = useState(false);
@@ -24,67 +32,27 @@ const ServiciosProveedor = ({ navigation }) => {
   const [modoEdicion, setModoEdicion] = useState(false);
   const [formData, setFormData] = useState({});
 
-  const [misServicios, setMisServicios] = useState([
-    {
-      id: 1,
-      nombre: 'Limpieza profunda de oficinas',
-      categoria: 'Limpieza',
-      descripcion: 'Servicio completo de limpieza para espacios de trabajo, incluyendo desinfección y mantenimiento de superficies.',
-      precio: 120,
-      duracion: '2-3 horas',
-      estado: 'activo',
-      calificacion: 4.8,
-      trabajosCompletados: 45,
-      trabajosPendientes: 3,
-      solicitudesPendientes: 7,
-      disponibilidad: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'],
-      certificaciones: ['ISO 14001', 'Higiene Industrial'],
-      fechaCreacion: '2024-01-15',
-      ultimaActualizacion: '2024-12-01'
-    },
-    {
-      id: 2,
-      nombre: 'Mantenimiento de equipos audiovisuales',
-      categoria: 'Tecnología',
-      descripcion: 'Revisión, mantenimiento y reparación de equipos de audio, video y proyección para espacios corporativos.',
-      precio: 150,
-      duracion: '1-2 horas',
-      estado: 'activo',
-      calificacion: 4.9,
-      trabajosCompletados: 32,
-      trabajosPendientes: 1,
-      solicitudesPendientes: 4,
-      disponibilidad: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'],
-      certificaciones: ['CompTIA A+', 'Cisco CCNA'],
-      fechaCreacion: '2024-02-20',
-      ultimaActualizacion: '2024-11-15'
-    },
-    {
-      id: 3,
-      nombre: 'Seguridad para eventos corporativos',
-      categoria: 'Seguridad',
-      descripcion: 'Personal de seguridad especializado para eventos empresariales y reuniones de alta importancia.',
-      precio: 200,
-      duracion: 'Por evento',
-      estado: 'pausado',
-      calificacion: 4.7,
-      trabajosCompletados: 28,
-      trabajosPendientes: 0,
-      solicitudesPendientes: 2,
-      disponibilidad: ['viernes', 'sabado', 'domingo'],
-      certificaciones: ['Seguridad Privada', 'Primeros Auxilios'],
-      fechaCreacion: '2024-03-10',
-      ultimaActualizacion: '2024-10-30'
-    }
-  ]);
-
   const categorias = {
-    'Limpieza': { color: '#3498db', icono: 'sparkles' },
-    'Tecnología': { color: '#9b59b6', icono: 'laptop' },
-    'Seguridad': { color: '#e67e22', icono: 'shield-checkmark' },
-    'Catering': { color: '#e74c3c', icono: 'restaurant' },
-    'Mantenimiento': { color: '#95a5a6', icono: 'construct' },
-    'Eventos': { color: '#f39c12', icono: 'calendar' }
+    'limpieza': { color: '#3498db', icono: 'sparkles' },
+    'tecnologia': { color: '#9b59b6', icono: 'laptop' },
+    'seguridad': { color: '#e67e22', icono: 'shield-checkmark' },
+    'catering': { color: '#e74c3c', icono: 'restaurant' },
+    'mantenimiento': { color: '#95a5a6', icono: 'construct' },
+    'eventos': { color: '#f39c12', icono: 'calendar' }
+  };
+
+  useEffect(() => {
+    if (datosUsuario?._id) {
+      cargarServicios();
+    }
+  }, [datosUsuario]);
+
+  const cargarServicios = async () => {
+    try {
+      await dispatch(obtenerServiciosPorProveedor(datosUsuario._id));
+    } catch (error) {
+      console.error('Error cargando servicios:', error);
+    }
   };
 
   const handleEditarServicio = (servicio) => {
@@ -92,8 +60,8 @@ const ServiciosProveedor = ({ navigation }) => {
     setFormData({
       nombre: servicio.nombre,
       descripcion: servicio.descripcion,
-      precio: servicio.precio.toString(),
-      duracion: servicio.duracion
+      precio: servicio.precio?.toString(),
+      duracionEstimada: servicio.duracionEstimada
     });
     setModoEdicion(true);
     setModalVisible(true);
@@ -105,14 +73,20 @@ const ServiciosProveedor = ({ navigation }) => {
     setModalVisible(true);
   };
 
-  const handleToggleEstado = (servicioId) => {
-    setMisServicios(prev => prev.map(servicio => {
-      if (servicio.id === servicioId) {
-        const nuevoEstado = servicio.estado === 'activo' ? 'pausado' : 'activo';
-        return { ...servicio, estado: nuevoEstado };
+  const handleToggleEstado = async (servicioId, estadoActual) => {
+    try {
+      const nuevoEstado = estadoActual === 'activo' ? false : true;
+      const result = await dispatch(toggleServicioAdicional(servicioId, nuevoEstado));
+      
+      if (result.success) {
+        await cargarServicios(); 
+      } else {
+        Alert.alert('Error', 'No se pudo cambiar el estado del servicio');
       }
-      return servicio;
-    }));
+    } catch (error) {
+      console.error('Error cambiando estado:', error);
+      Alert.alert('Error', 'Ocurrió un error al cambiar el estado');
+    }
   };
 
   const handleEliminarServicio = (servicioId) => {
@@ -124,68 +98,88 @@ const ServiciosProveedor = ({ navigation }) => {
         {
           text: 'Eliminar',
           style: 'destructive',
-          onPress: () => {
-            setMisServicios(prev => prev.filter(servicio => servicio.id !== servicioId));
+          onPress: async () => {
+            try {
+              const result = await dispatch(eliminarServicioAdicional(servicioId));
+              if (result.success) {
+                await cargarServicios();
+              } else {
+                Alert.alert('Error', 'No se pudo eliminar el servicio');
+              }
+            } catch (error) {
+              console.error('Error eliminando servicio:', error);
+              Alert.alert('Error', 'Ocurrió un error al eliminar el servicio');
+            }
           }
         }
       ]
     );
   };
 
-  const handleGuardarEdicion = () => {
-    if (!formData.nombre.trim() || !formData.precio.trim()) {
+  const handleGuardarEdicion = async () => {
+    if (!formData.nombre?.trim() || !formData.precio?.trim()) {
       Alert.alert('Error', 'Nombre y precio son obligatorios');
       return;
     }
 
-    setMisServicios(prev => prev.map(servicio => {
-      if (servicio.id === servicioSeleccionado.id) {
-        return {
-          ...servicio,
-          nombre: formData.nombre,
-          descripcion: formData.descripcion,
-          precio: parseFloat(formData.precio),
-          duracion: formData.duracion,
-          ultimaActualizacion: new Date().toISOString().split('T')[0]
-        };
-      }
-      return servicio;
-    }));
+    try {
+      const servicioActualizado = {
+        nombre: formData.nombre,
+        descripcion: formData.descripcion,
+        precio: parseFloat(formData.precio),
+        duracionEstimada: formData.duracionEstimada
+      };
 
-    setModalVisible(false);
-    Alert.alert('Éxito', 'Servicio actualizado correctamente');
+      const result = await dispatch(actualizarServicioAdicional(servicioSeleccionado._id, servicioActualizado));
+      
+      if (result.success) {
+        setModalVisible(false);
+        await cargarServicios();
+        Alert.alert('Éxito', 'Servicio actualizado correctamente');
+      } else {
+        Alert.alert('Error', result.error || 'No se pudo actualizar el servicio');
+      }
+    } catch (error) {
+      console.error('Error actualizando servicio:', error);
+      Alert.alert('Error', 'Ocurrió un error al actualizar el servicio');
+    }
   };
 
   const getServiciosFiltrados = () => {
+    if (!serviciosProveedor) return [];
+    
     switch (tabActiva) {
       case 'activos':
-        return misServicios.filter(s => s.estado === 'activo');
+        return serviciosProveedor.filter(s => s.activo === true);
       case 'pausados':
-        return misServicios.filter(s => s.estado === 'pausado');
+        return serviciosProveedor.filter(s => s.activo === false);
       case 'todos':
       default:
-        return misServicios;
+        return serviciosProveedor;
     }
   };
 
   const getEstadisticas = () => {
-    const activos = misServicios.filter(s => s.estado === 'activo').length;
-    const pausados = misServicios.filter(s => s.estado === 'pausado').length;
-    const totalTrabajos = misServicios.reduce((sum, s) => sum + s.trabajosCompletados, 0);
-    const totalSolicitudes = misServicios.reduce((sum, s) => sum + s.solicitudesPendientes, 0);
+    if (!serviciosProveedor) return { activos: 0, pausados: 0, totalTrabajos: 0, totalSolicitudes: 0 };
+    
+    const activos = serviciosProveedor.filter(s => s.activo === true).length;
+    const pausados = serviciosProveedor.filter(s => s.activo === false).length;
+    const totalTrabajos = serviciosProveedor.reduce((sum, s) => sum + (s.trabajosCompletados || 0), 0);
+    const totalSolicitudes = serviciosProveedor.reduce((sum, s) => sum + (s.solicitudesPendientes || 0), 0);
 
     return { activos, pausados, totalTrabajos, totalSolicitudes };
   };
 
   const estadisticas = getEstadisticas();
+  const serviciosFiltrados = getServiciosFiltrados();
 
   const renderServicio = ({ item: servicio }) => {
-    const categoria = categorias[servicio.categoria] || { color: '#7f8c8d', icono: 'ellipse' };
+    const categoria = categorias[servicio.tipo] || { color: '#7f8c8d', icono: 'ellipse' };
 
     return (
       <View style={[
         styles.servicioCard,
-        servicio.estado === 'pausado' && styles.servicioCardPausado
+        !servicio.activo && styles.servicioCardPausado
       ]}>
         <View style={styles.servicioHeader}>
           <View style={[styles.categoriaIcon, { backgroundColor: categoria.color }]}>
@@ -194,19 +188,19 @@ const ServiciosProveedor = ({ navigation }) => {
           <View style={styles.servicioInfo}>
             <Text style={[
               styles.servicioNombre,
-              servicio.estado === 'pausado' && styles.textoPausado
+              !servicio.activo && styles.textoPausado
             ]}>
               {servicio.nombre}
             </Text>
-            <Text style={styles.servicioCategoria}>{servicio.categoria}</Text>
+            <Text style={styles.servicioCategoria}>{servicio.tipo}</Text>
           </View>
           <View style={styles.servicioEstado}>
             <View style={[
               styles.estadoBadge,
-              { backgroundColor: servicio.estado === 'activo' ? '#27ae60' : '#f39c12' }
+              { backgroundColor: servicio.activo ? '#27ae60' : '#f39c12' }
             ]}>
               <Text style={styles.estadoText}>
-                {servicio.estado === 'activo' ? 'Activo' : 'Pausado'}
+                {servicio.activo ? 'Activo' : 'Pausado'}
               </Text>
             </View>
           </View>
@@ -214,7 +208,7 @@ const ServiciosProveedor = ({ navigation }) => {
 
         <Text style={[
           styles.servicioDescripcion,
-          servicio.estado === 'pausado' && styles.textoPausado
+          !servicio.activo && styles.textoPausado
         ]}>
           {servicio.descripcion}
         </Text>
@@ -222,19 +216,19 @@ const ServiciosProveedor = ({ navigation }) => {
         <View style={styles.servicioStats}>
           <View style={styles.statItem}>
             <Ionicons name="star" size={16} color="#f39c12" />
-            <Text style={styles.statText}>{servicio.calificacion}</Text>
+            <Text style={styles.statText}>{servicio.calificacion || 0}</Text>
           </View>
           <View style={styles.statItem}>
             <Ionicons name="checkmark-done" size={16} color="#27ae60" />
-            <Text style={styles.statText}>{servicio.trabajosCompletados}</Text>
+            <Text style={styles.statText}>{servicio.trabajosCompletados || 0}</Text>
           </View>
           <View style={styles.statItem}>
             <Ionicons name="time" size={16} color="#4a90e2" />
-            <Text style={styles.statText}>{servicio.trabajosPendientes}</Text>
+            <Text style={styles.statText}>{servicio.trabajosPendientes || 0}</Text>
           </View>
           <View style={styles.statItem}>
             <Ionicons name="mail" size={16} color="#9b59b6" />
-            <Text style={styles.statText}>{servicio.solicitudesPendientes}</Text>
+            <Text style={styles.statText}>{servicio.solicitudesPendientes || 0}</Text>
           </View>
         </View>
 
@@ -245,7 +239,7 @@ const ServiciosProveedor = ({ navigation }) => {
           </View>
           <View style={styles.detalleItem}>
             <Ionicons name="clock" size={16} color="#7f8c8d" />
-            <Text style={styles.detalleText}>{servicio.duracion}</Text>
+            <Text style={styles.detalleText}>{servicio.duracionEstimada}</Text>
           </View>
         </View>
 
@@ -268,24 +262,24 @@ const ServiciosProveedor = ({ navigation }) => {
 
           <TouchableOpacity
             style={[styles.actionButton, styles.toggleButton]}
-            onPress={() => handleToggleEstado(servicio.id)}
+            onPress={() => handleToggleEstado(servicio._id, servicio.activo ? 'activo' : 'pausado')}
           >
             <Ionicons
-              name={servicio.estado === 'activo' ? 'pause' : 'play'}
+              name={servicio.activo ? 'pause' : 'play'}
               size={16}
-              color={servicio.estado === 'activo' ? '#f39c12' : '#27ae60'}
+              color={servicio.activo ? '#f39c12' : '#27ae60'}
             />
             <Text style={[
               styles.actionButtonText,
-              { color: servicio.estado === 'activo' ? '#f39c12' : '#27ae60' }
+              { color: servicio.activo ? '#f39c12' : '#27ae60' }
             ]}>
-              {servicio.estado === 'activo' ? 'Pausar' : 'Activar'}
+              {servicio.activo ? 'Pausar' : 'Activar'}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.actionButton, styles.deleteButton]}
-            onPress={() => handleEliminarServicio(servicio.id)}
+            onPress={() => handleEliminarServicio(servicio._id)}
           >
             <Ionicons name="trash-outline" size={16} color="#e74c3c" />
             <Text style={[styles.actionButtonText, { color: '#e74c3c' }]}>Eliminar</Text>
@@ -294,8 +288,6 @@ const ServiciosProveedor = ({ navigation }) => {
       </View>
     );
   };
-
-  const serviciosFiltrados = getServiciosFiltrados();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -342,7 +334,7 @@ const ServiciosProveedor = ({ navigation }) => {
           onPress={() => setTabActiva('todos')}
         >
           <Text style={[styles.tabText, tabActiva === 'todos' && styles.tabTextActive]}>
-            Todos ({misServicios.length})
+            Todos ({serviciosProveedor?.length || 0})
           </Text>
         </TouchableOpacity>
 
@@ -365,7 +357,11 @@ const ServiciosProveedor = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {serviciosFiltrados.length === 0 ? (
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Cargando servicios...</Text>
+        </View>
+      ) : serviciosFiltrados.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="construct-outline" size={60} color="#bdc3c7" />
           <Text style={styles.emptyText}>
@@ -390,11 +386,13 @@ const ServiciosProveedor = ({ navigation }) => {
       ) : (
         <FlatList
           data={serviciosFiltrados}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item._id?.toString()}
           renderItem={renderServicio}
           style={styles.lista}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listaContent}
+          refreshing={loading}
+          onRefresh={cargarServicios}
         />
       )}
 
@@ -458,8 +456,8 @@ const ServiciosProveedor = ({ navigation }) => {
                           <Text style={styles.inputLabel}>Duración</Text>
                           <TextInput
                             style={styles.input}
-                            value={formData.duracion}
-                            onChangeText={(text) => setFormData({ ...formData, duracion: text })}
+                            value={formData.duracionEstimada}
+                            onChangeText={(text) => setFormData({ ...formData, duracionEstimada: text })}
                           />
                         </View>
                       </View>
@@ -469,16 +467,16 @@ const ServiciosProveedor = ({ navigation }) => {
                       <View style={styles.servicioModalHeader}>
                         <View style={styles.servicioModalInfo}>
                           <Text style={styles.servicioModalNombre}>{servicioSeleccionado.nombre}</Text>
-                          <Text style={styles.servicioModalCategoria}>{servicioSeleccionado.categoria}</Text>
+                          <Text style={styles.servicioModalCategoria}>{servicioSeleccionado.tipo}</Text>
                           <View style={styles.servicioModalRating}>
                             <Ionicons name="star" size={16} color="#f39c12" />
-                            <Text style={styles.ratingText}>{servicioSeleccionado.calificacion}</Text>
-                            <Text style={styles.trabajosText}>({servicioSeleccionado.trabajosCompletados} trabajos)</Text>
+                            <Text style={styles.ratingText}>{servicioSeleccionado.calificacion || 0}</Text>
+                            <Text style={styles.trabajosText}>({servicioSeleccionado.trabajosCompletados || 0} trabajos)</Text>
                           </View>
                         </View>
                         <View style={styles.servicioModalPrecio}>
                           <Text style={styles.precioText}>${servicioSeleccionado.precio}</Text>
-                          <Text style={styles.duracionText}>{servicioSeleccionado.duracion}</Text>
+                          <Text style={styles.duracionText}>{servicioSeleccionado.duracionEstimada}</Text>
                         </View>
                       </View>
 
@@ -487,30 +485,32 @@ const ServiciosProveedor = ({ navigation }) => {
                       <View style={styles.estadisticasModal}>
                         <View style={styles.statModalItem}>
                           <Ionicons name="time" size={20} color="#4a90e2" />
-                          <Text style={styles.statModalNumber}>{servicioSeleccionado.trabajosPendientes}</Text>
+                          <Text style={styles.statModalNumber}>{servicioSeleccionado.trabajosPendientes || 0}</Text>
                           <Text style={styles.statModalLabel}>Pendientes</Text>
                         </View>
                         <View style={styles.statModalItem}>
                           <Ionicons name="mail" size={20} color="#9b59b6" />
-                          <Text style={styles.statModalNumber}>{servicioSeleccionado.solicitudesPendientes}</Text>
+                          <Text style={styles.statModalNumber}>{servicioSeleccionado.solicitudesPendientes || 0}</Text>
                           <Text style={styles.statModalLabel}>Solicitudes</Text>
                         </View>
                         <View style={styles.statModalItem}>
                           <Ionicons name="checkmark-done" size={20} color="#27ae60" />
-                          <Text style={styles.statModalNumber}>{servicioSeleccionado.trabajosCompletados}</Text>
+                          <Text style={styles.statModalNumber}>{servicioSeleccionado.trabajosCompletados || 0}</Text>
                           <Text style={styles.statModalLabel}>Completados</Text>
                         </View>
                       </View>
 
-                      <View style={styles.certificacionesModal}>
-                        <Text style={styles.certificacionesTitle}>Certificaciones</Text>
-                        {servicioSeleccionado.certificaciones.map((cert, index) => (
-                          <View key={index} style={styles.certificacionItem}>
-                            <Ionicons name="checkmark-circle" size={16} color="#27ae60" />
-                            <Text style={styles.certificacionText}>{cert}</Text>
-                          </View>
-                        ))}
-                      </View>
+                      {servicioSeleccionado.certificaciones && servicioSeleccionado.certificaciones.length > 0 && (
+                        <View style={styles.certificacionesModal}>
+                          <Text style={styles.certificacionesTitle}>Certificaciones</Text>
+                          {servicioSeleccionado.certificaciones.map((cert, index) => (
+                            <View key={index} style={styles.certificacionItem}>
+                              <Ionicons name="checkmark-circle" size={16} color="#27ae60" />
+                              <Text style={styles.certificacionText}>{cert}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
                     </>
                   )}
                 </>
@@ -1049,6 +1049,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#7f8c8d',
   },
 });
 

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -12,33 +12,55 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  actualizarServicioAdicional,
+  asignarEspacioAServicio,
+  crearServicioAdicional,
+  eliminarServicioAdicional,
+  obtenerServiciosPorEspacio,
+  toggleServicioAdicional
+} from '../store/slices/proveedoresSlice';
 
 const ServiciosEspacio = ({ navigation, route }) => {
+  const dispatch = useDispatch();
   const { oficina } = route.params;
 
-  const [serviciosIncluidos, setServiciosIncluidos] = useState([
-    { id: 1, nombre: 'Wi-Fi Premium', descripcion: 'Internet de alta velocidad 100MB', precio: 0, activo: true },
-    { id: 2, nombre: 'Café gratis', descripcion: 'Café ilimitado durante la estadía', precio: 0, activo: true },
-    { id: 3, nombre: 'Estacionamiento', descripcion: 'Plaza de estacionamiento incluida', precio: 0, activo: true },
-    { id: 4, nombre: 'Recepcionista', descripcion: 'Servicio de recepción 8AM-6PM', precio: 0, activo: false },
-    { id: 5, nombre: 'Aire acondicionado', descripcion: 'Climatización automática', precio: 0, activo: true },
-    { id: 6, nombre: 'Seguridad 24h', descripcion: 'Vigilancia las 24 horas', precio: 0, activo: false },
-  ]);
+  
+  const { serviciosPorEspacio, loading, error } = useSelector(state => state.proveedores);
+  const serviciosIncluidos = serviciosPorEspacio[oficina.id] || [];
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingService, setEditingService] = useState(null);
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
-    precio: '0'
+    precio: '0',
+    tipo: 'general',
+    unidadPrecio: 'persona'
   });
 
-  const toggleServicio = (servicioId) => {
-    setServiciosIncluidos(prev => prev.map(servicio =>
-      servicio.id === servicioId
-        ? { ...servicio, activo: !servicio.activo }
-        : servicio
-    ));
+  
+  useEffect(() => {
+    if (oficina.id) {
+      dispatch(obtenerServiciosPorEspacio(oficina.id));
+    }
+  }, [dispatch, oficina.id]);
+
+  const toggleServicio = async (servicioId) => {
+    try {
+      const servicio = serviciosIncluidos.find(s => s.id === servicioId);
+      const result = await dispatch(toggleServicioAdicional(servicioId, !servicio.activo));
+      
+      if (result.success) {
+        
+        dispatch(obtenerServiciosPorEspacio(oficina.id));
+      } else {
+        Alert.alert('Error', result.error || 'Error al cambiar estado del servicio');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Error al cambiar estado del servicio');
+    }
   };
 
   const handleEditServicio = (servicio) => {
@@ -46,7 +68,9 @@ const ServiciosEspacio = ({ navigation, route }) => {
     setFormData({
       nombre: servicio.nombre,
       descripcion: servicio.descripcion,
-      precio: servicio.precio.toString()
+      precio: servicio.precio.toString(),
+      tipo: servicio.tipo || 'general',
+      unidadPrecio: servicio.unidadPrecio || 'persona'
     });
     setModalVisible(true);
   };
@@ -56,12 +80,14 @@ const ServiciosEspacio = ({ navigation, route }) => {
     setFormData({
       nombre: '',
       descripcion: '',
-      precio: '0'
+      precio: '0',
+      tipo: 'general',
+      unidadPrecio: 'persona'
     });
     setModalVisible(true);
   };
 
-  const handleSaveServicio = () => {
+  const handleSaveServicio = async () => {
     if (!formData.nombre.trim()) {
       Alert.alert('Error', 'El nombre del servicio es obligatorio');
       return;
@@ -70,26 +96,39 @@ const ServiciosEspacio = ({ navigation, route }) => {
     const servicioData = {
       nombre: formData.nombre.trim(),
       descripcion: formData.descripcion.trim(),
-      precio: parseFloat(formData.precio) || 0
+      precio: parseFloat(formData.precio) || 0,
+      tipo: formData.tipo,
+      unidadPrecio: formData.unidadPrecio,
+      activo: true
     };
 
-    if (editingService) {
-      setServiciosIncluidos(prev => prev.map(servicio =>
-        servicio.id === editingService.id
-          ? { ...servicio, ...servicioData }
-          : servicio
-      ));
-    } else {
-      const newService = {
-        id: Date.now(),
-        ...servicioData,
-        activo: true
-      };
-      setServiciosIncluidos(prev => [...prev, newService]);
-    }
+    try {
+      let result;
+      
+      if (editingService) {
+        result = await dispatch(actualizarServicioAdicional(editingService.id, servicioData));
+      } else {
+        
+        result = await dispatch(crearServicioAdicional(servicioData));
+        
+        
+        if (result.success) {
+          await dispatch(asignarEspacioAServicio(result.data.id, { espacioId: oficina.id }));
+        }
+      }
 
-    setModalVisible(false);
-    setEditingService(null);
+      if (result.success) {
+        setModalVisible(false);
+        setEditingService(null);
+        
+        dispatch(obtenerServiciosPorEspacio(oficina.id));
+        Alert.alert('Éxito', editingService ? 'Servicio actualizado correctamente' : 'Servicio creado correctamente');
+      } else {
+        Alert.alert('Error', result.error || 'Error al guardar el servicio');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Error al guardar el servicio');
+    }
   };
 
   const handleDeleteServicio = (servicioId) => {
@@ -101,10 +140,20 @@ const ServiciosEspacio = ({ navigation, route }) => {
         {
           text: 'Eliminar',
           style: 'destructive',
-          onPress: () => {
-            setServiciosIncluidos(prev =>
-              prev.filter(servicio => servicio.id !== servicioId)
-            );
+          onPress: async () => {
+            try {
+              const result = await dispatch(eliminarServicioAdicional(servicioId));
+              
+              if (result.success) {
+                
+                dispatch(obtenerServiciosPorEspacio(oficina.id));
+                Alert.alert('Éxito', 'Servicio eliminado correctamente');
+              } else {
+                Alert.alert('Error', result.error || 'Error al eliminar el servicio');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Error al eliminar el servicio');
+            }
           }
         }
       ]
@@ -122,7 +171,7 @@ const ServiciosEspacio = ({ navigation, route }) => {
         </Text>
         {servicio.precio > 0 && (
           <Text style={styles.servicioPrecio}>
-            +${servicio.precio}/día
+            +${servicio.precio}/{servicio.unidadPrecio || 'día'}
           </Text>
         )}
       </View>
@@ -145,6 +194,7 @@ const ServiciosEspacio = ({ navigation, route }) => {
         <TouchableOpacity
           style={[styles.toggleButton, servicio.activo && styles.toggleButtonActive]}
           onPress={() => toggleServicio(servicio.id)}
+          disabled={loading}
         >
           <Ionicons
             name={servicio.activo ? 'checkmark' : 'close'}
@@ -171,6 +221,7 @@ const ServiciosEspacio = ({ navigation, route }) => {
         <TouchableOpacity
           onPress={handleAddServicio}
           style={styles.addButton}
+          disabled={loading}
         >
           <Ionicons name="add" size={24} color="#4a90e2" />
         </TouchableOpacity>
@@ -181,6 +232,9 @@ const ServiciosEspacio = ({ navigation, route }) => {
         <Text style={styles.infoText}>
           Gestiona los servicios que están incluidos en el precio base de tu espacio
         </Text>
+        {error && (
+          <Text style={styles.errorText}>Error: {error}</Text>
+        )}
       </View>
 
       <View style={styles.statsContainer}>
@@ -204,13 +258,19 @@ const ServiciosEspacio = ({ navigation, route }) => {
         </View>
       </View>
 
-      <FlatList
-        data={serviciosIncluidos}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={renderServicio}
-        style={styles.lista}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Cargando servicios...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={serviciosIncluidos}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderServicio}
+          style={styles.lista}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       <Modal
         visible={modalVisible}
@@ -256,6 +316,26 @@ const ServiciosEspacio = ({ navigation, route }) => {
               </View>
 
               <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Tipo de servicio</Text>
+                <View style={styles.radioGroup}>
+                  {['general', 'tecnologia', 'limpieza', 'catering', 'seguridad'].map(tipo => (
+                    <TouchableOpacity
+                      key={tipo}
+                      style={styles.radioOption}
+                      onPress={() => setFormData({ ...formData, tipo })}
+                    >
+                      <Ionicons
+                        name={formData.tipo === tipo ? 'radio-button-on' : 'radio-button-off'}
+                        size={20}
+                        color="#4a90e2"
+                      />
+                      <Text style={styles.radioLabel}>{tipo.charAt(0).toUpperCase() + tipo.slice(1)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Precio adicional (USD)</Text>
                 <TextInput
                   style={styles.input}
@@ -264,10 +344,31 @@ const ServiciosEspacio = ({ navigation, route }) => {
                   placeholder="0"
                   keyboardType="numeric"
                 />
-                <Text style={styles.helpText}>
-                  Deja en 0 si está incluido en el precio base
-                </Text>
               </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Unidad de precio</Text>
+                <View style={styles.radioGroup}>
+                  {['persona', 'dia', 'hora', 'servicio'].map(unidad => (
+                    <TouchableOpacity
+                      key={unidad}
+                      style={styles.radioOption}
+                      onPress={() => setFormData({ ...formData, unidadPrecio: unidad })}
+                    >
+                      <Ionicons
+                        name={formData.unidadPrecio === unidad ? 'radio-button-on' : 'radio-button-off'}
+                        size={20}
+                        color="#4a90e2"
+                      />
+                      <Text style={styles.radioLabel}>{unidad.charAt(0).toUpperCase() + unidad.slice(1)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <Text style={styles.helpText}>
+                Deja en 0 si está incluido en el precio base
+              </Text>
             </View>
 
             <View style={styles.modalActions}>
@@ -281,6 +382,7 @@ const ServiciosEspacio = ({ navigation, route }) => {
               <TouchableOpacity
                 style={styles.saveButton}
                 onPress={handleSaveServicio}
+                disabled={loading}
               >
                 <Text style={styles.saveButtonText}>
                   {editingService ? 'Guardar' : 'Agregar'}

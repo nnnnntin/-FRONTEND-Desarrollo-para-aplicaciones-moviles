@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Modal,
   SafeAreaView,
   ScrollView,
@@ -13,86 +15,102 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+
+import {
+  actualizarUsuario,
+  cambiarRolUsuario,
+  clearError,
+  eliminarUsuario,
+  limpiarUsuarioSeleccionado,
+  obtenerUsuarios,
+  seleccionarUsuario
+} from '../store/slices/usuarioSlice';
 
 const GestionUsuarios = ({ navigation }) => {
+  
+  const dispatch = useDispatch();
+  const { token, usuario: usuarioLogueado } = useSelector(state => state.auth);
+  const { 
+    usuarios, 
+    usuarioSeleccionado, 
+    loading, 
+    error, 
+    loadingDetalle,
+    pagination 
+  } = useSelector(state => state.usuario);
+
+  
   const [tabActiva, setTabActiva] = useState('todos');
   const [busqueda, setBusqueda] = useState('');
   const [modalDetalles, setModalDetalles] = useState(false);
-  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  const [usuarios, setUsuarios] = useState([
-    {
-      id: 1,
-      nombre: 'Juan Pérez',
-      email: 'juan@email.com',
-      tipo: 'usuario',
-      estado: 'activo',
-      fechaRegistro: '2024-01-15',
-      ultimoAcceso: '2025-06-18',
-      reservas: 45,
-      gastoTotal: 5400,
-      membresia: 'Premium'
-    },
-    {
-      id: 2,
-      nombre: 'María González',
-      email: 'maria@cleaningpro.com',
-      tipo: 'proveedor',
-      estado: 'activo',
-      fechaRegistro: '2024-02-20',
-      ultimoAcceso: '2025-06-17',
-      serviciosCompletados: 156,
-      gananciasGeneradas: 18720,
-      calificacion: 4.8
-    },
-    {
-      id: 3,
-      nombre: 'Cliente Demo',
-      email: 'demo@empresa.com',
-      tipo: 'cliente',
-      estado: 'activo',
-      fechaRegistro: '2024-01-10',
-      ultimoAcceso: '2025-06-18',
-      espaciosPublicados: 2,
-      reservasRecibidas: 234,
-      ingresosGenerados: 45600
-    },
-    {
-      id: 4,
-      nombre: 'Carlos Rodríguez',
-      email: 'carlos@email.com',
-      tipo: 'usuario',
-      estado: 'suspendido',
-      fechaRegistro: '2024-03-05',
-      ultimoAcceso: '2025-05-10',
-      reservas: 12,
-      gastoTotal: 890,
-      membresia: 'Básico',
-      razonSuspension: 'Múltiples cancelaciones sin justificación'
-    },
-    {
-      id: 5,
-      nombre: 'Ana Martínez',
-      email: 'ana@catering.com',
-      tipo: 'proveedor',
-      estado: 'pendiente',
-      fechaRegistro: '2025-06-15',
-      ultimoAcceso: '2025-06-15',
-      documentosPendientes: ['Certificado sanitario', 'Seguro de responsabilidad']
+  useEffect(() => {
+    verificarPermisos();
+    cargarUsuarios();
+    
+    
+    return () => {
+      dispatch(clearError());
+    };
+  }, [dispatch]);
+
+  
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Error', error);
+      dispatch(clearError());
     }
-  ]);
+  }, [error, dispatch]);
+
+  const verificarPermisos = () => {
+    if (!usuarioLogueado || usuarioLogueado.tipoUsuario !== 'administrador') {
+      Alert.alert(
+        'Acceso denegado',
+        'Solo los administradores pueden acceder a esta función',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+    }
+  };
+
+  
+  const cargarUsuarios = () => {
+    dispatch(obtenerUsuarios({ skip: 0, limit: 100 }));
+  };
+
+  
+  const usuariosMapeados = usuarios.map(user => ({
+    id: user._id || user.id,
+    nombre: user.nombre + (user.apellidos ? ' ' + user.apellidos : ''),
+    email: user.email,
+    username: user.username,
+    tipo: user.tipoUsuario,
+    estado: user.activo ? 'activo' : 'suspendido',
+    fechaRegistro: new Date(user.createdAt).toLocaleDateString(),
+    ultimoAcceso: new Date(user.updatedAt).toLocaleDateString(),
+    verificado: user.verificado,
+    rol: user.rol,
+    telefono: user.datosPersonales?.telefono,
+    documentoIdentidad: user.datosPersonales?.documentoIdentidad,
+    fotoUrl: user.datosPersonales?.fotoUrl,
+    direccion: user.direccion,
+    membresia: user.membresia?.tipoMembresiaId ? 'Premium' : 'Básico',
+    datosCompletos: user
+  }));
 
   const estadisticasPorTipo = {
-    usuarios: usuarios.filter(u => u.tipo === 'usuario').length,
-    clientes: usuarios.filter(u => u.tipo === 'cliente').length,
-    proveedores: usuarios.filter(u => u.tipo === 'proveedor').length,
-    activos: usuarios.filter(u => u.estado === 'activo').length,
-    suspendidos: usuarios.filter(u => u.estado === 'suspendido').length,
-    pendientes: usuarios.filter(u => u.estado === 'pendiente').length
+    usuarios: usuariosMapeados.filter(u => u.tipo === 'usuario').length,
+    clientes: usuariosMapeados.filter(u => u.tipo === 'cliente').length,
+    proveedores: usuariosMapeados.filter(u => u.tipo === 'proveedor').length,
+    administradores: usuariosMapeados.filter(u => u.tipo === 'administrador').length,
+    activos: usuariosMapeados.filter(u => u.estado === 'activo').length,
+    suspendidos: usuariosMapeados.filter(u => u.estado === 'suspendido').length,
+    verificados: usuariosMapeados.filter(u => u.verificado).length
   };
 
   const getUsuariosFiltrados = () => {
-    let filtrados = usuarios;
+    let filtrados = usuariosMapeados;
 
     if (tabActiva !== 'todos') {
       filtrados = filtrados.filter(u => u.tipo === tabActiva);
@@ -101,7 +119,8 @@ const GestionUsuarios = ({ navigation }) => {
     if (busqueda) {
       filtrados = filtrados.filter(u =>
         u.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-        u.email.toLowerCase().includes(busqueda.toLowerCase())
+        u.email.toLowerCase().includes(busqueda.toLowerCase()) ||
+        u.username.toLowerCase().includes(busqueda.toLowerCase())
       );
     }
 
@@ -113,6 +132,7 @@ const GestionUsuarios = ({ navigation }) => {
       case 'usuario': return '#4a90e2';
       case 'cliente': return '#27ae60';
       case 'proveedor': return '#9b59b6';
+      case 'administrador': return '#e74c3c';
       default: return '#7f8c8d';
     }
   };
@@ -126,12 +146,16 @@ const GestionUsuarios = ({ navigation }) => {
     }
   };
 
+  
   const handleVerDetalles = (usuario) => {
-    setUsuarioSeleccionado(usuario);
+    dispatch(seleccionarUsuario(usuario));
     setModalDetalles(true);
   };
 
-  const handleCambiarEstado = (usuario, nuevoEstado) => {
+  
+  const handleCambiarEstado = async (usuario, nuevoEstado) => {
+    const estadoActivo = nuevoEstado === 'activo';
+    
     Alert.alert(
       'Cambiar estado',
       `¿Estás seguro de cambiar el estado de ${usuario.nombre} a ${nuevoEstado}?`,
@@ -139,18 +163,75 @@ const GestionUsuarios = ({ navigation }) => {
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Confirmar',
-          onPress: () => {
-            setUsuarios(prev => prev.map(u =>
-              u.id === usuario.id ? { ...u, estado: nuevoEstado } : u
-            ));
-            Alert.alert('Éxito', 'Estado actualizado correctamente');
+          onPress: async () => {
+            try {
+              setIsUpdating(true);
+              
+              
+              const result = await dispatch(actualizarUsuario({
+                usuarioId: usuario.id,
+                datosActualizacion: { activo: estadoActivo }
+              }));
+
+              if (actualizarUsuario.fulfilled.match(result)) {
+                Alert.alert('Éxito', 'Estado actualizado correctamente');
+                
+                cargarUsuarios();
+              } else {
+                throw new Error(result.payload || 'Error al actualizar usuario');
+              }
+            } catch (error) {
+              console.error('🔴 Error al cambiar estado:', error);
+              Alert.alert('Error', 'No se pudo actualizar el estado del usuario');
+            } finally {
+              setIsUpdating(false);
+            }
           }
         }
       ]
     );
   };
 
-  const handleEliminarUsuario = (usuario) => {
+  
+  const handleCambiarRol = async (usuario, nuevoRol) => {
+    Alert.alert(
+      'Cambiar rol',
+      `¿Estás seguro de cambiar el rol de ${usuario.nombre} a ${nuevoRol}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Confirmar',
+          onPress: async () => {
+            try {
+              setIsUpdating(true);
+              
+              
+              const result = await dispatch(cambiarRolUsuario({
+                usuarioId: usuario.id,
+                nuevoRol: nuevoRol
+              }));
+
+              if (cambiarRolUsuario.fulfilled.match(result)) {
+                Alert.alert('Éxito', 'Rol actualizado correctamente');
+                
+                cargarUsuarios();
+              } else {
+                throw new Error(result.payload || 'Error al cambiar rol');
+              }
+            } catch (error) {
+              console.error('🔴 Error al cambiar rol:', error);
+              Alert.alert('Error', 'No se pudo cambiar el rol del usuario');
+            } finally {
+              setIsUpdating(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  
+  const handleEliminarUsuario = async (usuario) => {
     Alert.alert(
       'Eliminar usuario',
       `¿Estás seguro de eliminar a ${usuario.nombre}? Esta acción no se puede deshacer.`,
@@ -159,14 +240,36 @@ const GestionUsuarios = ({ navigation }) => {
         {
           text: 'Eliminar',
           style: 'destructive',
-          onPress: () => {
-            setUsuarios(prev => prev.filter(u => u.id !== usuario.id));
-            setModalDetalles(false);
-            Alert.alert('Éxito', 'Usuario eliminado correctamente');
+          onPress: async () => {
+            try {
+              setIsUpdating(true);
+              
+              
+              const result = await dispatch(eliminarUsuario(usuario.id));
+
+              if (eliminarUsuario.fulfilled.match(result)) {
+                setModalDetalles(false);
+                dispatch(limpiarUsuarioSeleccionado());
+                Alert.alert('Éxito', 'Usuario eliminado correctamente');
+              } else {
+                throw new Error(result.payload || 'Error al eliminar usuario');
+              }
+            } catch (error) {
+              console.error('🔴 Error al eliminar usuario:', error);
+              Alert.alert('Error', 'No se pudo eliminar el usuario');
+            } finally {
+              setIsUpdating(false);
+            }
           }
         }
       ]
     );
+  };
+
+  
+  const handleCerrarModal = () => {
+    setModalDetalles(false);
+    dispatch(limpiarUsuarioSeleccionado());
   };
 
   const renderUsuario = ({ item }) => (
@@ -176,13 +279,18 @@ const GestionUsuarios = ({ navigation }) => {
     >
       <View style={styles.usuarioHeader}>
         <View style={styles.avatarContainer}>
-          <Text style={styles.avatarText}>
-            {item.nombre.split(' ').map(n => n[0]).join('')}
-          </Text>
+          {item.fotoUrl ? (
+            <Image source={{ uri: item.fotoUrl }} style={styles.avatarImage} />
+          ) : (
+            <Text style={styles.avatarText}>
+              {item.nombre.split(' ').map(n => n[0]).join('').substring(0, 2)}
+            </Text>
+          )}
         </View>
         <View style={styles.usuarioInfo}>
           <Text style={styles.usuarioNombre}>{item.nombre}</Text>
           <Text style={styles.usuarioEmail}>{item.email}</Text>
+          <Text style={styles.usuarioUsername}>@{item.username}</Text>
           <View style={styles.usuarioMeta}>
             <View style={[styles.tipoBadge, { backgroundColor: getTipoColor(item.tipo) + '20' }]}>
               <Text style={[styles.tipoText, { color: getTipoColor(item.tipo) }]}>
@@ -194,50 +302,217 @@ const GestionUsuarios = ({ navigation }) => {
                 {item.estado.charAt(0).toUpperCase() + item.estado.slice(1)}
               </Text>
             </View>
+            {item.verificado && (
+              <View style={styles.verificadoBadge}>
+                <Ionicons name="checkmark-circle" size={16} color="#27ae60" />
+              </View>
+            )}
           </View>
         </View>
       </View>
-
-      <View style={styles.usuarioStats}>
-        {item.tipo === 'usuario' && (
-          <>
-            <View style={styles.statItem}>
-              <Ionicons name="calendar" size={16} color="#7f8c8d" />
-              <Text style={styles.statText}>{item.reservas} reservas</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Ionicons name="card" size={16} color="#27ae60" />
-              <Text style={styles.statText}>${item.gastoTotal}</Text>
-            </View>
-          </>
-        )}
-        {item.tipo === 'cliente' && (
-          <>
-            <View style={styles.statItem}>
-              <Ionicons name="business" size={16} color="#7f8c8d" />
-              <Text style={styles.statText}>{item.espaciosPublicados} espacios</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Ionicons name="cash" size={16} color="#27ae60" />
-              <Text style={styles.statText}>${item.ingresosGenerados}</Text>
-            </View>
-          </>
-        )}
-        {item.tipo === 'proveedor' && item.estado === 'activo' && (
-          <>
-            <View style={styles.statItem}>
-              <Ionicons name="construct" size={16} color="#7f8c8d" />
-              <Text style={styles.statText}>{item.serviciosCompletados} servicios</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Ionicons name="star" size={16} color="#f39c12" />
-              <Text style={styles.statText}>{item.calificacion}</Text>
-            </View>
-          </>
-        )}
-      </View>
     </TouchableOpacity>
   );
+
+  const renderModalContent = () => {
+    if (!usuarioSeleccionado) return null;
+
+    return (
+      <ScrollView style={styles.modalContent}>
+        <View style={styles.modalUsuarioHeader}>
+          <View style={styles.modalAvatar}>
+            {usuarioSeleccionado.fotoUrl ? (
+              <Image source={{ uri: usuarioSeleccionado.fotoUrl }} style={styles.modalAvatarImage} />
+            ) : (
+              <Text style={styles.modalAvatarText}>
+                {usuarioSeleccionado.nombre.split(' ').map(n => n[0]).join('').substring(0, 2)}
+              </Text>
+            )}
+          </View>
+          <View style={styles.modalUsuarioInfo}>
+            <Text style={styles.modalUsuarioNombre}>{usuarioSeleccionado.nombre}</Text>
+            <Text style={styles.modalUsuarioEmail}>{usuarioSeleccionado.email}</Text>
+            <Text style={styles.modalUsuarioUsername}>@{usuarioSeleccionado.username}</Text>
+            <View style={styles.modalBadges}>
+              <View style={[styles.tipoBadge, { backgroundColor: getTipoColor(usuarioSeleccionado.tipo) + '20' }]}>
+                <Text style={[styles.tipoText, { color: getTipoColor(usuarioSeleccionado.tipo) }]}>
+                  {usuarioSeleccionado.tipo.charAt(0).toUpperCase() + usuarioSeleccionado.tipo.slice(1)}
+                </Text>
+              </View>
+              <View style={[styles.estadoBadge, { backgroundColor: getEstadoColor(usuarioSeleccionado.estado) + '20' }]}>
+                <Text style={[styles.estadoText, { color: getEstadoColor(usuarioSeleccionado.estado) }]}>
+                  {usuarioSeleccionado.estado.charAt(0).toUpperCase() + usuarioSeleccionado.estado.slice(1)}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.modalSeccion}>
+          <Text style={styles.modalSeccionTitulo}>Información general</Text>
+          <View style={styles.modalInfoItem}>
+            <Text style={styles.modalInfoLabel}>Fecha de registro</Text>
+            <Text style={styles.modalInfoValor}>{usuarioSeleccionado.fechaRegistro}</Text>
+          </View>
+          <View style={styles.modalInfoItem}>
+            <Text style={styles.modalInfoLabel}>Última actualización</Text>
+            <Text style={styles.modalInfoValor}>{usuarioSeleccionado.ultimoAcceso}</Text>
+          </View>
+          <View style={styles.modalInfoItem}>
+            <Text style={styles.modalInfoLabel}>Rol</Text>
+            <Text style={styles.modalInfoValor}>{usuarioSeleccionado.rol}</Text>
+          </View>
+          <View style={styles.modalInfoItem}>
+            <Text style={styles.modalInfoLabel}>Verificado</Text>
+            <Text style={styles.modalInfoValor}>{usuarioSeleccionado.verificado ? 'Sí' : 'No'}</Text>
+          </View>
+          {usuarioSeleccionado.telefono && (
+            <View style={styles.modalInfoItem}>
+              <Text style={styles.modalInfoLabel}>Teléfono</Text>
+              <Text style={styles.modalInfoValor}>{usuarioSeleccionado.telefono}</Text>
+            </View>
+          )}
+          {usuarioSeleccionado.documentoIdentidad && (
+            <View style={styles.modalInfoItem}>
+              <Text style={styles.modalInfoLabel}>Documento</Text>
+              <Text style={styles.modalInfoValor}>{usuarioSeleccionado.documentoIdentidad}</Text>
+            </View>
+          )}
+        </View>
+
+        {usuarioSeleccionado.direccion && (
+          <View style={styles.modalSeccion}>
+            <Text style={styles.modalSeccionTitulo}>Dirección</Text>
+            {usuarioSeleccionado.direccion.calle && (
+              <View style={styles.modalInfoItem}>
+                <Text style={styles.modalInfoLabel}>Calle</Text>
+                <Text style={styles.modalInfoValor}>{usuarioSeleccionado.direccion.calle}</Text>
+              </View>
+            )}
+            {usuarioSeleccionado.direccion.ciudad && (
+              <View style={styles.modalInfoItem}>
+                <Text style={styles.modalInfoLabel}>Ciudad</Text>
+                <Text style={styles.modalInfoValor}>{usuarioSeleccionado.direccion.ciudad}</Text>
+              </View>
+            )}
+            {usuarioSeleccionado.direccion.codigoPostal && (
+              <View style={styles.modalInfoItem}>
+                <Text style={styles.modalInfoLabel}>Código Postal</Text>
+                <Text style={styles.modalInfoValor}>{usuarioSeleccionado.direccion.codigoPostal}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        <View style={styles.modalAcciones}>
+          {/* Cambiar tipo de usuario */}
+          <View style={styles.accionesSection}>
+            <Text style={styles.accionesTitle}>Cambiar tipo de usuario</Text>
+            <View style={styles.rolesContainer}>
+              {['usuario', 'cliente', 'proveedor', 'administrador'].map(tipo => (
+                <TouchableOpacity
+                  key={tipo}
+                  style={[
+                    styles.rolButton,
+                    usuarioSeleccionado.tipo === tipo && styles.rolButtonActive,
+                    isUpdating && styles.buttonDisabled
+                  ]}
+                  onPress={() => handleCambiarRol(usuarioSeleccionado, tipo)}
+                  disabled={isUpdating || usuarioSeleccionado.tipo === tipo}
+                >
+                  <Text style={[
+                    styles.rolButtonText,
+                    usuarioSeleccionado.tipo === tipo && styles.rolButtonTextActive
+                  ]}>
+                    {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Cambiar rol dentro del tipo */}
+          <View style={styles.accionesSection}>
+            <Text style={styles.accionesTitle}>Cambiar rol</Text>
+            <View style={styles.rolesContainer}>
+              {['usuario', 'editor', 'administrador'].map(rol => (
+                <TouchableOpacity
+                  key={rol}
+                  style={[
+                    styles.rolButton,
+                    usuarioSeleccionado.rol === rol && styles.rolButtonActive,
+                    isUpdating && styles.buttonDisabled
+                  ]}
+                  onPress={() => handleCambiarRol(usuarioSeleccionado, rol)}
+                  disabled={isUpdating || usuarioSeleccionado.rol === rol}
+                >
+                  <Text style={[
+                    styles.rolButtonText,
+                    usuarioSeleccionado.rol === rol && styles.rolButtonTextActive
+                  ]}>
+                    {rol.charAt(0).toUpperCase() + rol.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Acciones de estado */}
+          <View style={styles.accionesSection}>
+            <Text style={styles.accionesTitle}>Acciones</Text>
+            <View style={styles.botonesContainer}>
+              {usuarioSeleccionado.estado === 'activo' ? (
+                <TouchableOpacity
+                  style={[styles.modalBoton, styles.botonSuspender, isUpdating && styles.buttonDisabled]}
+                  onPress={() => handleCambiarEstado(usuarioSeleccionado, 'suspendido')}
+                  disabled={isUpdating}
+                >
+                  <Ionicons name="pause" size={16} color="#fff" />
+                  <Text style={styles.modalBotonText}>Suspender</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.modalBoton, styles.botonActivar, isUpdating && styles.buttonDisabled]}
+                  onPress={() => handleCambiarEstado(usuarioSeleccionado, 'activo')}
+                  disabled={isUpdating}
+                >
+                  <Ionicons name="play" size={16} color="#fff" />
+                  <Text style={styles.modalBotonText}>Activar</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={[styles.modalBoton, styles.botonEliminar, isUpdating && styles.buttonDisabled]}
+                onPress={() => handleEliminarUsuario(usuarioSeleccionado)}
+                disabled={isUpdating}
+              >
+                <Ionicons name="trash" size={16} color="#fff" />
+                <Text style={styles.modalBotonText}>Eliminar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {isUpdating && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#4a90e2" />
+            <Text style={styles.loadingText}>Actualizando...</Text>
+          </View>
+        )}
+      </ScrollView>
+    );
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4a90e2" />
+          <Text style={styles.loadingText}>Cargando usuarios...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -251,8 +526,12 @@ const GestionUsuarios = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#2c3e50" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Gestión de Usuarios</Text>
-        <TouchableOpacity style={styles.addButton}>
-          <Ionicons name="add" size={24} color="#4a90e2" />
+        <TouchableOpacity 
+          style={styles.refreshButton}
+          onPress={cargarUsuarios}
+          disabled={loading}
+        >
+          <Ionicons name="refresh" size={24} color={loading ? "#ccc" : "#4a90e2"} />
         </TouchableOpacity>
       </View>
 
@@ -260,7 +539,7 @@ const GestionUsuarios = ({ navigation }) => {
         <Ionicons name="search" size={20} color="#7f8c8d" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Buscar por nombre o email..."
+          placeholder="Buscar por nombre, email o username..."
           value={busqueda}
           onChangeText={setBusqueda}
         />
@@ -291,14 +570,14 @@ const GestionUsuarios = ({ navigation }) => {
         style={styles.tabsContainer}
         contentContainerStyle={styles.tabsContent}
       >
-        {['todos', 'usuario', 'cliente', 'proveedor'].map(tab => (
+        {['todos', 'usuario', 'cliente', 'proveedor', 'administrador'].map(tab => (
           <TouchableOpacity
             key={tab}
             style={[styles.tab, tabActiva === tab && styles.tabActive]}
             onPress={() => setTabActiva(tab)}
           >
             <Text style={[styles.tabText, tabActiva === tab && styles.tabTextActive]}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1) + (tab === 'todos' ? 's' : 's')}
+              {tab === 'todos' ? 'Todos' : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -310,148 +589,28 @@ const GestionUsuarios = ({ navigation }) => {
         keyExtractor={(item) => item.id.toString()}
         style={styles.lista}
         contentContainerStyle={styles.listaContent}
+        refreshing={loading}
+        onRefresh={cargarUsuarios}
       />
 
       <Modal
         visible={modalDetalles}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setModalDetalles(false)}
+        onRequestClose={handleCerrarModal}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Detalles del usuario</Text>
               <TouchableOpacity
-                onPress={() => setModalDetalles(false)}
+                onPress={handleCerrarModal}
                 style={styles.modalCloseButton}
               >
                 <Ionicons name="close" size={24} color="#2c3e50" />
               </TouchableOpacity>
             </View>
-
-            {usuarioSeleccionado && (
-              <ScrollView style={styles.modalContent}>
-                <View style={styles.modalUsuarioHeader}>
-                  <View style={styles.modalAvatar}>
-                    <Text style={styles.modalAvatarText}>
-                      {usuarioSeleccionado.nombre.split(' ').map(n => n[0]).join('')}
-                    </Text>
-                  </View>
-                  <View style={styles.modalUsuarioInfo}>
-                    <Text style={styles.modalUsuarioNombre}>{usuarioSeleccionado.nombre}</Text>
-                    <Text style={styles.modalUsuarioEmail}>{usuarioSeleccionado.email}</Text>
-                    <View style={styles.modalBadges}>
-                      <View style={[styles.tipoBadge, { backgroundColor: getTipoColor(usuarioSeleccionado.tipo) + '20' }]}>
-                        <Text style={[styles.tipoText, { color: getTipoColor(usuarioSeleccionado.tipo) }]}>
-                          {usuarioSeleccionado.tipo.charAt(0).toUpperCase() + usuarioSeleccionado.tipo.slice(1)}
-                        </Text>
-                      </View>
-                      <View style={[styles.estadoBadge, { backgroundColor: getEstadoColor(usuarioSeleccionado.estado) + '20' }]}>
-                        <Text style={[styles.estadoText, { color: getEstadoColor(usuarioSeleccionado.estado) }]}>
-                          {usuarioSeleccionado.estado.charAt(0).toUpperCase() + usuarioSeleccionado.estado.slice(1)}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-
-                <View style={styles.modalSeccion}>
-                  <Text style={styles.modalSeccionTitulo}>Información general</Text>
-                  <View style={styles.modalInfoItem}>
-                    <Text style={styles.modalInfoLabel}>Fecha de registro</Text>
-                    <Text style={styles.modalInfoValor}>{usuarioSeleccionado.fechaRegistro}</Text>
-                  </View>
-                  <View style={styles.modalInfoItem}>
-                    <Text style={styles.modalInfoLabel}>Último acceso</Text>
-                    <Text style={styles.modalInfoValor}>{usuarioSeleccionado.ultimoAcceso}</Text>
-                  </View>
-                  {usuarioSeleccionado.membresia && (
-                    <View style={styles.modalInfoItem}>
-                      <Text style={styles.modalInfoLabel}>Membresía</Text>
-                      <Text style={styles.modalInfoValor}>{usuarioSeleccionado.membresia}</Text>
-                    </View>
-                  )}
-                </View>
-
-                {usuarioSeleccionado.tipo === 'usuario' && (
-                  <View style={styles.modalSeccion}>
-                    <Text style={styles.modalSeccionTitulo}>Actividad</Text>
-                    <View style={styles.modalStatsGrid}>
-                      <View style={styles.modalStatItem}>
-                        <Ionicons name="calendar" size={24} color="#4a90e2" />
-                        <Text style={styles.modalStatValor}>{usuarioSeleccionado.reservas}</Text>
-                        <Text style={styles.modalStatLabel}>Reservas</Text>
-                      </View>
-                      <View style={styles.modalStatItem}>
-                        <Ionicons name="cash" size={24} color="#27ae60" />
-                        <Text style={styles.modalStatValor}>${usuarioSeleccionado.gastoTotal}</Text>
-                        <Text style={styles.modalStatLabel}>Gasto total</Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
-
-                {usuarioSeleccionado.estado === 'suspendido' && usuarioSeleccionado.razonSuspension && (
-                  <View style={styles.modalAlerta}>
-                    <Ionicons name="warning" size={20} color="#e74c3c" />
-                    <Text style={styles.modalAlertaText}>{usuarioSeleccionado.razonSuspension}</Text>
-                  </View>
-                )}
-
-                {usuarioSeleccionado.estado === 'pendiente' && usuarioSeleccionado.documentosPendientes && (
-                  <View style={styles.modalSeccion}>
-                    <Text style={styles.modalSeccionTitulo}>Documentos pendientes</Text>
-                    {usuarioSeleccionado.documentosPendientes.map((doc, index) => (
-                      <View key={index} style={styles.documentoItem}>
-                        <Ionicons name="document-text" size={16} color="#f39c12" />
-                        <Text style={styles.documentoText}>{doc}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
-                <View style={styles.modalAcciones}>
-                  {usuarioSeleccionado.estado === 'activo' && (
-                    <TouchableOpacity
-                      style={[styles.modalBoton, styles.botonSuspender]}
-                      onPress={() => handleCambiarEstado(usuarioSeleccionado, 'suspendido')}
-                    >
-                      <Ionicons name="pause" size={16} color="#fff" />
-                      <Text style={styles.modalBotonText}>Suspender</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {usuarioSeleccionado.estado === 'suspendido' && (
-                    <TouchableOpacity
-                      style={[styles.modalBoton, styles.botonActivar]}
-                      onPress={() => handleCambiarEstado(usuarioSeleccionado, 'activo')}
-                    >
-                      <Ionicons name="play" size={16} color="#fff" />
-                      <Text style={styles.modalBotonText}>Activar</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {usuarioSeleccionado.estado === 'pendiente' && (
-                    <TouchableOpacity
-                      style={[styles.modalBoton, styles.botonAprobar]}
-                      onPress={() => handleCambiarEstado(usuarioSeleccionado, 'activo')}
-                    >
-                      <Ionicons name="checkmark" size={16} color="#fff" />
-                      <Text style={styles.modalBotonText}>Aprobar</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  <TouchableOpacity
-                    style={[styles.modalBoton, styles.botonEliminar]}
-                    onPress={() => handleEliminarUsuario(usuarioSeleccionado)}
-                  >
-                    <Ionicons name="trash" size={16} color="#fff" />
-                    <Text style={styles.modalBotonText}>Eliminar</Text>
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
-            )}
+            {renderModalContent()}
           </View>
         </View>
       </Modal>
@@ -463,6 +622,28 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#7f8c8d',
+    fontFamily: 'System',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
   },
   header: {
     flexDirection: 'row',
@@ -484,7 +665,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginHorizontal: 10,
   },
-  addButton: {
+  refreshButton: {
     padding: 5,
   },
   searchContainer: {
@@ -574,7 +755,6 @@ const styles = StyleSheet.create({
   },
   usuarioHeader: {
     flexDirection: 'row',
-    marginBottom: 12,
   },
   avatarContainer: {
     width: 48,
@@ -584,6 +764,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+  },
+  avatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   avatarText: {
     color: '#fff',
@@ -602,11 +787,17 @@ const styles = StyleSheet.create({
   usuarioEmail: {
     fontSize: 14,
     color: '#7f8c8d',
+    marginBottom: 2,
+  },
+  usuarioUsername: {
+    fontSize: 12,
+    color: '#9b59b6',
     marginBottom: 6,
   },
   usuarioMeta: {
     flexDirection: 'row',
     gap: 8,
+    alignItems: 'center',
   },
   tipoBadge: {
     paddingHorizontal: 8,
@@ -626,18 +817,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
-  usuarioStats: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statText: {
-    fontSize: 12,
-    color: '#5a6c7d',
+  verificadoBadge: {
+    marginLeft: 4,
   },
   modalOverlay: {
     flex: 1,
@@ -683,6 +864,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 16,
   },
+  modalAvatarImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+  },
   modalAvatarText: {
     color: '#fff',
     fontSize: 20,
@@ -701,6 +887,11 @@ const styles = StyleSheet.create({
   modalUsuarioEmail: {
     fontSize: 14,
     color: '#7f8c8d',
+    marginBottom: 2,
+  },
+  modalUsuarioUsername: {
+    fontSize: 12,
+    color: '#9b59b6',
     marginBottom: 8,
   },
   modalBadges: {
@@ -730,50 +921,50 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     fontWeight: '600',
   },
-  modalStatsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+  modalAcciones: {
+    marginTop: 20,
   },
-  modalStatItem: {
-    alignItems: 'center',
+  accionesSection: {
+    marginBottom: 20,
   },
-  modalStatValor: {
-    fontSize: 18,
+  accionesTitle: {
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#2c3e50',
-    marginVertical: 4,
+    marginBottom: 10,
   },
-  modalStatLabel: {
+  rolesContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+    flexWrap: 'wrap',
+  },
+  rolButton: {
+    flex: 1,
+    minWidth: 80,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+    alignItems: 'center',
+  },
+  rolButtonActive: {
+    backgroundColor: '#4a90e2',
+    borderColor: '#4a90e2',
+  },
+  rolButtonText: {
     fontSize: 12,
     color: '#7f8c8d',
+    fontWeight: '600',
   },
-  modalAlerta: {
-    flexDirection: 'row',
-    backgroundColor: '#fee',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    gap: 8,
+  rolButtonTextActive: {
+    color: '#fff',
   },
-  modalAlertaText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#e74c3c',
-  },
-  documentoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  documentoText: {
-    fontSize: 14,
-    color: '#2c3e50',
-  },
-  modalAcciones: {
+  botonesContainer: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 20,
   },
   modalBoton: {
     flex: 1,
@@ -789,9 +980,6 @@ const styles = StyleSheet.create({
   },
   botonActivar: {
     backgroundColor: '#27ae60',
-  },
-  botonAprobar: {
-    backgroundColor: '#4a90e2',
   },
   botonEliminar: {
     backgroundColor: '#e74c3c',

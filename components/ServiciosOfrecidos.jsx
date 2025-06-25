@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -10,58 +10,25 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  actualizarProveedor,
+  eliminarProveedor,
+  obtenerProveedores
+} from '../store/slices/proveedoresSlice';
 
 const ServiciosOfrecidos = ({ navigation, route }) => {
+  const dispatch = useDispatch();
   const { oficina } = route.params;
 
-  const [proveedoresExternos, setProveedoresExternos] = useState([
-    {
-      id: 1,
-      proveedor: 'Cleaning Pro',
-      servicio: 'Limpieza profunda',
-      descripcion: 'Servicio de limpieza especializada post-evento',
-      precio: 80,
-      calificacion: 4.8,
-      completados: 45,
-      activo: true,
-      categoria: 'limpieza'
-    },
-    {
-      id: 2,
-      proveedor: 'Tech Support 24/7',
-      servicio: 'Soporte técnico',
-      descripcion: 'Asistencia técnica para equipos audiovisuales',
-      precio: 120,
-      calificacion: 4.9,
-      completados: 32,
-      activo: true,
-      categoria: 'tecnologia'
-    },
-    {
-      id: 3,
-      proveedor: 'Catering Express',
-      servicio: 'Servicio de catering',
-      descripcion: 'Catering para eventos corporativos',
-      precio: 25,
-      calificacion: 4.5,
-      completados: 78,
-      activo: false,
-      categoria: 'catering'
-    },
-    {
-      id: 4,
-      proveedor: 'Security Plus',
-      servicio: 'Seguridad adicional',
-      descripcion: 'Personal de seguridad para eventos especiales',
-      precio: 150,
-      calificacion: 4.7,
-      completados: 23,
-      activo: true,
-      categoria: 'seguridad'
-    }
-  ]);
+  
+  const { proveedores, loading, error } = useSelector(state => state.proveedores);
+  const { user } = useSelector(state => state.auth);
 
   const [filtroCategoria, setFiltroCategoria] = useState('todos');
+
+  
+  const proveedoresExternos = proveedores.filter(p => p.usuarioId === user?.id || p.propietarioId === user?.id);
 
   const categorias = [
     { id: 'todos', nombre: 'Todos', icono: 'apps' },
@@ -71,12 +38,30 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
     { id: 'seguridad', nombre: 'Seguridad', icono: 'shield-checkmark' }
   ];
 
-  const toggleProveedor = (proveedorId) => {
-    setProveedoresExternos(prev => prev.map(proveedor =>
-      proveedor.id === proveedorId
-        ? { ...proveedor, activo: !proveedor.activo }
-        : proveedor
-    ));
+  
+  useEffect(() => {
+    dispatch(obtenerProveedores());
+  }, [dispatch]);
+
+  const toggleProveedor = async (proveedorId) => {
+    try {
+      const proveedor = proveedoresExternos.find(p => p.id === proveedorId);
+      const proveedorActualizado = {
+        ...proveedor,
+        activo: !proveedor.activo
+      };
+
+      const result = await dispatch(actualizarProveedor(proveedorId, proveedorActualizado));
+      
+      if (result.success) {
+        
+        dispatch(obtenerProveedores());
+      } else {
+        Alert.alert('Error', result.error || 'Error al cambiar estado del proveedor');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Error al cambiar estado del proveedor');
+    }
   };
 
   const handleRemoveProveedor = (proveedorId) => {
@@ -88,10 +73,19 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
         {
           text: 'Remover',
           style: 'destructive',
-          onPress: () => {
-            setProveedoresExternos(prev =>
-              prev.filter(proveedor => proveedor.id !== proveedorId)
-            );
+          onPress: async () => {
+            try {
+              const result = await dispatch(eliminarProveedor(proveedorId));
+              
+              if (result.success) {
+                dispatch(obtenerProveedores());
+                Alert.alert('Éxito', 'Proveedor removido correctamente');
+              } else {
+                Alert.alert('Error', result.error || 'Error al remover el proveedor');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Error al remover el proveedor');
+            }
           }
         }
       ]
@@ -106,11 +100,15 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
     navigation.navigate('BuscarProveedores', { oficina });
   };
 
+  const handleCrearProveedor = () => {
+    navigation.navigate('CrearProveedor', { oficina });
+  };
+
   const getProveedoresFiltrados = () => {
     if (filtroCategoria === 'todos') {
       return proveedoresExternos;
     }
-    return proveedoresExternos.filter(p => p.categoria === filtroCategoria);
+    return proveedoresExternos.filter(p => p.categoria === filtroCategoria || p.tipo === filtroCategoria);
   };
 
   const renderProveedor = ({ item: proveedor }) => (
@@ -118,15 +116,16 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
       <View style={styles.proveedorHeader}>
         <View style={styles.proveedorInfo}>
           <Text style={[styles.proveedorNombre, !proveedor.activo && styles.textoInactivo]}>
-            {proveedor.proveedor}
+            {proveedor.nombre || proveedor.proveedor}
           </Text>
           <Text style={[styles.servicioNombre, !proveedor.activo && styles.textoInactivo]}>
-            {proveedor.servicio}
+            {proveedor.servicio || proveedor.servicios?.[0]?.nombre || 'Servicio general'}
           </Text>
         </View>
         <TouchableOpacity
           style={[styles.toggleButton, proveedor.activo && styles.toggleButtonActive]}
           onPress={() => toggleProveedor(proveedor.id)}
+          disabled={loading}
         >
           <Ionicons
             name={proveedor.activo ? 'checkmark' : 'close'}
@@ -137,21 +136,23 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
       </View>
 
       <Text style={[styles.descripcion, !proveedor.activo && styles.textoInactivo]}>
-        {proveedor.descripcion}
+        {proveedor.descripcion || 'Proveedor de servicios profesionales'}
       </Text>
 
       <View style={styles.proveedorStats}>
         <View style={styles.statItem}>
           <Ionicons name="star" size={16} color="#f39c12" />
-          <Text style={styles.statText}>{proveedor.calificacion}</Text>
+          <Text style={styles.statText}>{proveedor.calificacion || proveedor.rating || 4.5}</Text>
         </View>
         <View style={styles.statItem}>
           <Ionicons name="checkmark-done" size={16} color="#27ae60" />
-          <Text style={styles.statText}>{proveedor.completados} trabajos</Text>
+          <Text style={styles.statText}>{proveedor.completados || proveedor.trabajosCompletados || 0} trabajos</Text>
         </View>
         <View style={styles.statItem}>
           <Ionicons name="pricetag" size={16} color="#4a90e2" />
-          <Text style={styles.statText}>${proveedor.precio}/servicio</Text>
+          <Text style={styles.statText}>
+            ${proveedor.precio || proveedor.precioBase || 0}/servicio
+          </Text>
         </View>
       </View>
 
@@ -224,6 +225,9 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
         <Text style={styles.infoText}>
           Gestiona los proveedores externos que ofrecen servicios en tu espacio
         </Text>
+        {error && (
+          <Text style={styles.errorText}>Error: {error}</Text>
+        )}
       </View>
 
       <View style={styles.statsContainer}>
@@ -257,7 +261,11 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
         contentContainerStyle={styles.categoriasContent}
       />
 
-      {proveedoresFiltrados.length === 0 ? (
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Cargando proveedores...</Text>
+        </View>
+      ) : proveedoresFiltrados.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="people-outline" size={60} color="#bdc3c7" />
           <Text style={styles.emptyText}>
@@ -271,6 +279,10 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
           <TouchableOpacity style={styles.buscarButton} onPress={handleBuscarProveedores}>
             <Ionicons name="search" size={20} color="#fff" />
             <Text style={styles.buscarButtonText}>Buscar proveedores</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.crearButton} onPress={handleCrearProveedor}>
+            <Ionicons name="add" size={20} color="#4a90e2" />
+            <Text style={styles.crearButtonText}>Crear proveedor</Text>
           </TouchableOpacity>
         </View>
       ) : (

@@ -1,17 +1,19 @@
-import { useState } from 'react';
-import { 
-  Alert, 
-  Image, 
-  StyleSheet, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  View,
-  ScrollView,
+import { useEffect, useState } from 'react';
+import {
+  Alert,
+  Image,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { useAuth } from '../hooks/useAuth';
+import { useDispatch, useSelector } from 'react-redux';
+
+import { clearError, loginUsuario } from '../store/slices/authSlice';
 import RestablecerContraseña from './RestablecerContraseña';
 import RestablecerMail from './RestablecerMail';
 
@@ -20,31 +22,61 @@ const Login = ({ navigation, setIsLogged }) => {
   const [password, setPassword] = useState('');
   const [currentView, setCurrentView] = useState('login');
   const [tipoUsuario, setTipoUsuario] = useState('usuario');
-  const { login, autoLogin, isLoading } = useAuth(setIsLogged);
+  
+  const dispatch = useDispatch();
+  
+  const { loading, error, isLoggedIn } = useSelector(state => state.auth);
+
+  
+  useEffect(() => {
+    if (isLoggedIn) {
+      setIsLogged(true);
+    }
+  }, [isLoggedIn, setIsLogged]);
+
+  
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Error', error);
+      dispatch(clearError());
+    }
+  }, [error, dispatch]);
 
   const handleLogin = async () => {
-    const result = await login(email, password, tipoUsuario);
-  };
+    console.log('🔴 HandleLogin iniciado');
+    console.log('🔴 Email:', email);
+    console.log('🔴 Password:', password);
+    console.log('🔴 Loading state:', loading);
+    
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Error', 'Por favor completa todos los campos');
+      return;
+    }
 
-  const handleAutoLogin = async () => {
-    if (isLoading) return; 
+    
+    const username = email;
+    
+    console.log('🔴 Despachando loginUsuario con:', { username, password });
     
     try {
-      const result = await autoLogin(tipoUsuario);
-      if (result.success) {
-        console.log(`✅ Auto login exitoso como ${tipoUsuario}`);
-        await new Promise(resolve => setTimeout(resolve, 200));
-      } else {
-        Alert.alert('Error', result.error || 'Error en auto login');
+      const result = await dispatch(loginUsuario({ username, password }));
+      console.log('🔴 Resultado del dispatch:', result);
+      
+      
+      if (loginUsuario.fulfilled.match(result)) {
+        console.log('🟢 Login exitoso, navegando...');
+        
+      } else if (loginUsuario.rejected.match(result)) {
+        console.log('🔴 Login falló:', result.payload);
+        
       }
     } catch (error) {
-      console.error('Error en handleAutoLogin:', error);
-      Alert.alert('Error', 'Error inesperado en auto login');
+      console.log('🔴 Error en dispatch:', error);
     }
   };
 
   const goToRegister = () => {
-    if (isLoading) return;
+    if (loading) return;
     navigation.navigate('Registro');
   };
 
@@ -143,146 +175,59 @@ const Login = ({ navigation, setIsLogged }) => {
 
           <Text style={styles.title}>Officereserve</Text>
           <Text style={styles.subtitle}>Iniciar sesión</Text>
-
-          {__DEV__ && (
-            <TouchableOpacity
-              style={[
-                styles.autoLoginButton,
-                isLoading && styles.buttonDisabled
-              ]}
-              onPress={handleAutoLogin}
-              disabled={isLoading}
-            >
-              <Text style={styles.autoLoginText}>
-                {isLoading ? '🔄 CARGANDO...' : `AUTO LOGIN ${tipoUsuario.toUpperCase()} (DEV)`}
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          <View style={styles.tipoUsuarioContainer}>
-            <Text style={styles.tipoUsuarioLabel}>Ingresar como:</Text>
-            <View style={styles.tipoUsuarioButtons}>
-              <TouchableOpacity
-                style={[
-                  styles.tipoUsuarioButton,
-                  tipoUsuario === 'usuario' && styles.tipoUsuarioButtonActive
-                ]}
-                onPress={() => setTipoUsuario('usuario')}
-                disabled={isLoading}
-              >
-                <Text style={[
-                  styles.tipoUsuarioButtonText,
-                  tipoUsuario === 'usuario' && styles.tipoUsuarioButtonTextActive
-                ]}>
-                  Usuario
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.tipoUsuarioButton,
-                  tipoUsuario === 'cliente' && styles.tipoUsuarioButtonActive
-                ]}
-                onPress={() => setTipoUsuario('cliente')}
-                disabled={isLoading}
-              >
-                <Text style={[
-                  styles.tipoUsuarioButtonText,
-                  tipoUsuario === 'cliente' && styles.tipoUsuarioButtonTextActive
-                ]}>
-                  Cliente
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.tipoUsuarioButton,
-                  tipoUsuario === 'proveedor' && styles.tipoUsuarioButtonActive
-                ]}
-                onPress={() => setTipoUsuario('proveedor')}
-                disabled={isLoading}
-              >
-                <Text style={[
-                  styles.tipoUsuarioButtonText,
-                  tipoUsuario === 'proveedor' && styles.tipoUsuarioButtonTextActive
-                ]}>
-                  Proveedor
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.adminButtonContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.adminButton,
-                  tipoUsuario === 'admin' && styles.adminButtonActive
-                ]}
-                onPress={() => setTipoUsuario('admin')}
-                disabled={isLoading}
-              >
-                <Text style={[
-                  styles.adminButtonText,
-                  tipoUsuario === 'admin' && styles.adminButtonTextActive
-                ]}>
-                  Administrador
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <Text style={styles.label}>Correo electrónico</Text>
+          <Text style={styles.label}>Usuario</Text>
           <TextInput
             style={[
               styles.input,
-              isLoading && styles.inputDisabled
+              loading && styles.inputDisabled
             ]}
-            placeholder={tipoUsuario === 'admin' ? "admin@officereserve.com" : "Cualquier texto (ej: 11)"}
+            placeholder={tipoUsuario === 'administrador' ? "admin" : "Ingresa tu usuario"}
             placeholderTextColor="#999"
             value={email}
             onChangeText={setEmail}
-            keyboardType="email-address"
+            keyboardType="default"
             autoCapitalize="none"
-            editable={!isLoading}
+            editable={!loading}
           />
 
           <Text style={styles.label}>Contraseña</Text>
           <TextInput
             style={[
               styles.input,
-              isLoading && styles.inputDisabled
+              loading && styles.inputDisabled
             ]}
-            placeholder={tipoUsuario === 'admin' ? "admin123" : "Cualquier texto (ej: 1)"}
+            placeholder={tipoUsuario === 'administrador' ? "admin1212" : "Ingresa tu contraseña"}
             placeholderTextColor="#999"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            editable={!isLoading}
+            editable={!loading}
           />
 
           <TouchableOpacity
             style={[
               styles.button,
-              tipoUsuario === 'admin' && styles.buttonAdmin,
-              isLoading && styles.buttonDisabled
+              tipoUsuario === 'administrador' && styles.buttonAdmin,
+              loading && styles.buttonDisabled
             ]}
             onPress={handleLogin}
-            disabled={isLoading}
+            disabled={loading}
           >
             <Text style={styles.buttonText}>
-              {isLoading ? 'INGRESANDO...' : 'INGRESAR'}
+              {loading ? 'INGRESANDO...' : 'INGRESAR'}
             </Text>
           </TouchableOpacity>
 
-          {tipoUsuario !== 'admin' && (
+          {tipoUsuario !== 'administrador' && (
             <View style={styles.registerContainer}>
               <TouchableOpacity
                 onPress={handleForgotPassword}
-                disabled={isLoading}
+                disabled={loading}
                 style={styles.forgotButton}
               >
                 <Text style={[
                   styles.forgotText,
-                  isLoading && styles.linkDisabled
+                  loading && styles.linkDisabled
                 ]}>
                   ¿Olvidaste tu contraseña?
                 </Text>
@@ -291,11 +236,11 @@ const Login = ({ navigation, setIsLogged }) => {
               <Text style={styles.registerQuestion}>¿No tienes cuenta?</Text>
               <TouchableOpacity
                 onPress={goToRegister}
-                disabled={isLoading}
+                disabled={loading}
               >
                 <Text style={[
                   styles.registerLink,
-                  isLoading && styles.linkDisabled
+                  loading && styles.linkDisabled
                 ]}>
                   Registrarse
                 </Text>
@@ -328,18 +273,6 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     marginBottom: 20,
-  },
-  autoLoginButton: {
-    backgroundColor: '#f39c12',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  autoLoginText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
   },
   title: {
     fontSize: 28,
