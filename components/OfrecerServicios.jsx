@@ -80,7 +80,7 @@ const OfrecerServicios = ({ navigation, route }) => {
       };
 
       const result = await dispatch(crearSolicitudServicio(solicitudData));
-      
+
       if (result.success) {
         setModalVisible(false);
         Alert.alert(
@@ -103,8 +103,8 @@ const OfrecerServicios = ({ navigation, route }) => {
   };
 
   const renderServicio = ({ item: servicio }) => {
-    const disponible = servicio.activo !== false; 
-    
+    const disponible = servicio.activo !== false;
+
     return (
       <View style={[styles.servicioCard, !disponible && styles.servicioNoDisponible]}>
         <View style={styles.servicioHeader}>

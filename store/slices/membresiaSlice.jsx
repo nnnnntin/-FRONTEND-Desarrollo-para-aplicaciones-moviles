@@ -19,7 +19,7 @@ export const obtenerMembresias = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al obtener membresías');
       }
@@ -50,7 +50,7 @@ export const crearMembresia = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al crear membresía');
       }
@@ -79,7 +79,7 @@ export const obtenerMembresiaPorId = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al obtener membresía');
       }
@@ -110,7 +110,7 @@ export const actualizarMembresia = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al actualizar membresía');
       }
@@ -168,7 +168,7 @@ export const obtenerMembresiaPorTipo = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al obtener membresía por tipo');
       }
@@ -187,7 +187,7 @@ export const obtenerMembresiasActivas = createAsyncThunk(
     try {
       const { auth } = getState();
       console.log('🔵 Realizando petición a membresías activas...');
-      
+
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/membresias/activas`,
         {
@@ -206,7 +206,7 @@ export const obtenerMembresiasActivas = createAsyncThunk(
 
       const data = await response.json();
       console.log('🔵 Datos recibidos:', data);
-      
+
       if (!response.ok) {
         console.error('🔴 Error en respuesta del servidor:', data);
         return rejectWithValue(data.message || 'Error al obtener membresías activas');
@@ -239,7 +239,7 @@ export const toggleActivarMembresia = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al cambiar estado de membresía');
       }
@@ -270,7 +270,7 @@ export const suscribirMembresia = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al suscribir a membresía');
       }
@@ -301,7 +301,7 @@ export const cancelarMembresia = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al cancelar membresía');
       }
@@ -332,7 +332,7 @@ export const obtenerPromociones = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al obtener promociones');
       }
@@ -363,7 +363,7 @@ export const crearPromocion = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al crear promoción');
       }
@@ -392,7 +392,7 @@ export const obtenerPromocionPorCodigo = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al obtener promoción');
       }
@@ -421,7 +421,7 @@ export const obtenerPromocionesActivas = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al obtener promociones activas');
       }
@@ -452,7 +452,7 @@ export const validarPromocion = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al validar promoción');
       }
@@ -482,7 +482,7 @@ export const filtrarPromociones = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al filtrar promociones');
       }
@@ -496,28 +496,28 @@ export const filtrarPromociones = createAsyncThunk(
 
 
 const initialState = {
-  
+
   membresias: [],
   membresiaSeleccionada: null,
   membresiasActivas: [],
-  
-  
+
+
   promociones: [],
   promocionSeleccionada: null,
   promocionesActivas: [],
   promocionValidada: null,
-  
-  
+
+
   suscripcionActual: null,
-  
-  
+
+
   pagination: {
     skip: 0,
     limit: 10,
     total: 0,
   },
-  
-  
+
+
   loading: false,
   error: null,
   loadingPromociones: false,
@@ -531,78 +531,78 @@ const membresiaSlice = createSlice({
   name: 'membresia',
   initialState,
   reducers: {
-    
+
     seleccionarMembresia: (state, action) => {
       state.membresiaSeleccionada = action.payload;
     },
-    
+
     limpiarMembresiaSeleccionada: (state) => {
       state.membresiaSeleccionada = null;
     },
-    
+
     seleccionarPromocion: (state, action) => {
       state.promocionSeleccionada = action.payload;
     },
-    
+
     limpiarPromocionSeleccionada: (state) => {
       state.promocionSeleccionada = null;
     },
-    
+
     limpiarPromocionValidada: (state) => {
       state.promocionValidada = null;
     },
-    
-    
+
+
     actualizarSuscripcionActual: (state, action) => {
       state.suscripcionActual = action.payload;
     },
-    
+
     limpiarSuscripcionActual: (state) => {
       state.suscripcionActual = null;
     },
-    
-    
+
+
     setPaginacion: (state, action) => {
       state.pagination = { ...state.pagination, ...action.payload };
     },
-    
-    
+
+
     setLoading: (state, action) => {
       state.loading = action.payload;
     },
-    
+
     setError: (state, action) => {
       state.error = action.payload;
     },
-    
+
     clearError: (state) => {
       state.error = null;
       state.errorPromociones = null;
       state.errorSuscripcion = null;
     },
-    
+
     setLoadingPromociones: (state, action) => {
       state.loadingPromociones = action.payload;
     },
-    
+
     setLoadingSuscripcion: (state, action) => {
       state.loadingSuscripcion = action.payload;
     },
   },
-  
+
   extraReducers: (builder) => {
     builder
-      
+
       .addCase(obtenerMembresias.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(obtenerMembresias.fulfilled, (state, action) => {
         state.loading = false;
-        
+
         console.log('🔵 Respuesta de membresías:', action.payload);
-        
-        
+
+
         let membresias;
         if (Array.isArray(action.payload)) {
           membresias = action.payload;
@@ -614,7 +614,7 @@ const membresiaSlice = createSlice({
           console.warn('🟡 Formato de respuesta inesperado para membresías:', action.payload);
           membresias = [];
         }
-        
+
         state.membresias = membresias;
         state.pagination.total = action.payload.total || membresias.length;
         console.log('🔵 Membresías guardadas en state:', membresias.length);
@@ -623,18 +623,18 @@ const membresiaSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      
-      
+
+
       .addCase(crearMembresia.fulfilled, (state, action) => {
         state.membresias.push(action.payload);
       })
-      
-      
+
+
       .addCase(obtenerMembresiaPorId.fulfilled, (state, action) => {
         state.membresiaSeleccionada = action.payload;
       })
-      
-      
+
+
       .addCase(actualizarMembresia.fulfilled, (state, action) => {
         const index = state.membresias.findIndex(m => m.id === action.payload.id);
         if (index !== -1) {
@@ -644,26 +644,26 @@ const membresiaSlice = createSlice({
           state.membresiaSeleccionada = action.payload;
         }
       })
-      
-      
+
+
       .addCase(eliminarMembresia.fulfilled, (state, action) => {
         state.membresias = state.membresias.filter(m => m.id !== action.payload);
         if (state.membresiaSeleccionada?.id === action.payload) {
           state.membresiaSeleccionada = null;
         }
       })
-      
-      
+
+
       .addCase(obtenerMembresiasActivas.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(obtenerMembresiasActivas.fulfilled, (state, action) => {
         state.loading = false;
-        
+
         console.log('🔵 Respuesta de membresías activas:', action.payload);
-        
-        
+
+
         let membresias;
         if (Array.isArray(action.payload)) {
           membresias = action.payload;
@@ -675,7 +675,7 @@ const membresiaSlice = createSlice({
           console.warn('🟡 Formato de respuesta inesperado para membresías activas:', action.payload);
           membresias = [];
         }
-        
+
         state.membresiasActivas = membresias;
         console.log('🔵 Membresías activas guardadas en state:', membresias.length);
       })
@@ -684,8 +684,8 @@ const membresiaSlice = createSlice({
         state.error = action.payload;
         console.error('🔴 Error al obtener membresías activas:', action.payload);
       })
-      
-      
+
+
       .addCase(toggleActivarMembresia.fulfilled, (state, action) => {
         const { membresiaId, activar } = action.payload;
         const index = state.membresias.findIndex(m => m.id === membresiaId);
@@ -693,8 +693,8 @@ const membresiaSlice = createSlice({
           state.membresias[index].activa = activar;
         }
       })
-      
-      
+
+
       .addCase(suscribirMembresia.pending, (state) => {
         state.loadingSuscripcion = true;
         state.errorSuscripcion = null;
@@ -707,13 +707,13 @@ const membresiaSlice = createSlice({
         state.loadingSuscripcion = false;
         state.errorSuscripcion = action.payload;
       })
-      
-      
+
+
       .addCase(cancelarMembresia.fulfilled, (state, action) => {
         state.suscripcionActual = action.payload;
       })
-      
-      
+
+
       .addCase(obtenerPromociones.pending, (state) => {
         state.loadingPromociones = true;
         state.errorPromociones = null;
@@ -726,23 +726,23 @@ const membresiaSlice = createSlice({
         state.loadingPromociones = false;
         state.errorPromociones = action.payload;
       })
-      
-      
+
+
       .addCase(crearPromocion.fulfilled, (state, action) => {
         state.promociones.push(action.payload);
       })
-      
-      
+
+
       .addCase(obtenerPromocionesActivas.fulfilled, (state, action) => {
         state.promocionesActivas = action.payload;
       })
-      
-      
+
+
       .addCase(validarPromocion.fulfilled, (state, action) => {
         state.promocionValidada = action.payload;
       })
-      
-      
+
+
       .addCase(filtrarPromociones.fulfilled, (state, action) => {
         state.promociones = action.payload;
       });

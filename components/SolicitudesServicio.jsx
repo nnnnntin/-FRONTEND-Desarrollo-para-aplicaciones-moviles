@@ -30,7 +30,7 @@ const SolicitudesServicios = ({ navigation }) => {
   const [respuestaModal, setRespuestaModal] = useState(false);
   const [mensajeRespuesta, setMensajeRespuesta] = useState('');
 
-  
+
   const [solicitudesLocal] = useState([
     {
       _id: 1,
@@ -64,7 +64,7 @@ const SolicitudesServicios = ({ navigation }) => {
       fechaRespuesta: null,
       mensajeRespuesta: null
     },
-    
+
   ]);
 
   useEffect(() => {
@@ -72,7 +72,7 @@ const SolicitudesServicios = ({ navigation }) => {
   }, []);
 
   const cargarSolicitudes = () => {
-    
+
     dispatch(setSolicitudesServicios(solicitudesLocal));
   };
 
@@ -106,7 +106,7 @@ const SolicitudesServicios = ({ navigation }) => {
       };
 
       const result = await dispatch(responderSolicitudServicio(solicitudSeleccionada._id, respuesta));
-      
+
       if (result.success) {
         setRespuestaModal(false);
         setModalVisible(false);
@@ -115,8 +115,8 @@ const SolicitudesServicios = ({ navigation }) => {
           'Respuesta enviada',
           `Has ${accion === 'aceptar' ? 'aceptado' : 'rechazado'} la propuesta de ${solicitudSeleccionada.proveedor.nombre}.`
         );
-        
-        
+
+
         cargarSolicitudes();
       } else {
         Alert.alert('Error', 'No se pudo enviar la respuesta');
@@ -387,14 +387,12 @@ const SolicitudesServicios = ({ navigation }) => {
         />
       )}
 
-      {/* Modal de detalles y respuesta - mantener igual que el original */}
       <Modal
         visible={modalVisible}
         animationType="slide"
         transparent={true}
         onRequestClose={() => setModalVisible(false)}
       >
-        {/* Contenido del modal igual que el original */}
       </Modal>
 
       <Modal

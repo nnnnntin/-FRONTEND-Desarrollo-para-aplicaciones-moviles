@@ -113,11 +113,11 @@ const DashboardAdmin = ({ navigation }) => {
       finanzas: datos.finanzas,
       servicios: {
         solicitudes: periodoSeleccionado === 'día' ? 18 :
-                    periodoSeleccionado === 'semana' ? 89 : 567,
+          periodoSeleccionado === 'semana' ? 89 : 567,
         completados: periodoSeleccionado === 'día' ? 15 :
-                     periodoSeleccionado === 'semana' ? 76 : 489,
+          periodoSeleccionado === 'semana' ? 76 : 489,
         enProceso: periodoSeleccionado === 'día' ? 3 :
-                   periodoSeleccionado === 'semana' ? 13 : 78,
+          periodoSeleccionado === 'semana' ? 13 : 78,
         proveedoresActivos: 45
       }
     };

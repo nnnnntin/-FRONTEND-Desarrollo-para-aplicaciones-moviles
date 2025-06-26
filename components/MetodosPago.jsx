@@ -19,124 +19,9 @@ import {
   obtenerMetodosPagoUsuario
 } from '../store/slices/usuarioSlice';
 
-const EstadoPago = ({ estado, onContinuar, oficina, precio, onVerDetalles, onReportarProblema, modoSuscripcion, planSuscripcion }) => {
-  const renderContent = () => {
-    switch (estado) {
-      case 'procesando':
-        return (
-          <View style={styles.estadoContainer}>
-            <ActivityIndicator size={80} color="#4a90e2" />
-            <Text style={styles.estadoTitulo}>
-              {modoSuscripcion ? 'Procesando suscripción...' : 'Procesando pago...'}
-            </Text>
-            <Text style={styles.estadoSubtitulo}>Por favor espere</Text>
-          </View>
-        );
-
-      case 'confirmado':
-        if (modoSuscripcion) {
-          return (
-            <View style={styles.estadoContainer}>
-              <View style={[styles.estadoIcono, styles.estadoExito]}>
-                <Ionicons name="checkmark" size={50} color="white" />
-              </View>
-              <Text style={styles.estadoTitulo}>¡Suscripción completada!</Text>
-              <Text style={styles.estadoSubtitulo}>
-                Ahora tienes acceso al plan {planSuscripcion?.nombre}
-              </Text>
-              <View style={styles.detallesSuscripcion}>
-                <Text style={styles.detalleItem}>Plan: {planSuscripcion?.nombre}</Text>
-                <Text style={styles.detalleItem}>Precio: {planSuscripcion?.precio}/{planSuscripcion?.periodo}</Text>
-                <Text style={styles.detalleItem}>Próximo cobro: {new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.botonContinuar}
-                onPress={onContinuar}
-              >
-                <Text style={styles.textoBotonContinuar}>Continuar</Text>
-              </TouchableOpacity>
-            </View>
-          );
-        } else {
-          return (
-            <View style={styles.estadoContainer}>
-              <View style={[styles.estadoIcono, styles.estadoExito]}>
-                <Ionicons name="checkmark" size={50} color="white" />
-              </View>
-              <Text style={styles.estadoTitulo}>Pago confirmado</Text>
-              <View style={styles.detallesReserva}>
-                <Text style={styles.detalleItem}>Reservaste: {oficina?.nombre}</Text>
-                <Text style={styles.detalleItem}>Capacidad: 8 personas</Text>
-                <Text style={styles.detalleItem}>Horario: 13:00 - 18:00</Text>
-                <Text style={styles.detalleItem}>Ubicación: Montevideo, Ciudad Vieja</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.botonDetalles}
-                onPress={onVerDetalles}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.textoBotonDetalles}>Ver detalles</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.botonContinuar}
-                onPress={onContinuar}
-              >
-                <Text style={styles.textoBotonContinuar}>Continuar</Text>
-              </TouchableOpacity>
-            </View>
-          );
-        }
-
-      case 'error':
-        return (
-          <View style={styles.estadoContainer}>
-            <View style={[styles.estadoIcono, styles.estadoError]}>
-              <Ionicons name="close" size={50} color="white" />
-            </View>
-            <Text style={styles.estadoTitulo}>
-              {modoSuscripcion ? 'Error en la suscripción' : 'Error en el pago'}
-            </Text>
-            <Text style={styles.estadoSubtitulo}>Reintentar</Text>
-            <TouchableOpacity
-              style={styles.problemaLink}
-              onPress={onReportarProblema}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.preguntaProblema}>¿Tienes un problema?</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.botonContinuar}
-              onPress={onContinuar}
-            >
-              <Text style={styles.textoBotonContinuar}>Volver a intentar</Text>
-            </TouchableOpacity>
-          </View>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
-
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Estado</Text>
-      </View>
-
-      <View style={styles.content}>
-        {renderContent()}
-      </View>
-    </SafeAreaView>
-  );
-};
-
 const MetodosPago = ({ navigation, route }) => {
   const dispatch = useDispatch();
-  
-  
+
   const usuario = useSelector(state => state.auth.usuario);
   const metodosPago = useSelector(state => state.usuario.metodosPago);
   const loadingMetodosPago = useSelector(state => state.usuario.loadingMetodosPago);
@@ -146,29 +31,60 @@ const MetodosPago = ({ navigation, route }) => {
   const [transaccionActual, setTransaccionActual] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const { 
-    modoSeleccion = false, 
-    modoSuscripcion = false, 
+  const {
+    modoSeleccion = false,
+    modoSuscripcion = false,
     planSuscripcion = null,
-    oficina, 
+    oficina,
     precio,
     descripcion
   } = route?.params || {};
 
-  
+
+  const mapearTipoTarjeta = (metodo) => {
+    if (metodo.tipo === 'tarjeta_credito') return 'Tarjeta de Crédito';
+    if (metodo.tipo === 'tarjeta_debito') return 'Tarjeta de Débito';
+    if (metodo.tipo === 'cuenta_bancaria') return 'Cuenta Bancaria';
+    if (metodo.tipo === 'paypal') return 'PayPal';
+    return 'Tarjeta';
+  };
+
+
+  const detectarMarcaTarjeta = (metodo) => {
+    if (metodo.marca) {
+      return metodo.marca.charAt(0).toUpperCase() + metodo.marca.slice(1);
+    }
+
+    if (metodo.tipo === 'cuenta_bancaria') return 'Banco';
+    if (metodo.tipo === 'paypal') return 'PayPal';
+
+    const ultimosDigitos = metodo.ultimosDigitos || '';
+    if (ultimosDigitos.length >= 1) {
+      const primerDigito = ultimosDigitos.charAt(0);
+      if (primerDigito === '4') return 'Visa';
+      if (primerDigito === '5') return 'Mastercard';
+      if (primerDigito === '3') return 'American Express';
+    }
+
+    return 'Visa';
+  };
+
+
   useEffect(() => {
     loadMetodosPago();
-  }, []);
+  }, [usuario?.id, usuario?._id]);
 
   const loadMetodosPago = () => {
     if (usuario?.id || usuario?._id) {
       const userId = usuario.id || usuario._id;
       console.log('🔄 Cargando métodos de pago para usuario:', userId);
       dispatch(obtenerMetodosPagoUsuario(userId));
+    } else {
+      console.warn('⚠️ No se pudo obtener el ID del usuario');
     }
   };
 
-  
+
   useEffect(() => {
     if (errorMetodosPago) {
       Alert.alert('Error', errorMetodosPago);
@@ -193,17 +109,32 @@ const MetodosPago = ({ navigation, route }) => {
     navigation.navigate('AgregarTarjeta', {
       usuarioId: usuario?.id || usuario?._id,
       onTarjetaAgregada: () => {
-        
         loadMetodosPago();
       }
     });
   };
 
-  const handleEliminarTarjeta = (metodoId, tipo, ultimosDigitos) => {
-    const tipoDisplay = mapearTipoTarjeta(tipo);
+  const handleEliminarTarjeta = (metodoId, metodo) => {
+    if (metodo.predeterminado) {
+      Alert.alert(
+        'No se puede eliminar',
+        'No puedes eliminar tu método de pago predeterminado. Selecciona otro método como predeterminado primero.',
+        [
+          {
+            text: 'Entendido',
+            style: 'default',
+          }
+        ]
+      );
+      return;
+    }
+
+    const tipoDisplay = mapearTipoTarjeta(metodo);
+    const ultimosDigitos = metodo.ultimosDigitos || '****';
+
     Alert.alert(
-      'Eliminar Tarjeta',
-      `¿Estás seguro de que quieres eliminar la tarjeta ${tipoDisplay} •••• ${ultimosDigitos}?`,
+      'Eliminar Método de Pago',
+      `¿Estás seguro de que quieres eliminar ${tipoDisplay} •••• ${ultimosDigitos}?`,
       [
         {
           text: 'Cancelar',
@@ -214,8 +145,11 @@ const MetodosPago = ({ navigation, route }) => {
           style: 'destructive',
           onPress: () => {
             const userId = usuario?.id || usuario?._id;
-            if (userId) {
-              dispatch(eliminarMetodoPago({ usuarioId: userId, metodoId }));
+            if (userId && metodoId) {
+              dispatch(eliminarMetodoPago({
+                usuarioId: userId,
+                metodoId: metodoId
+              }));
             }
           },
         },
@@ -224,40 +158,45 @@ const MetodosPago = ({ navigation, route }) => {
   };
 
   const handleSeleccionarTarjeta = (metodo) => {
-    if (modoSeleccion) {
-      const tipoDisplay = mapearTipoTarjeta(metodo.tipo);
-      const mensaje = modoSuscripcion 
-        ? `¿Confirmas la suscripción al plan ${planSuscripcion?.nombre} por ${precio} con la tarjeta ${tipoDisplay} •••• ${metodo.ultimosDigitos}?`
-        : `¿Confirmas el pago de ${precio} con la tarjeta ${tipoDisplay} •••• ${metodo.ultimosDigitos}?`;
+    if (!modoSeleccion) return;
 
-      Alert.alert(
-        modoSuscripcion ? 'Confirmar Suscripción' : 'Confirmar Pago',
-        mensaje,
-        [
-          {
-            text: 'Cancelar',
-            style: 'cancel',
-          },
-          {
-            text: 'Confirmar',
-            onPress: () => procesarPago(metodo),
-          },
-        ]
-      );
-    }
+    const tipoDisplay = mapearTipoTarjeta(metodo);
+    const ultimosDigitos = metodo.ultimosDigitos || '****';
+
+    const mensaje = modoSuscripcion
+      ? `¿Confirmas la suscripción al plan ${planSuscripcion?.nombre} por ${precio} con ${tipoDisplay} •••• ${ultimosDigitos}?`
+      : `¿Confirmas el pago de ${precio} con ${tipoDisplay} •••• ${ultimosDigitos}?`;
+
+    Alert.alert(
+      modoSuscripcion ? 'Confirmar Suscripción' : 'Confirmar Pago',
+      mensaje,
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Confirmar',
+          onPress: () => procesarPago(metodo),
+        },
+      ]
+    );
   };
+
 
   const handleMarcarPredeterminado = (metodoId) => {
     const userId = usuario?.id || usuario?._id;
-    if (userId) {
-      dispatch(actualizarMetodoPagoPredeterminado({ usuarioId: userId, metodoId }));
+    if (userId && metodoId) {
+      dispatch(actualizarMetodoPagoPredeterminado({
+        usuarioId: userId,
+        metodoId: metodoId
+      }));
     }
   };
 
   const procesarPago = (metodo) => {
     setEstadoPago('procesando');
 
-    
     setTimeout(() => {
       const exito = Math.random() > 0.2;
 
@@ -299,40 +238,9 @@ const MetodosPago = ({ navigation, route }) => {
     navigation.navigate('FormularioProblema');
   };
 
-  
-  const mapearTipoTarjeta = (tipo) => {
-    switch (tipo) {
-      case 'tarjeta':
-        return 'Tarjeta';
-      case 'paypal':
-        return 'PayPal';
-      case 'cuenta_bancaria':
-        return 'Cuenta Bancaria';
-      default:
-        return tipo || 'Tarjeta';
-    }
-  };
-
-  
-  const detectarMarcaTarjeta = (metodo) => {
-    
-    if (metodo.tipo === 'paypal') return 'PayPal';
-    if (metodo.tipo === 'cuenta_bancaria') return 'Banco';
-    
-    
-    
-    const ultimosDigitos = metodo.ultimosDigitos || '';
-    
-    
-    if (ultimosDigitos.startsWith('4')) return 'Visa';
-    if (ultimosDigitos.startsWith('5')) return 'Mastercard';
-    
-    return 'Visa'; 
-  };
-
   const obtenerIconoTarjeta = (metodo) => {
     const marca = detectarMarcaTarjeta(metodo);
-    
+
     switch (marca.toLowerCase()) {
       case 'visa':
         return (
@@ -368,7 +276,7 @@ const MetodosPago = ({ navigation, route }) => {
     }
   };
 
-  
+
   if (estadoPago) {
     return (
       <EstadoPago
@@ -402,8 +310,8 @@ const MetodosPago = ({ navigation, route }) => {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -457,73 +365,79 @@ const MetodosPago = ({ navigation, route }) => {
         ) : (
           <View style={styles.tarjetasContainer}>
             {metodosPago.length > 0 ? (
-              metodosPago.map((metodo) => (
-                <TouchableOpacity
-                  key={metodo.id || metodo._id}
-                  style={[
-                    styles.tarjetaItem,
-                    modoSeleccion && styles.tarjetaItemSeleccionable,
-                    metodo.predeterminado && styles.tarjetaItemPredeterminada
-                  ]}
-                  onPress={() => modoSeleccion ? handleSeleccionarTarjeta(metodo) : null}
-                  activeOpacity={modoSeleccion ? 0.7 : 1}
-                >
-                  <View style={styles.tarjetaInfo}>
-                    {obtenerIconoTarjeta(metodo)}
-                    <View style={styles.tarjetaTexto}>
-                      <View style={styles.tarjetaHeader}>
-                        <Text style={styles.tipoTarjeta}>
-                          {mapearTipoTarjeta(metodo.tipo)}
-                        </Text>
-                        {metodo.predeterminado && (
-                          <View style={styles.badgePredeterminado}>
-                            <Text style={styles.textoPredeterminado}>Predeterminado</Text>
-                          </View>
+              metodosPago.map((metodo) => {
+
+                const metodoId = metodo._id || metodo.id;
+
+                if (!metodoId) {
+                  console.warn('⚠️ Método de pago sin ID:', metodo);
+                  return null;
+                }
+
+                return (
+                  <TouchableOpacity
+                    key={metodoId}
+                    style={[
+                      styles.tarjetaItem,
+                      modoSeleccion && styles.tarjetaItemSeleccionable,
+                      metodo.predeterminado && styles.tarjetaItemPredeterminada
+                    ]}
+                    onPress={() => modoSeleccion ? handleSeleccionarTarjeta(metodo) : null}
+                    activeOpacity={modoSeleccion ? 0.7 : 1}
+                  >
+                    <View style={styles.tarjetaInfo}>
+                      {obtenerIconoTarjeta(metodo)}
+                      <View style={styles.tarjetaTexto}>
+                        <View style={styles.tarjetaHeader}>
+                          <Text style={styles.tipoTarjeta}>
+                            {mapearTipoTarjeta(metodo)}
+                          </Text>
+                          {metodo.predeterminado && (
+                            <View style={styles.badgePredeterminado}>
+                              <Text style={styles.textoPredeterminado}>Predeterminado</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.numeroTarjeta}>•••• {metodo.ultimosDigitos || '****'}</Text>
+                        {metodo.fechaVencimiento && (
+                          <Text style={styles.fechaExpiracion}>Exp: {metodo.fechaVencimiento}</Text>
                         )}
                       </View>
-                      <Text style={styles.numeroTarjeta}>•••• {metodo.ultimosDigitos}</Text>
-                      {metodo.fechaExpiracion && (
-                        <Text style={styles.fechaExpiracion}>Exp: {metodo.fechaExpiracion}</Text>
-                      )}
                     </View>
-                  </View>
 
-                  <View style={styles.accionesContainer}>
-                    {modoSeleccion ? (
-                      <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
-                    ) : (
-                      <View style={styles.botonesAcciones}>
-                        {!metodo.predeterminado && (
+                    <View style={styles.accionesContainer}>
+                      {modoSeleccion ? (
+                        <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
+                      ) : (
+                        <View style={styles.botonesAcciones}>
+                          {!metodo.predeterminado && (
+                            <TouchableOpacity
+                              style={styles.botonPredeterminado}
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                handleMarcarPredeterminado(metodoId);
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons name="star-outline" size={18} color="#f39c12" />
+                            </TouchableOpacity>
+                          )}
                           <TouchableOpacity
-                            style={styles.botonPredeterminado}
+                            style={styles.botonEliminar}
                             onPress={(e) => {
                               e.stopPropagation();
-                              handleMarcarPredeterminado(metodo.id || metodo._id);
+                              handleEliminarTarjeta(metodoId, metodo);
                             }}
                             activeOpacity={0.7}
                           >
-                            <Ionicons name="star-outline" size={18} color="#f39c12" />
+                            <Ionicons name="trash-outline" size={18} color="#e74c3c" />
                           </TouchableOpacity>
-                        )}
-                        <TouchableOpacity
-                          style={styles.botonEliminar}
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            handleEliminarTarjeta(
-                              metodo.id || metodo._id, 
-                              metodo.tipo, 
-                              metodo.ultimosDigitos
-                            );
-                          }}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="trash-outline" size={18} color="#e74c3c" />
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
             ) : (
               <View style={styles.emptyState}>
                 <Ionicons name="card-outline" size={48} color="#bdc3c7" />
@@ -868,7 +782,7 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
   },
 
-  
+
   estadoContainer: {
     flex: 1,
     justifyContent: 'center',

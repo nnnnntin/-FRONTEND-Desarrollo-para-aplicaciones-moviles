@@ -132,8 +132,8 @@ const DetalleOficina = ({ navigation, route }) => {
 
   const getServiciosDisponibles = () => {
     const serviciosEspacio = serviciosPorEspacio[oficina.id] || [];
-    
-    
+
+
     if (serviciosEspacio.length === 0) {
       return [
         { _id: 1, nombre: 'Catering básico', precio: 15, unidadPrecio: 'persona' },
@@ -142,7 +142,7 @@ const DetalleOficina = ({ navigation, route }) => {
         { _id: 4, nombre: 'Estacionamiento adicional', precio: 20, unidadPrecio: 'día' }
       ];
     }
-    
+
     return serviciosEspacio;
   };
 
@@ -484,7 +484,6 @@ const DetalleOficina = ({ navigation, route }) => {
         <View style={styles.bottomSpacing} />
       </ScrollView>
 
-      {/* Modal de reserva */}
       {tipoUsuario === 'usuario' && (
         <Modal
           animationType="slide"

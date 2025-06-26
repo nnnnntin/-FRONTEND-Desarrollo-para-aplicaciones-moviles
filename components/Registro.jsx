@@ -16,12 +16,13 @@ import {
 
 import { useDispatch, useSelector } from 'react-redux';
 import { clearError, signupUsuario } from '../store/slices/authSlice';
+import { crearEmpresaInmobiliaria, crearProveedor } from '../store/slices/usuarioSlice';
 
 const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
 const Registro = ({ navigation }) => {
-  
+
   const [username, setUsername] = useState('');
   const [nombre, setNombre] = useState('');
   const [apellidos, setApellidos] = useState('');
@@ -44,6 +45,9 @@ const Registro = ({ navigation }) => {
   
   const [nombreEmpresa, setNombreEmpresa] = useState('');
   const [tipoServicio, setTipoServicio] = useState('');
+  const [tipoEmpresa, setTipoEmpresa] = useState('inmobiliaria'); 
+  const [tipoProveedor, setTipoProveedor] = useState('empresa'); 
+  const [identificacionFiscal, setIdentificacionFiscal] = useState('');
 
   
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -51,6 +55,7 @@ const Registro = ({ navigation }) => {
   
   const dispatch = useDispatch();
   const { loading: isRegistering, error } = useSelector(state => state.auth);
+  const { loadingEmpresa, loadingProveedor } = useSelector(state => state.usuario);
 
   const irLogin = () => {
     navigation.navigate('Login');
@@ -67,8 +72,19 @@ const Registro = ({ navigation }) => {
       return false;
     }
 
+    if (!nombre.trim() && !username.trim()) {
+      Alert.alert('Error', 'El nombre es obligatorio');
+      return false;
+    }
+
     if (!email.trim()) {
       Alert.alert('Error', 'El correo electrónico es obligatorio');
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert('Error', 'El formato del correo electrónico no es válido');
       return false;
     }
 
@@ -97,7 +113,97 @@ const Registro = ({ navigation }) => {
       return false;
     }
 
+    if ((tipoUsuario === 'cliente' || tipoUsuario === 'proveedor') && !identificacionFiscal.trim()) {
+      Alert.alert('Error', 'La identificación fiscal es obligatoria para empresas y proveedores');
+      return false;
+    }
+
     return true;
+  };
+
+  const crearEmpresaInmobiliariaAutomatica = async (usuarioId) => {
+    try {
+      console.log('🏢 Creando empresa inmobiliaria para usuario:', usuarioId);
+
+      const datosEmpresa = {
+        nombre: nombreEmpresa.trim(),
+        tipo: tipoEmpresa,
+        descripcion: `Empresa inmobiliaria ${nombreEmpresa.trim()}`,
+        contacto: {
+          nombreContacto: `${nombre.trim()} ${apellidos.trim()}`.trim() || username.trim(),
+          email: email.trim().toLowerCase(),
+          telefono: telefono.trim() || 'Sin especificar',
+          cargo: 'Propietario'
+        },
+        identificacionFiscal: identificacionFiscal.trim(),
+        direccion: {
+          calle: calle.trim() || 'Sin especificar',
+          ciudad: ciudad.trim() || 'Montevideo',
+          codigoPostal: codigoPostal.trim() || '11000',
+          pais: pais.trim() || 'Uruguay'
+        },
+        activo: true,
+        verificado: false
+      };
+
+      const result = await dispatch(crearEmpresaInmobiliaria({
+        usuarioId,
+        datosEmpresa
+      }));
+
+      if (crearEmpresaInmobiliaria.fulfilled.match(result)) {
+        console.log('✅ Empresa inmobiliaria creada exitosamente');
+        return result.payload;
+      } else {
+        console.log('⚠️ Error al crear empresa inmobiliaria:', result.payload);
+        throw new Error(result.payload || 'Error al crear empresa inmobiliaria');
+      }
+    } catch (error) {
+      console.error('🔴 Error en crearEmpresaInmobiliariaAutomatica:', error);
+      throw error;
+    }
+  };
+
+  const crearProveedorAutomatico = async (usuarioId) => {
+    try {
+      console.log('🔧 Creando proveedor para usuario:', usuarioId);
+
+      const datosProveedor = {
+        nombre: tipoServicio.trim(),
+        tipo: tipoProveedor,
+        descripcion: `Proveedor de servicios: ${tipoServicio.trim()}`,
+        contacto: {
+          nombreContacto: `${nombre.trim()} ${apellidos.trim()}`.trim() || username.trim(),
+          email: email.trim().toLowerCase(),
+          telefono: telefono.trim() || 'Sin especificar'
+        },
+        identificacionFiscal: identificacionFiscal.trim(),
+        direccion: {
+          calle: calle.trim() || 'Sin especificar',
+          ciudad: ciudad.trim() || 'Montevideo',
+          codigoPostal: codigoPostal.trim() || '11000',
+          pais: pais.trim() || 'Uruguay'
+        },
+        activo: true,
+        verificado: false
+      };
+
+      const result = await dispatch(crearProveedor({
+        usuarioId,
+        datosProveedor
+      }));
+
+      if (crearProveedor.fulfilled.match(result)) {
+        console.log('✅ Proveedor creado exitosamente');
+        return result.payload;
+      } else {
+        console.log('⚠️ Error al crear proveedor:', result.payload);
+        throw new Error(result.payload || 'Error al crear proveedor');
+      }
+    } catch (error) {
+      console.error('🔴 Error en crearProveedorAutomatico:', error);
+      throw error;
+    }
   };
 
   const registrarse = async () => {
@@ -105,15 +211,13 @@ const Registro = ({ navigation }) => {
       return;
     }
 
-    if (isRegistering) {
+    if (isRegistering || loadingEmpresa || loadingProveedor) {
       return;
     }
 
     try {
-      
       dispatch(clearError());
 
-      
       console.log('🔍 [Frontend] Estado de profileImage:', {
         profileImage,
         hasValue: !!profileImage,
@@ -128,9 +232,77 @@ const Registro = ({ navigation }) => {
         username: username.trim(),
         email: email.trim().toLowerCase(),
         password,
+        
+        nombre: nombre.trim() || username.trim(), 
+        apellidos: apellidos.trim() || '', 
+
+        
+        datosPersonales: {
+          telefono: telefono.trim() || undefined,
+          documentoIdentidad: documentoIdentidad.trim() || undefined,
+        },
+
+        
+        direccion: {
+          calle: calle.trim() || undefined,
+          ciudad: ciudad.trim() || 'Montevideo',
+          codigoPostal: codigoPostal.trim() || undefined,
+          pais: pais.trim() || 'Uruguay',
+        },
+
+        
+        imagen: profileImage && typeof profileImage === 'string' && profileImage.trim() ? profileImage.trim() : undefined,
+
+        
+        preferencias: {
+          idiomaPreferido: 'es',
+          monedaPreferida: 'UYU',
+          notificaciones: {
+            email: true,
+            push: true,
+            sms: false
+          }
+        },
       };
 
       
+      if (tipoUsuario === 'cliente' && nombreEmpresa.trim()) {
+        registrationData.datosEmpresa = {
+          nombreEmpresa: nombreEmpresa.trim()
+        };
+      }
+
+      if (tipoUsuario === 'proveedor' && tipoServicio.trim()) {
+        registrationData.datosEmpresa = {
+          nombreEmpresa: tipoServicio.trim()
+        };
+      }
+
+      
+      if (registrationData.datosPersonales) {
+        Object.keys(registrationData.datosPersonales).forEach(key => {
+          if (registrationData.datosPersonales[key] === undefined) {
+            delete registrationData.datosPersonales[key];
+          }
+        });
+        
+        if (Object.keys(registrationData.datosPersonales).length === 0) {
+          delete registrationData.datosPersonales;
+        }
+      }
+
+      if (registrationData.direccion) {
+        Object.keys(registrationData.direccion).forEach(key => {
+          if (registrationData.direccion[key] === undefined) {
+            delete registrationData.direccion[key];
+          }
+        });
+        
+        if (Object.keys(registrationData.direccion).length === 0) {
+          delete registrationData.direccion;
+        }
+      }
+
       console.log('🔵 [Frontend] Despachando signupUsuario con:', registrationData);
 
       const result = await dispatch(signupUsuario(registrationData));
@@ -138,15 +310,32 @@ const Registro = ({ navigation }) => {
       if (signupUsuario.fulfilled.match(result)) {
         console.log('🟢 [Frontend] Registro exitoso:', result.payload);
 
-        
-        if (result.payload?.userId) {
-          await actualizarDatosAdicionales(result.payload.userId);
+        const usuarioId = result.payload?.userId;
+        let empresa = null;
+        let proveedor = null;
+
+        if (usuarioId) {
+          
+          try {
+            if (tipoUsuario === 'cliente') {
+              empresa = await crearEmpresaInmobiliariaAutomatica(usuarioId);
+            } else if (tipoUsuario === 'proveedor') {
+              proveedor = await crearProveedorAutomatico(usuarioId);
+            }
+          } catch (empresaProveedorError) {
+            console.log('⚠️ Usuario creado pero error al crear empresa/proveedor:', empresaProveedorError);
+            
+          }
         }
 
         
+        const mensajeEmpresa = empresa ? `\n\n🏢 Empresa "${empresa.nombre}" creada` : '';
+        const mensajeProveedor = proveedor ? `\n\n🔧 Proveedor "${proveedor.nombre}" creado` : '';
+        const mensajeFoto = profileImage ? '\n\n✅ Foto de perfil guardada' : '\n\n⚠️ Sin foto de perfil';
+
         Alert.alert(
           'Registro exitoso',
-          `¡Bienvenido ${result.payload.username || username}! Tu cuenta como ${tipoUsuario} ha sido creada exitosamente.${profileImage ? '\n\n✅ Foto de perfil guardada' : '\n\n⚠️ Sin foto de perfil'}${(tipoUsuario === 'cliente' && nombreEmpresa) ? `\n\nEmpresa: ${nombreEmpresa}` : ''}${(tipoUsuario === 'proveedor' && tipoServicio) ? `\n\nServicio: ${tipoServicio}` : ''}`,
+          `¡Bienvenido ${result.payload.username || username}! Tu cuenta como ${tipoUsuario} ha sido creada exitosamente.${mensajeFoto}${mensajeEmpresa}${mensajeProveedor}`,
           [
             {
               text: 'OK',
@@ -156,6 +345,7 @@ const Registro = ({ navigation }) => {
             }
           ]
         );
+
       } else if (signupUsuario.rejected.match(result)) {
         console.log('🔴 [Frontend] Error en registro:', result.payload);
         Alert.alert('Error', result.payload || 'Error en el registro');
@@ -173,7 +363,7 @@ const Registro = ({ navigation }) => {
       const updateData = {
         nombre: nombre.trim() || username.trim(),
         apellidos: apellidos.trim() || '',
-        
+
         datosPersonales: {
           telefono: telefono.trim() || undefined,
           documentoIdentidad: documentoIdentidad.trim() || undefined,
@@ -197,12 +387,10 @@ const Registro = ({ navigation }) => {
         },
       };
 
-      
       if (profileImage && typeof profileImage === 'string' && profileImage.trim()) {
         updateData.imagen = profileImage.trim();
       }
 
-      
       if (tipoUsuario === 'cliente' && nombreEmpresa.trim()) {
         updateData.datosEmpresa = {
           nombreEmpresa: nombreEmpresa.trim()
@@ -215,7 +403,6 @@ const Registro = ({ navigation }) => {
         };
       }
 
-      
       Object.keys(updateData.datosPersonales).forEach(key => {
         if (updateData.datosPersonales[key] === undefined) {
           delete updateData.datosPersonales[key];
@@ -243,12 +430,13 @@ const Registro = ({ navigation }) => {
       } else {
         console.log('🟡 [Frontend] Usuario creado pero no se pudieron agregar datos adicionales');
       }
-      
+
     } catch (updateError) {
       console.log('🟡 [Frontend] Usuario creado pero error al actualizar perfil:', updateError);
     }
   };
 
+  
   const requestCameraPermission = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
@@ -381,6 +569,8 @@ const Registro = ({ navigation }) => {
     );
   };
 
+  const isLoading = isRegistering || loadingEmpresa || loadingProveedor;
+
   return (
     <KeyboardAvoidingView
       style={styles.keyboardAvoidingView}
@@ -401,14 +591,13 @@ const Registro = ({ navigation }) => {
           <Text style={styles.title}>Officereserve</Text>
           <Text style={styles.subtitle}>Registrarse</Text>
 
-          {/* 🔥 CAMBIO: Mostrar error si existe */}
           {error && (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
 
-          <TouchableOpacity onPress={showImageOptions} style={styles.photoContainer} disabled={uploadingImage}>
+          <TouchableOpacity onPress={showImageOptions} style={styles.photoContainer} disabled={uploadingImage || isLoading}>
             {uploadingImage ? (
               <View style={styles.photoPlaceholder}>
                 <Text style={styles.uploadingText}>Subiendo...</Text>
@@ -432,7 +621,7 @@ const Registro = ({ navigation }) => {
                   tipoUsuario === 'usuario' && styles.tipoUsuarioButtonActive
                 ]}
                 onPress={() => setTipoUsuario('usuario')}
-                disabled={isRegistering}
+                disabled={isLoading}
               >
                 <Text style={[
                   styles.tipoUsuarioButtonText,
@@ -448,7 +637,7 @@ const Registro = ({ navigation }) => {
                   tipoUsuario === 'cliente' && styles.tipoUsuarioButtonActive
                 ]}
                 onPress={() => setTipoUsuario('cliente')}
-                disabled={isRegistering}
+                disabled={isLoading}
               >
                 <Text style={[
                   styles.tipoUsuarioButtonText,
@@ -464,7 +653,7 @@ const Registro = ({ navigation }) => {
                   tipoUsuario === 'proveedor' && styles.tipoUsuarioButtonActive
                 ]}
                 onPress={() => setTipoUsuario('proveedor')}
-                disabled={isRegistering}
+                disabled={isLoading}
               >
                 <Text style={[
                   styles.tipoUsuarioButtonText,
@@ -476,17 +665,16 @@ const Registro = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Resto de los campos igual que antes */}
           <Text style={styles.label}>Nombre de usuario *</Text>
           <TextInput
-            style={[styles.fullInput, isRegistering && styles.inputDisabled]}
+            style={[styles.fullInput, isLoading && styles.inputDisabled]}
             placeholder="Nombre de usuario único"
             placeholderTextColor="#999"
             value={username}
             onChangeText={setUsername}
             returnKeyType="next"
             blurOnSubmit={false}
-            editable={!isRegistering}
+            editable={!isLoading}
             autoCapitalize="none"
           />
 
@@ -494,27 +682,27 @@ const Registro = ({ navigation }) => {
             <View style={styles.halfInputContainer}>
               <Text style={styles.label}>Nombre</Text>
               <TextInput
-                style={[styles.input, isRegistering && styles.inputDisabled]}
+                style={[styles.input, isLoading && styles.inputDisabled]}
                 placeholder="Tu nombre"
                 placeholderTextColor="#999"
                 value={nombre}
                 onChangeText={setNombre}
                 returnKeyType="next"
                 blurOnSubmit={false}
-                editable={!isRegistering}
+                editable={!isLoading}
               />
             </View>
             <View style={styles.halfInputContainer}>
               <Text style={styles.label}>Apellidos</Text>
               <TextInput
-                style={[styles.input, isRegistering && styles.inputDisabled]}
+                style={[styles.input, isLoading && styles.inputDisabled]}
                 placeholder="Tus apellidos"
                 placeholderTextColor="#999"
                 value={apellidos}
                 onChangeText={setApellidos}
                 returnKeyType="next"
                 blurOnSubmit={false}
-                editable={!isRegistering}
+                editable={!isLoading}
               />
             </View>
           </View>
@@ -523,7 +711,7 @@ const Registro = ({ navigation }) => {
             <View style={styles.halfInputContainer}>
               <Text style={styles.label}>Teléfono</Text>
               <TextInput
-                style={[styles.input, isRegistering && styles.inputDisabled]}
+                style={[styles.input, isLoading && styles.inputDisabled]}
                 placeholder="+598 9X XXX XXX"
                 placeholderTextColor="#999"
                 value={telefono}
@@ -531,20 +719,20 @@ const Registro = ({ navigation }) => {
                 keyboardType="phone-pad"
                 returnKeyType="next"
                 blurOnSubmit={false}
-                editable={!isRegistering}
+                editable={!isLoading}
               />
             </View>
             <View style={styles.halfInputContainer}>
               <Text style={styles.label}>Documento</Text>
               <TextInput
-                style={[styles.input, isRegistering && styles.inputDisabled]}
+                style={[styles.input, isLoading && styles.inputDisabled]}
                 placeholder="C.I. o Pasaporte"
                 placeholderTextColor="#999"
                 value={documentoIdentidad}
                 onChangeText={setDocumentoIdentidad}
                 returnKeyType="next"
                 blurOnSubmit={false}
-                editable={!isRegistering}
+                editable={!isLoading}
               />
             </View>
           </View>
@@ -553,34 +741,34 @@ const Registro = ({ navigation }) => {
 
           <Text style={styles.label}>Calle</Text>
           <TextInput
-            style={[styles.fullInput, isRegistering && styles.inputDisabled]}
+            style={[styles.fullInput, isLoading && styles.inputDisabled]}
             placeholder="Calle y número"
             placeholderTextColor="#999"
             value={calle}
             onChangeText={setCalle}
             returnKeyType="next"
             blurOnSubmit={false}
-            editable={!isRegistering}
+            editable={!isLoading}
           />
 
           <View style={styles.rowContainer}>
             <View style={styles.halfInputContainer}>
               <Text style={styles.label}>Ciudad</Text>
               <TextInput
-                style={[styles.input, isRegistering && styles.inputDisabled]}
+                style={[styles.input, isLoading && styles.inputDisabled]}
                 placeholder="Ciudad"
                 placeholderTextColor="#999"
                 value={ciudad}
                 onChangeText={setCiudad}
                 returnKeyType="next"
                 blurOnSubmit={false}
-                editable={!isRegistering}
+                editable={!isLoading}
               />
             </View>
             <View style={styles.halfInputContainer}>
               <Text style={styles.label}>Código Postal</Text>
               <TextInput
-                style={[styles.input, isRegistering && styles.inputDisabled]}
+                style={[styles.input, isLoading && styles.inputDisabled]}
                 placeholder="Código postal"
                 placeholderTextColor="#999"
                 value={codigoPostal}
@@ -588,42 +776,140 @@ const Registro = ({ navigation }) => {
                 keyboardType="numeric"
                 returnKeyType="next"
                 blurOnSubmit={false}
-                editable={!isRegistering}
+                editable={!isLoading}
               />
             </View>
           </View>
 
           {tipoUsuario === 'cliente' && (
             <>
-              <Text style={styles.sectionTitle}>Información de Empresa</Text>
+              <Text style={styles.sectionTitle}>Información de Empresa Inmobiliaria</Text>
+
               <Text style={styles.label}>Nombre de la empresa *</Text>
               <TextInput
-                style={[styles.fullInput, isRegistering && styles.inputDisabled]}
-                placeholder="Nombre de tu empresa"
+                style={[styles.fullInput, isLoading && styles.inputDisabled]}
+                placeholder="Nombre de tu empresa inmobiliaria"
                 placeholderTextColor="#999"
                 value={nombreEmpresa}
                 onChangeText={setNombreEmpresa}
                 returnKeyType="next"
                 blurOnSubmit={false}
-                editable={!isRegistering}
+                editable={!isLoading}
               />
+
+              <View style={styles.rowContainer}>
+                <View style={styles.halfInputContainer}>
+                  <Text style={styles.label}>Tipo de empresa</Text>
+                  <View style={styles.pickerContainer}>
+                    <TouchableOpacity
+                      style={[styles.pickerButton, tipoEmpresa === 'inmobiliaria' && styles.pickerButtonActive]}
+                      onPress={() => setTipoEmpresa('inmobiliaria')}
+                      disabled={isLoading}
+                    >
+                      <Text style={[styles.pickerText, tipoEmpresa === 'inmobiliaria' && styles.pickerTextActive]}>
+                        Inmobiliaria
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.pickerButton, tipoEmpresa === 'propietario_directo' && styles.pickerButtonActive]}
+                      onPress={() => setTipoEmpresa('propietario_directo')}
+                      disabled={isLoading}
+                    >
+                      <Text style={[styles.pickerText, tipoEmpresa === 'propietario_directo' && styles.pickerTextActive]}>
+                        Propietario
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.pickerButton, tipoEmpresa === 'administrador_edificio' && styles.pickerButtonActive]}
+                      onPress={() => setTipoEmpresa('administrador_edificio')}
+                      disabled={isLoading}
+                    >
+                      <Text style={[styles.pickerText, tipoEmpresa === 'administrador_edificio' && styles.pickerTextActive]}>
+                        Administrador
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                <View style={styles.halfInputContainer}>
+                  <Text style={styles.label}>ID Fiscal *</Text>
+                  <TextInput
+                    style={[styles.input, isLoading && styles.inputDisabled]}
+                    placeholder="RUT o identificación fiscal"
+                    placeholderTextColor="#999"
+                    value={identificacionFiscal}
+                    onChangeText={setIdentificacionFiscal}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                    editable={!isLoading}
+                  />
+                </View>
+              </View>
             </>
           )}
 
           {tipoUsuario === 'proveedor' && (
             <>
-              <Text style={styles.sectionTitle}>Información de Servicio</Text>
+              <Text style={styles.sectionTitle}>Información de Proveedor</Text>
+
               <Text style={styles.label}>Tipo de servicio *</Text>
               <TextInput
-                style={[styles.fullInput, isRegistering && styles.inputDisabled]}
-                placeholder="Ej: Limpieza, Catering, Seguridad, etc."
+                style={[styles.fullInput, isLoading && styles.inputDisabled]}
+                placeholder="Ej: Limpieza, Catering, Seguridad, Mantenimiento, etc."
                 placeholderTextColor="#999"
                 value={tipoServicio}
                 onChangeText={setTipoServicio}
                 returnKeyType="next"
                 blurOnSubmit={false}
-                editable={!isRegistering}
+                editable={!isLoading}
               />
+
+              <View style={styles.rowContainer}>
+                <View style={styles.halfInputContainer}>
+                  <Text style={styles.label}>Tipo de proveedor</Text>
+                  <View style={styles.pickerContainer}>
+                    <TouchableOpacity
+                      style={[styles.pickerButton, tipoProveedor === 'empresa' && styles.pickerButtonActive]}
+                      onPress={() => setTipoProveedor('empresa')}
+                      disabled={isLoading}
+                    >
+                      <Text style={[styles.pickerText, tipoProveedor === 'empresa' && styles.pickerTextActive]}>
+                        Empresa
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.pickerButton, tipoProveedor === 'autonomo' && styles.pickerButtonActive]}
+                      onPress={() => setTipoProveedor('autonomo')}
+                      disabled={isLoading}
+                    >
+                      <Text style={[styles.pickerText, tipoProveedor === 'autonomo' && styles.pickerTextActive]}>
+                        Autónomo
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.pickerButton, tipoProveedor === 'interno' && styles.pickerButtonActive]}
+                      onPress={() => setTipoProveedor('interno')}
+                      disabled={isLoading}
+                    >
+                      <Text style={[styles.pickerText, tipoProveedor === 'interno' && styles.pickerTextActive]}>
+                        Interno
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                <View style={styles.halfInputContainer}>
+                  <Text style={styles.label}>ID Fiscal *</Text>
+                  <TextInput
+                    style={[styles.input, isLoading && styles.inputDisabled]}
+                    placeholder="RUT o identificación fiscal"
+                    placeholderTextColor="#999"
+                    value={identificacionFiscal}
+                    onChangeText={setIdentificacionFiscal}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                    editable={!isLoading}
+                  />
+                </View>
+              </View>
             </>
           )}
 
@@ -631,7 +917,7 @@ const Registro = ({ navigation }) => {
 
           <Text style={styles.label}>Correo electrónico *</Text>
           <TextInput
-            style={[styles.fullInput, isRegistering && styles.inputDisabled]}
+            style={[styles.fullInput, isLoading && styles.inputDisabled]}
             placeholder="tu@email.com"
             placeholderTextColor="#999"
             value={email}
@@ -640,12 +926,12 @@ const Registro = ({ navigation }) => {
             autoCapitalize="none"
             returnKeyType="next"
             blurOnSubmit={false}
-            editable={!isRegistering}
+            editable={!isLoading}
           />
 
           <Text style={styles.label}>Contraseña *</Text>
           <TextInput
-            style={[styles.fullInput, isRegistering && styles.inputDisabled]}
+            style={[styles.fullInput, isLoading && styles.inputDisabled]}
             placeholder="Mínimo 8 caracteres"
             placeholderTextColor="#999"
             value={password}
@@ -653,44 +939,34 @@ const Registro = ({ navigation }) => {
             secureTextEntry
             returnKeyType="next"
             blurOnSubmit={false}
-            editable={!isRegistering}
+            editable={!isLoading}
           />
 
           <Text style={styles.label}>Confirmar contraseña *</Text>
           <TextInput
-            style={[styles.fullInput, isRegistering && styles.inputDisabled]}
+            style={[styles.fullInput, isLoading && styles.inputDisabled]}
             placeholder="Repite tu contraseña"
             placeholderTextColor="#999"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
             returnKeyType="done"
-            editable={!isRegistering}
+            editable={!isLoading}
           />
 
           <TouchableOpacity
             style={[
               styles.button,
-              isRegistering && styles.buttonDisabled
+              isLoading && styles.buttonDisabled
             ]}
             onPress={registrarse}
-            disabled={isRegistering}
+            disabled={isLoading}
           >
             <Text style={styles.buttonText}>
-              {isRegistering ? 'Registrando...' : 'Registrarse'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={irLogin}
-            style={styles.backContainer}
-            disabled={isRegistering}
-          >
-            <Text style={[
-              styles.backLink,
-              isRegistering && styles.linkDisabled
-            ]}>
-              Volver al login
+              {isRegistering ? 'Registrando usuario...' :
+                loadingEmpresa ? 'Creando empresa...' :
+                  loadingProveedor ? 'Creando proveedor...' :
+                    'Registrarse'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -698,7 +974,6 @@ const Registro = ({ navigation }) => {
     </KeyboardAvoidingView>
   );
 };
-
 
 const styles = StyleSheet.create({
   keyboardAvoidingView: {
@@ -733,7 +1008,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontFamily: 'System',
   },
-  
   errorContainer: {
     width: '100%',
     backgroundColor: '#fee',
@@ -865,6 +1139,35 @@ const styles = StyleSheet.create({
   inputDisabled: {
     backgroundColor: '#f5f5f5',
     color: '#999',
+  },
+  pickerContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginBottom: 20,
+  },
+  pickerButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+    minWidth: 70,
+    alignItems: 'center',
+  },
+  pickerButtonActive: {
+    backgroundColor: '#4a90e2',
+    borderColor: '#4a90e2',
+  },
+  pickerText: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    fontWeight: '500',
+    fontFamily: 'System',
+  },
+  pickerTextActive: {
+    color: '#fff',
   },
   button: {
     width: '100%',

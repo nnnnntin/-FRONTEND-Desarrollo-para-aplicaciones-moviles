@@ -26,8 +26,8 @@ const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 const AdminGestionStack = () => (
-  <Stack.Navigator 
-    screenOptions={{ 
+  <Stack.Navigator
+    screenOptions={{
       headerShown: true,
       headerStyle: {
         backgroundColor: '#2c3e50',
@@ -38,23 +38,23 @@ const AdminGestionStack = () => (
       },
     }}
   >
-    <Stack.Screen 
-      name="GestionUsuarios" 
+    <Stack.Screen
+      name="GestionUsuarios"
       component={GestionUsuarios}
       options={{ title: 'Gestión de Usuarios' }}
     />
-    <Stack.Screen 
-      name="GestionProveedores" 
+    <Stack.Screen
+      name="GestionProveedores"
       component={GestionProveedores}
       options={{ title: 'Gestión de Proveedores' }}
     />
-    <Stack.Screen 
-      name="GestionPublicaciones" 
+    <Stack.Screen
+      name="GestionPublicaciones"
       component={GestionPublicaciones}
       options={{ title: 'Gestión de Publicaciones' }}
     />
-    <Stack.Screen 
-      name="GestionReservas" 
+    <Stack.Screen
+      name="GestionReservas"
       component={GestionReservas}
       options={{ title: 'Gestión de Reservas' }}
     />
@@ -62,8 +62,8 @@ const AdminGestionStack = () => (
 );
 
 const AdminFinanzasStack = () => (
-  <Stack.Navigator 
-    screenOptions={{ 
+  <Stack.Navigator
+    screenOptions={{
       headerShown: true,
       headerStyle: {
         backgroundColor: '#27ae60',
@@ -74,18 +74,18 @@ const AdminFinanzasStack = () => (
       },
     }}
   >
-    <Stack.Screen 
-      name="TransaccionesAdmin" 
+    <Stack.Screen
+      name="TransaccionesAdmin"
       component={TransaccionesAdmin}
       options={{ title: 'Transacciones' }}
     />
-    <Stack.Screen 
-      name="ComisionesAdmin" 
+    <Stack.Screen
+      name="ComisionesAdmin"
       component={ComisionesAdmin}
       options={{ title: 'Comisiones' }}
     />
-    <Stack.Screen 
-      name="ReportesAdmin" 
+    <Stack.Screen
+      name="ReportesAdmin"
       component={ReportesAdmin}
       options={{ title: 'Reportes Financieros' }}
     />
@@ -93,8 +93,8 @@ const AdminFinanzasStack = () => (
 );
 
 const ClienteServiciosStack = () => (
-  <Stack.Navigator 
-    screenOptions={{ 
+  <Stack.Navigator
+    screenOptions={{
       headerShown: true,
       headerStyle: {
         backgroundColor: '#3498db',
@@ -105,18 +105,18 @@ const ClienteServiciosStack = () => (
       },
     }}
   >
-    <Stack.Screen 
-      name="GestionServicios" 
+    <Stack.Screen
+      name="GestionServicios"
       component={GestionServicios}
       options={{ title: 'Mis Servicios' }}
     />
-    <Stack.Screen 
-      name="ServiciosOfrecidos" 
+    <Stack.Screen
+      name="ServiciosOfrecidos"
       component={ServiciosOfrecidos}
       options={{ title: 'Servicios Ofrecidos' }}
     />
-    <Stack.Screen 
-      name="Estadisticas" 
+    <Stack.Screen
+      name="Estadisticas"
       component={Estadisticas}
       options={{ title: 'Estadísticas' }}
     />
@@ -124,8 +124,8 @@ const ClienteServiciosStack = () => (
 );
 
 const ClienteFinanzasStack = () => (
-  <Stack.Navigator 
-    screenOptions={{ 
+  <Stack.Navigator
+    screenOptions={{
       headerShown: true,
       headerStyle: {
         backgroundColor: '#f39c12',
@@ -136,13 +136,13 @@ const ClienteFinanzasStack = () => (
       },
     }}
   >
-    <Stack.Screen 
-      name="GestionGanancias" 
+    <Stack.Screen
+      name="GestionGanancias"
       component={GestionGanancias}
       options={{ title: 'Mis Ganancias' }}
     />
-    <Stack.Screen 
-      name="Reservas" 
+    <Stack.Screen
+      name="Reservas"
       component={Reservas}
       options={{ title: 'Reservas Recibidas' }}
     />
@@ -150,8 +150,8 @@ const ClienteFinanzasStack = () => (
 );
 
 const ProveedorServiciosStack = () => (
-  <Stack.Navigator 
-    screenOptions={{ 
+  <Stack.Navigator
+    screenOptions={{
       headerShown: true,
       headerStyle: {
         backgroundColor: '#9b59b6',
@@ -162,18 +162,18 @@ const ProveedorServiciosStack = () => (
       },
     }}
   >
-    <Stack.Screen 
-      name="ServiciosProveedor" 
+    <Stack.Screen
+      name="ServiciosProveedor"
       component={ServiciosProveedor}
       options={{ title: 'Mis Servicios' }}
     />
-    <Stack.Screen 
-      name="SolicitudesServicio" 
+    <Stack.Screen
+      name="SolicitudesServicio"
       component={SolicitudesServicio}
       options={{ title: 'Solicitudes' }}
     />
-    <Stack.Screen 
-      name="GananciasProveedor" 
+    <Stack.Screen
+      name="GananciasProveedor"
       component={GananciasProveedor}
       options={{ title: 'Mis Ganancias' }}
     />
@@ -181,8 +181,8 @@ const ProveedorServiciosStack = () => (
 );
 
 const UsuarioActividadStack = () => (
-  <Stack.Navigator 
-    screenOptions={{ 
+  <Stack.Navigator
+    screenOptions={{
       headerShown: true,
       headerStyle: {
         backgroundColor: '#1abc9c',
@@ -193,18 +193,18 @@ const UsuarioActividadStack = () => (
       },
     }}
   >
-    <Stack.Screen 
-      name="Reservas" 
+    <Stack.Screen
+      name="Reservas"
       component={Reservas}
       options={{ title: 'Mis Reservas' }}
     />
-    <Stack.Screen 
-      name="Transacciones" 
+    <Stack.Screen
+      name="Transacciones"
       component={Transacciones}
       options={{ title: 'Mis Transacciones' }}
     />
-    <Stack.Screen 
-      name="Membresias" 
+    <Stack.Screen
+      name="Membresias"
       component={Membresias}
       options={{ title: 'Membresías' }}
     />
@@ -212,8 +212,8 @@ const UsuarioActividadStack = () => (
 );
 
 const UsuarioPagosStack = () => (
-  <Stack.Navigator 
-    screenOptions={{ 
+  <Stack.Navigator
+    screenOptions={{
       headerShown: true,
       headerStyle: {
         backgroundColor: '#e67e22',
@@ -224,8 +224,8 @@ const UsuarioPagosStack = () => (
       },
     }}
   >
-    <Stack.Screen 
-      name="MetodosPago" 
+    <Stack.Screen
+      name="MetodosPago"
       component={MetodosPago}
       options={{ title: 'Métodos de Pago' }}
     />
@@ -240,8 +240,8 @@ const Listar = () => {
       case 'admin':
         return (
           <>
-            <Tab.Screen 
-              name="AdminGestion" 
+            <Tab.Screen
+              name="AdminGestion"
               component={AdminGestionStack}
               options={{
                 tabBarIcon: ({ color, size }) => (
@@ -251,8 +251,8 @@ const Listar = () => {
                 headerShown: false
               }}
             />
-            <Tab.Screen 
-              name="AdminFinanzas" 
+            <Tab.Screen
+              name="AdminFinanzas"
               component={AdminFinanzasStack}
               options={{
                 tabBarIcon: ({ color, size }) => (
@@ -268,8 +268,8 @@ const Listar = () => {
       case 'cliente':
         return (
           <>
-            <Tab.Screen 
-              name="ClienteServicios" 
+            <Tab.Screen
+              name="ClienteServicios"
               component={ClienteServiciosStack}
               options={{
                 tabBarIcon: ({ color, size }) => (
@@ -279,8 +279,8 @@ const Listar = () => {
                 headerShown: false
               }}
             />
-            <Tab.Screen 
-              name="ClienteFinanzas" 
+            <Tab.Screen
+              name="ClienteFinanzas"
               component={ClienteFinanzasStack}
               options={{
                 tabBarIcon: ({ color, size }) => (
@@ -296,8 +296,8 @@ const Listar = () => {
       case 'proveedor':
         return (
           <>
-            <Tab.Screen 
-              name="ProveedorServicios" 
+            <Tab.Screen
+              name="ProveedorServicios"
               component={ProveedorServiciosStack}
               options={{
                 tabBarIcon: ({ color, size }) => (
@@ -314,8 +314,8 @@ const Listar = () => {
       default:
         return (
           <>
-            <Tab.Screen 
-              name="UsuarioActividad" 
+            <Tab.Screen
+              name="UsuarioActividad"
               component={UsuarioActividadStack}
               options={{
                 tabBarIcon: ({ color, size }) => (
@@ -325,8 +325,8 @@ const Listar = () => {
                 headerShown: false
               }}
             />
-            <Tab.Screen 
-              name="UsuarioPagos" 
+            <Tab.Screen
+              name="UsuarioPagos"
               component={UsuarioPagosStack}
               options={{
                 tabBarIcon: ({ color, size }) => (
@@ -342,7 +342,7 @@ const Listar = () => {
   };
 
   return (
-    <Tab.Navigator 
+    <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarStyle: {

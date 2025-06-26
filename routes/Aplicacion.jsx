@@ -52,45 +52,45 @@ const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
 
 const InicioStack = ({ setIsLogged, resetSession }) => {
-  
+
   const { tipoUsuario } = useSelector(state => state.auth);
-  
+
   return (
     <Stack.Navigator
       screenOptions={{
         headerShown: false
       }}
     >
-      <Stack.Screen 
+      <Stack.Screen
         name="InicioMain"
       >
         {props => (
-          <Inicio 
-            {...props} 
-            setIsLogged={setIsLogged} 
+          <Inicio
+            {...props}
+            setIsLogged={setIsLogged}
             resetSession={resetSession}
           />
         )}
       </Stack.Screen>
-      <Stack.Screen 
-        name="DetalleOficina" 
+      <Stack.Screen
+        name="DetalleOficina"
         component={DetalleOficina}
       />
-      <Stack.Screen 
-        name="Notificaciones" 
+      <Stack.Screen
+        name="Notificaciones"
         component={Notificaciones}
       />
-      <Stack.Screen 
-        name="Mapa" 
+      <Stack.Screen
+        name="Mapa"
         component={Mapa}
       />
-      <Stack.Screen 
-        name="MiCuenta" 
+      <Stack.Screen
+        name="MiCuenta"
         component={MiCuenta}
       />
-      
-      <Stack.Screen 
-        name="Listar" 
+
+      <Stack.Screen
+        name="Listar"
         component={Listar}
         options={{
           headerShown: true,
@@ -104,158 +104,158 @@ const InicioStack = ({ setIsLogged, resetSession }) => {
           },
         }}
       />
-      
+
       {tipoUsuario === 'administrador' && (
         <>
-          <Stack.Screen 
-            name="DashboardAdmin" 
+          <Stack.Screen
+            name="DashboardAdmin"
             component={DashboardAdmin}
           />
-          <Stack.Screen 
-            name="GestionUsuarios" 
+          <Stack.Screen
+            name="GestionUsuarios"
             component={GestionUsuarios}
           />
-          <Stack.Screen 
-            name="GestionPublicaciones" 
+          <Stack.Screen
+            name="GestionPublicaciones"
             component={GestionPublicaciones}
           />
-          <Stack.Screen 
-            name="GestionReservas" 
+          <Stack.Screen
+            name="GestionReservas"
             component={GestionReservas}
           />
-          <Stack.Screen 
-            name="GestionProveedores" 
+          <Stack.Screen
+            name="GestionProveedores"
             component={GestionProveedores}
           />
-          <Stack.Screen 
-            name="TransaccionesAdmin" 
+          <Stack.Screen
+            name="TransaccionesAdmin"
             component={TransaccionesAdmin}
           />
-          <Stack.Screen 
-            name="ComisionesAdmin" 
+          <Stack.Screen
+            name="ComisionesAdmin"
             component={ComisionesAdmin}
           />
-          <Stack.Screen 
-            name="ReportesAdmin" 
+          <Stack.Screen
+            name="ReportesAdmin"
             component={ReportesAdmin}
           />
-          <Stack.Screen 
-            name="NotificacionesAdmin" 
+          <Stack.Screen
+            name="NotificacionesAdmin"
             component={NotificacionesAdmin}
           />
-          <Stack.Screen 
-            name="ConfiguracionAdmin" 
+          <Stack.Screen
+            name="ConfiguracionAdmin"
             component={ConfiguracionAdmin}
           />
-          <Stack.Screen 
-            name="SoporteAdmin" 
+          <Stack.Screen
+            name="SoporteAdmin"
             component={SoporteAdmin}
           />
         </>
       )}
-      
+
       {tipoUsuario === 'usuario' && (
         <>
-          <Stack.Screen 
-            name="MetodosPago" 
+          <Stack.Screen
+            name="MetodosPago"
             component={MetodosPago}
           />
-          <Stack.Screen 
-            name="AgregarTarjeta" 
+          <Stack.Screen
+            name="AgregarTarjeta"
             component={AgregarTarjeta}
           />
-          <Stack.Screen 
-            name="Transacciones" 
+          <Stack.Screen
+            name="Transacciones"
             component={Transacciones}
           />
-          <Stack.Screen 
-            name="FormularioProblema" 
+          <Stack.Screen
+            name="FormularioProblema"
             component={FormularioProblema}
           />
-          <Stack.Screen 
-            name="Reservas" 
+          <Stack.Screen
+            name="Reservas"
             component={Reservas}
           />
-          <Stack.Screen 
-            name="DetalleReserva" 
+          <Stack.Screen
+            name="DetalleReserva"
             component={DetalleReserva}
           />
-          <Stack.Screen 
-            name="Membresias" 
+          <Stack.Screen
+            name="Membresias"
             component={Membresias}
           />
         </>
       )}
-      
+
       {tipoUsuario === 'cliente' && (
         <>
-          <Stack.Screen 
-            name="Estadisticas" 
+          <Stack.Screen
+            name="Estadisticas"
             component={Estadisticas}
           />
-          <Stack.Screen 
-            name="GestionGanancias" 
+          <Stack.Screen
+            name="GestionGanancias"
             component={GestionGanancias}
           />
-          <Stack.Screen 
-            name="CrearPublicacion" 
+          <Stack.Screen
+            name="CrearPublicacion"
             component={CrearPublicacion}
           />
-          <Stack.Screen 
-            name="GestionServicios" 
+          <Stack.Screen
+            name="GestionServicios"
             component={GestionServicios}
           />
-          <Stack.Screen 
-            name="ServiciosEspacio" 
+          <Stack.Screen
+            name="ServiciosEspacio"
             component={ServiciosEspacio}
           />
-          <Stack.Screen 
-            name="ServiciosOfrecidos" 
+          <Stack.Screen
+            name="ServiciosOfrecidos"
             component={ServiciosOfrecidos}
           />
-          <Stack.Screen 
-            name="BuscarProveedores" 
+          <Stack.Screen
+            name="BuscarProveedores"
             component={BuscarProveedores}
           />
-          <Stack.Screen 
-            name="Reservas" 
+          <Stack.Screen
+            name="Reservas"
             component={Reservas}
           />
-          <Stack.Screen 
-            name="DetalleReserva" 
+          <Stack.Screen
+            name="DetalleReserva"
             component={DetalleReserva}
           />
-          <Stack.Screen 
-            name="FormularioProblema" 
+          <Stack.Screen
+            name="FormularioProblema"
             component={FormularioProblema}
           />
         </>
       )}
-      
+
       {tipoUsuario === 'proveedor' && (
         <>
-          <Stack.Screen 
-            name="ServiciosProveedor" 
+          <Stack.Screen
+            name="ServiciosProveedor"
             component={ServiciosProveedor}
           />
-          <Stack.Screen 
-            name="CrearServicio" 
+          <Stack.Screen
+            name="CrearServicio"
             component={CrearServicio}
           />
-          <Stack.Screen 
-            name="SolicitudesServicio" 
+          <Stack.Screen
+            name="SolicitudesServicio"
             component={SolicitudesServicio}
           />
-          <Stack.Screen 
-            name="GananciasProveedor" 
+          <Stack.Screen
+            name="GananciasProveedor"
             component={GananciasProveedor}
           />
-          <Stack.Screen 
-            name="OfrecerServicios" 
+          <Stack.Screen
+            name="OfrecerServicios"
             component={OfrecerServicios}
           />
-          <Stack.Screen 
-            name="FormularioProblema" 
+          <Stack.Screen
+            name="FormularioProblema"
             component={FormularioProblema}
           />
         </>
@@ -266,7 +266,7 @@ const InicioStack = ({ setIsLogged, resetSession }) => {
 
 const getListarTitle = (tipoUsuario) => {
   switch (tipoUsuario) {
-    case 'administrador': 
+    case 'administrador':
       return 'Panel de Administración';
     case 'cliente':
       return 'Gestión de Servicios';
@@ -280,7 +280,7 @@ const getListarTitle = (tipoUsuario) => {
 
 const getHeaderColor = (tipoUsuario) => {
   switch (tipoUsuario) {
-    case 'administrador': 
+    case 'administrador':
       return '#2c3e50';
     case 'cliente':
       return '#3498db';
@@ -292,249 +292,249 @@ const getHeaderColor = (tipoUsuario) => {
   }
 };
 
-const Aplicacion = ({setIsLogged, resetSession}) => {
-    const dispatch = useDispatch();
-    
-    const { tipoUsuario } = useSelector(state => state.auth);
+const Aplicacion = ({ setIsLogged, resetSession }) => {
+  const dispatch = useDispatch();
 
-    const cerrarSesion = async () => {
-        try {
-            await SecureStore.deleteItemAsync('isLogged');
-            await SecureStore.deleteItemAsync('usuario');
-            await SecureStore.deleteItemAsync('tipoUsuario');
-            setIsLogged(false);
-            dispatch(desloguear());
-        } catch (error) {
-            console.error('Error al eliminar la sesión:', error);
-        }
+  const { tipoUsuario } = useSelector(state => state.auth);
+
+  const cerrarSesion = async () => {
+    try {
+      await SecureStore.deleteItemAsync('isLogged');
+      await SecureStore.deleteItemAsync('usuario');
+      await SecureStore.deleteItemAsync('tipoUsuario');
+      setIsLogged(false);
+      dispatch(desloguear());
+    } catch (error) {
+      console.error('Error al eliminar la sesión:', error);
     }
+  }
 
-    const resetSessionInternal = async () => {
-        try {
-            await SecureStore.deleteItemAsync('isLogged');
-            await SecureStore.deleteItemAsync('usuario');
-            await SecureStore.deleteItemAsync('tipoUsuario');
-            setIsLogged(false);
-        } catch (error) {
-            console.error('Error al resetear sesión:', error);
-        }
-    };
-
-    const getTituloPrincipal = () => {
-        switch (tipoUsuario) {
-            case 'usuario':
-                return 'Reservar espacios';
-            case 'cliente':
-                return 'Mis espacios';
-            case 'proveedor':
-                return 'Oportunidades de servicio';
-            case 'administrador': 
-                return 'Panel de Administración';
-            default:
-                return 'Inicio';
-        }
-    };
-
-    if (tipoUsuario === 'administrador') {
-        return (
-            <Stack.Navigator
-                screenOptions={{
-                    headerShown: false
-                }}
-                initialRouteName="InicioStack"
-            >
-                <Stack.Screen 
-                    name='InicioStack'
-                >
-                    {props => (
-                        <InicioStack 
-                            {...props} 
-                            setIsLogged={setIsLogged} 
-                            resetSession={resetSession || resetSessionInternal}
-                        />
-                    )}
-                </Stack.Screen>
-            </Stack.Navigator>
-        );
+  const resetSessionInternal = async () => {
+    try {
+      await SecureStore.deleteItemAsync('isLogged');
+      await SecureStore.deleteItemAsync('usuario');
+      await SecureStore.deleteItemAsync('tipoUsuario');
+      setIsLogged(false);
+    } catch (error) {
+      console.error('Error al resetear sesión:', error);
     }
+  };
 
+  const getTituloPrincipal = () => {
+    switch (tipoUsuario) {
+      case 'usuario':
+        return 'Reservar espacios';
+      case 'cliente':
+        return 'Mis espacios';
+      case 'proveedor':
+        return 'Oportunidades de servicio';
+      case 'administrador':
+        return 'Panel de Administración';
+      default:
+        return 'Inicio';
+    }
+  };
+
+  if (tipoUsuario === 'administrador') {
     return (
-        <Drawer.Navigator 
-            screenOptions={{ 
-                headerRight: () => (<Button title='Cerrar sesion' onPress={cerrarSesion} />)
-            }}
-            initialRouteName="Inicio" 
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false
+        }}
+        initialRouteName="InicioStack"
+      >
+        <Stack.Screen
+          name='InicioStack'
         >
-            <Drawer.Screen 
-                name='Inicio' 
-                options={{
-                    headerShown: false,
-                    title: getTituloPrincipal()
-                }}
-            >
-                {props => (
-                    <InicioStack 
-                        {...props} 
-                        setIsLogged={setIsLogged} 
-                        resetSession={resetSession || resetSessionInternal}
-                    />
-                )}
-            </Drawer.Screen>
-            
-            <Drawer.Screen 
-                name='MiCuenta' 
-                component={MiCuenta}
-                options={{
-                    title: 'Mi cuenta',
-                    headerShown: false 
-                }}
+          {props => (
+            <InicioStack
+              {...props}
+              setIsLogged={setIsLogged}
+              resetSession={resetSession || resetSessionInternal}
             />
-            
-            <Drawer.Screen 
-                name='Notificaciones' 
-                component={Notificaciones}
-                options={{
-                    title: 'Notificaciones',
-                    headerShown: false 
-                }}
-            />
-            
-            <Drawer.Screen 
-                name='Mapa' 
-                component={Mapa}
-                options={{
-                    title: tipoUsuario === 'proveedor' ? 'Oportunidades' : 'Mapa de espacios',
-                    headerShown: false 
-                }}
-            />
+          )}
+        </Stack.Screen>
+      </Stack.Navigator>
+    );
+  }
 
-            <Drawer.Screen 
-                name='Listar' 
-                component={Listar}
-                options={{
-                    title: getListarTitle(tipoUsuario),
-                    headerShown: false,
-                    drawerIcon: ({ color, size }) => {
-                        const iconName = tipoUsuario === 'administrador' ? 'settings' : 
-                                        tipoUsuario === 'cliente' ? 'business' :
-                                        tipoUsuario === 'proveedor' ? 'construct' : 'list';
-                        return <Ionicons name={`${iconName}-outline`} size={size} color={color} />;
-                    }
-                }}
-            />
-            
-            {tipoUsuario === 'usuario' && (
-                <>
-                    <Drawer.Screen 
-                        name='Reservas' 
-                        component={Reservas}
-                        options={{
-                            title: 'Mis Reservas',
-                            headerShown: false 
-                        }}
-                    />
-                    <Drawer.Screen 
-                        name='Membresias' 
-                        component={Membresias}
-                        options={{
-                            title: 'Membresías',
-                            headerShown: false 
-                        }}
-                    />
-                    <Drawer.Screen 
-                        name='MetodosPago' 
-                        component={MetodosPago}
-                        options={{
-                            title: 'Métodos de pago',
-                            headerShown: false 
-                        }}
-                    />
-                </>
-            )}
-            
-            {tipoUsuario === 'cliente' && (
-                <>
-                    <Drawer.Screen 
-                        name='CrearPublicacion' 
-                        component={CrearPublicacion}
-                        options={{
-                            title: 'Crear publicación',
-                            headerShown: false 
-                        }}
-                    />
-                    <Drawer.Screen 
-                        name='GestionServicios' 
-                        component={GestionServicios}
-                        options={{
-                            title: 'Gestión de servicios',
-                            headerShown: false 
-                        }}
-                    />
-                    <Drawer.Screen 
-                        name='Reservas' 
-                        component={Reservas}
-                        options={{
-                            title: 'Reservas recibidas',
-                            headerShown: false 
-                        }}
-                    />
-                    <Drawer.Screen 
-                        name='Estadisticas' 
-                        component={Estadisticas}
-                        options={{
-                            title: 'Estadísticas',
-                            headerShown: false 
-                        }}
-                    />
-                    <Drawer.Screen 
-                        name='GestionGanancias' 
-                        component={GestionGanancias}
-                        options={{
-                            title: 'Ganancias',
-                            headerShown: false 
-                        }}
-                    />
-                </>
-            )}
-            
-            {tipoUsuario === 'proveedor' && (
-                <>
-                    <Drawer.Screen 
-                        name='ServiciosProveedor' 
-                        component={ServiciosProveedor}
-                        options={{
-                            title: 'Mis Servicios',
-                            headerShown: false 
-                        }}
-                    />
-                    <Drawer.Screen 
-                        name='CrearServicio' 
-                        component={CrearServicio}
-                        options={{
-                            title: 'Crear servicio',
-                            headerShown: false 
-                        }}
-                    />
-                    <Drawer.Screen 
-                        name='SolicitudesServicio' 
-                        component={SolicitudesServicio}
-                        options={{
-                            title: 'Solicitudes',
-                            headerShown: false 
-                        }}
-                    />
-                    <Drawer.Screen 
-                        name='GananciasProveedor' 
-                        component={GananciasProveedor}
-                        options={{
-                            title: 'Mis Ganancias',
-                            headerShown: false 
-                        }}
-                    />
-                </>
-            )}
-        </Drawer.Navigator>
-    )
+  return (
+    <Drawer.Navigator
+      screenOptions={{
+        headerRight: () => (<Button title='Cerrar sesion' onPress={cerrarSesion} />)
+      }}
+      initialRouteName="Inicio"
+    >
+      <Drawer.Screen
+        name='Inicio'
+        options={{
+          headerShown: false,
+          title: getTituloPrincipal()
+        }}
+      >
+        {props => (
+          <InicioStack
+            {...props}
+            setIsLogged={setIsLogged}
+            resetSession={resetSession || resetSessionInternal}
+          />
+        )}
+      </Drawer.Screen>
+
+      <Drawer.Screen
+        name='MiCuenta'
+        component={MiCuenta}
+        options={{
+          title: 'Mi cuenta',
+          headerShown: false
+        }}
+      />
+
+      <Drawer.Screen
+        name='Notificaciones'
+        component={Notificaciones}
+        options={{
+          title: 'Notificaciones',
+          headerShown: false
+        }}
+      />
+
+      <Drawer.Screen
+        name='Mapa'
+        component={Mapa}
+        options={{
+          title: tipoUsuario === 'proveedor' ? 'Oportunidades' : 'Mapa de espacios',
+          headerShown: false
+        }}
+      />
+
+      <Drawer.Screen
+        name='Listar'
+        component={Listar}
+        options={{
+          title: getListarTitle(tipoUsuario),
+          headerShown: false,
+          drawerIcon: ({ color, size }) => {
+            const iconName = tipoUsuario === 'administrador' ? 'settings' :
+              tipoUsuario === 'cliente' ? 'business' :
+                tipoUsuario === 'proveedor' ? 'construct' : 'list';
+            return <Ionicons name={`${iconName}-outline`} size={size} color={color} />;
+          }
+        }}
+      />
+
+      {tipoUsuario === 'usuario' && (
+        <>
+          <Drawer.Screen
+            name='Reservas'
+            component={Reservas}
+            options={{
+              title: 'Mis Reservas',
+              headerShown: false
+            }}
+          />
+          <Drawer.Screen
+            name='Membresias'
+            component={Membresias}
+            options={{
+              title: 'Membresías',
+              headerShown: false
+            }}
+          />
+          <Drawer.Screen
+            name='MetodosPago'
+            component={MetodosPago}
+            options={{
+              title: 'Métodos de pago',
+              headerShown: false
+            }}
+          />
+        </>
+      )}
+
+      {tipoUsuario === 'cliente' && (
+        <>
+          <Drawer.Screen
+            name='CrearPublicacion'
+            component={CrearPublicacion}
+            options={{
+              title: 'Crear publicación',
+              headerShown: false
+            }}
+          />
+          <Drawer.Screen
+            name='GestionServicios'
+            component={GestionServicios}
+            options={{
+              title: 'Gestión de servicios',
+              headerShown: false
+            }}
+          />
+          <Drawer.Screen
+            name='Reservas'
+            component={Reservas}
+            options={{
+              title: 'Reservas recibidas',
+              headerShown: false
+            }}
+          />
+          <Drawer.Screen
+            name='Estadisticas'
+            component={Estadisticas}
+            options={{
+              title: 'Estadísticas',
+              headerShown: false
+            }}
+          />
+          <Drawer.Screen
+            name='GestionGanancias'
+            component={GestionGanancias}
+            options={{
+              title: 'Ganancias',
+              headerShown: false
+            }}
+          />
+        </>
+      )}
+
+      {tipoUsuario === 'proveedor' && (
+        <>
+          <Drawer.Screen
+            name='ServiciosProveedor'
+            component={ServiciosProveedor}
+            options={{
+              title: 'Mis Servicios',
+              headerShown: false
+            }}
+          />
+          <Drawer.Screen
+            name='CrearServicio'
+            component={CrearServicio}
+            options={{
+              title: 'Crear servicio',
+              headerShown: false
+            }}
+          />
+          <Drawer.Screen
+            name='SolicitudesServicio'
+            component={SolicitudesServicio}
+            options={{
+              title: 'Solicitudes',
+              headerShown: false
+            }}
+          />
+          <Drawer.Screen
+            name='GananciasProveedor'
+            component={GananciasProveedor}
+            options={{
+              title: 'Mis Ganancias',
+              headerShown: false
+            }}
+          />
+        </>
+      )}
+    </Drawer.Navigator>
+  )
 }
 
 export default Aplicacion

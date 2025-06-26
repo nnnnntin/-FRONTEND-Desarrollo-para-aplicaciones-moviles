@@ -9,16 +9,16 @@ import Pila from './Pila';
 
 const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
   const [isInitializing, setIsInitializing] = useState(true);
-  
-  
+
+
   const isLoggedIn = useSelector(state => state.auth.isLoggedIn);
   const tipoUsuario = useSelector(state => state.auth.tipoUsuario);
-  const usuario = useSelector(state => state.auth.usuario); 
+  const usuario = useSelector(state => state.auth.usuario);
   const esAdmin = useSelector(state => state.auth.esAdmin);
-  
+
   const dispatch = useDispatch();
 
-  
+
   useEffect(() => {
     console.log('🔍 Estado actual:', {
       isLogged,
@@ -38,14 +38,14 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
 
         if (sesionGuardada === 'true' && usuarioGuardado && tipoGuardado) {
           const datosUsuarioParseados = JSON.parse(usuarioGuardado);
-          
-          
+
+
           dispatch(loguear({
-            usuario: datosUsuarioParseados,  
+            usuario: datosUsuarioParseados,
             tipoUsuario: tipoGuardado,
-            token: datosUsuarioParseados.token || null, 
+            token: datosUsuarioParseados.token || null,
           }));
-          
+
           setIsLogged(true);
         } else {
           setIsLogged(false);
@@ -65,13 +65,13 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
     }
   }, [dispatch, setIsLogged, isLogged]);
 
-  
+
   useEffect(() => {
     if (isLoggedIn && !isLogged) {
       console.log('🔄 Sincronizando: Redux indica login exitoso, actualizando estado local');
       setIsLogged(true);
-      
-      
+
+
       const guardarSesion = async () => {
         try {
           await SecureStore.setItemAsync('isLogged', 'true');
@@ -82,7 +82,7 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
           console.error('Error al guardar sesión:', error);
         }
       };
-      
+
       if (usuario && tipoUsuario) {
         guardarSesion();
       }
@@ -92,18 +92,18 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
   const resetSessionComplete = async () => {
     try {
       console.log('🧹 Iniciando reset completo de sesión');
-      
-      
+
+
       dispatch(desloguear());
-      
-      
+
+
       await SecureStore.deleteItemAsync('isLogged');
       await SecureStore.deleteItemAsync('usuario');
       await SecureStore.deleteItemAsync('tipoUsuario');
-      
-      
+
+
       setIsLogged(false);
-      
+
       console.log('🧹 Sesión completamente reseteada');
     } catch (error) {
       console.error('Error al resetear sesión completa:', error);
@@ -130,7 +130,7 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
     );
   }
 
-  
+
   const shouldShowApp = isLoggedIn && (isLogged || isLoggedIn);
 
   console.log('🎯 Decisión de renderizado:', {
@@ -144,12 +144,12 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
   return (
     <View style={styles.container}>
       {shouldShowApp ? (
-        <Aplicacion 
-          setIsLogged={setIsLogged} 
-          resetSession={resetSession || resetSessionComplete} 
+        <Aplicacion
+          setIsLogged={setIsLogged}
+          resetSession={resetSession || resetSessionComplete}
         />
       ) : (
-        <Pila 
+        <Pila
           setIsLogged={setIsLogged}
           resetSession={resetSessionComplete}
         />

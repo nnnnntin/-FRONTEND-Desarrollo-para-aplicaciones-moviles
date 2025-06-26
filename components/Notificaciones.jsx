@@ -27,8 +27,8 @@ import {
 
 const Notificaciones = ({ navigation }) => {
   const dispatch = useDispatch();
-  
-  
+
+
   const { usuario, token } = useSelector(state => state.auth);
   const notificaciones = useSelector(selectNotificaciones);
   const totalNoLeidas = useSelector(selectTotalNoLeidas);
@@ -67,7 +67,7 @@ const Notificaciones = ({ navigation }) => {
 
   const manejarMarcarComoLeida = (notificacion) => {
     if (notificacion.leida) return;
-    
+
     console.log('🔵 Marcando notificación como leída:', notificacion.id);
     dispatch(marcarNotificacionComoLeida(notificacion.id, token));
   };
@@ -106,11 +106,11 @@ const Notificaciones = ({ navigation }) => {
     navigation.goBack();
   };
 
-  
+
   useEffect(() => {
     return () => {
-      
-      
+
+
     };
   }, []);
 

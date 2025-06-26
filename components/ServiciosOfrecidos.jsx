@@ -21,13 +21,13 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
   const dispatch = useDispatch();
   const { oficina } = route.params;
 
-  
+
   const { proveedores, loading, error } = useSelector(state => state.proveedores);
   const { user } = useSelector(state => state.auth);
 
   const [filtroCategoria, setFiltroCategoria] = useState('todos');
 
-  
+
   const proveedoresExternos = proveedores.filter(p => p.usuarioId === user?.id || p.propietarioId === user?.id);
 
   const categorias = [
@@ -38,7 +38,7 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
     { id: 'seguridad', nombre: 'Seguridad', icono: 'shield-checkmark' }
   ];
 
-  
+
   useEffect(() => {
     dispatch(obtenerProveedores());
   }, [dispatch]);
@@ -52,9 +52,9 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
       };
 
       const result = await dispatch(actualizarProveedor(proveedorId, proveedorActualizado));
-      
+
       if (result.success) {
-        
+
         dispatch(obtenerProveedores());
       } else {
         Alert.alert('Error', result.error || 'Error al cambiar estado del proveedor');
@@ -76,7 +76,7 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
           onPress: async () => {
             try {
               const result = await dispatch(eliminarProveedor(proveedorId));
-              
+
               if (result.success) {
                 dispatch(obtenerProveedores());
                 Alert.alert('Éxito', 'Proveedor removido correctamente');

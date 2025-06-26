@@ -26,7 +26,7 @@ const ServiciosEspacio = ({ navigation, route }) => {
   const dispatch = useDispatch();
   const { oficina } = route.params;
 
-  
+
   const { serviciosPorEspacio, loading, error } = useSelector(state => state.proveedores);
   const serviciosIncluidos = serviciosPorEspacio[oficina.id] || [];
 
@@ -40,7 +40,7 @@ const ServiciosEspacio = ({ navigation, route }) => {
     unidadPrecio: 'persona'
   });
 
-  
+
   useEffect(() => {
     if (oficina.id) {
       dispatch(obtenerServiciosPorEspacio(oficina.id));
@@ -51,9 +51,9 @@ const ServiciosEspacio = ({ navigation, route }) => {
     try {
       const servicio = serviciosIncluidos.find(s => s.id === servicioId);
       const result = await dispatch(toggleServicioAdicional(servicioId, !servicio.activo));
-      
+
       if (result.success) {
-        
+
         dispatch(obtenerServiciosPorEspacio(oficina.id));
       } else {
         Alert.alert('Error', result.error || 'Error al cambiar estado del servicio');
@@ -104,14 +104,14 @@ const ServiciosEspacio = ({ navigation, route }) => {
 
     try {
       let result;
-      
+
       if (editingService) {
         result = await dispatch(actualizarServicioAdicional(editingService.id, servicioData));
       } else {
-        
+
         result = await dispatch(crearServicioAdicional(servicioData));
-        
-        
+
+
         if (result.success) {
           await dispatch(asignarEspacioAServicio(result.data.id, { espacioId: oficina.id }));
         }
@@ -120,7 +120,7 @@ const ServiciosEspacio = ({ navigation, route }) => {
       if (result.success) {
         setModalVisible(false);
         setEditingService(null);
-        
+
         dispatch(obtenerServiciosPorEspacio(oficina.id));
         Alert.alert('Éxito', editingService ? 'Servicio actualizado correctamente' : 'Servicio creado correctamente');
       } else {
@@ -143,9 +143,9 @@ const ServiciosEspacio = ({ navigation, route }) => {
           onPress: async () => {
             try {
               const result = await dispatch(eliminarServicioAdicional(servicioId));
-              
+
               if (result.success) {
-                
+
                 dispatch(obtenerServiciosPorEspacio(oficina.id));
                 Alert.alert('Éxito', 'Servicio eliminado correctamente');
               } else {

@@ -16,7 +16,7 @@ export const obtenerUsuarios = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al obtener usuarios');
       }
@@ -44,7 +44,7 @@ export const obtenerUsuarioPorId = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al obtener usuario');
       }
@@ -74,7 +74,7 @@ export const actualizarUsuario = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al actualizar usuario');
       }
@@ -132,7 +132,7 @@ export const cambiarRolUsuario = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al cambiar rol');
       }
@@ -162,7 +162,7 @@ export const actualizarMembresiaUsuario = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al actualizar membresía');
       }
@@ -190,7 +190,7 @@ export const obtenerUsuariosPorTipo = createAsyncThunk(
       );
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al obtener usuarios por tipo');
       }
@@ -208,7 +208,7 @@ export const obtenerMetodosPagoUsuario = createAsyncThunk(
     try {
       const { auth } = getState();
       console.log('🏦 Obteniendo métodos de pago para usuario:', usuarioId);
-      
+
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/usuarios/${usuarioId}`,
         {
@@ -226,8 +226,9 @@ export const obtenerMetodosPagoUsuario = createAsyncThunk(
 
       const usuario = await response.json();
       console.log('🏦 Métodos de pago recibidos:', usuario.metodoPago);
-      
-      return usuario.metodoPago || [];
+
+
+      return Array.isArray(usuario.metodoPago) ? usuario.metodoPago : [];
     } catch (error) {
       console.error('Error en obtenerMetodosPagoUsuario:', error);
       return rejectWithValue('Error de conexión');
@@ -241,70 +242,40 @@ export const agregarMetodoPago = createAsyncThunk(
     try {
       const { auth } = getState();
       console.log('🏦 Agregando método de pago:', metodoPago);
-      
-      
-      const responseGet = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/v1/usuarios/${usuarioId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${auth.token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
 
-      if (!responseGet.ok) {
-        throw new Error('Error al obtener usuario actual');
-      }
-
-      const usuarioActual = await responseGet.json();
-      const metodosPagoActuales = usuarioActual.metodoPago || [];
-
-      
-      
-      let nuevosMetodosPago = [...metodosPagoActuales];
-      
-      if (metodoPago.predeterminado || metodosPagoActuales.length === 0) {
-        nuevosMetodosPago = metodosPagoActuales.map(mp => ({
-          ...mp,
-          predeterminado: false
-        }));
-        metodoPago.predeterminado = true;
-      }
-
-      
-      const nuevoMetodo = {
-        ...metodoPago,
-        id: `mp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      const bodyPayload = {
+        tipo: 'tarjeta_credito',
+        numero: metodoPago.numeroTarjeta.replace(/\s/g, ''),
+        titular: metodoPago.nombreTitular,
+        fechaVencimiento: metodoPago.fechaExpiracion,
+        cvc: metodoPago.cvc,
+        predeterminado: metodoPago.predeterminado || false,
+        ...(metodoPago.marca && { marca: metodoPago.marca }),
       };
 
-      
-      nuevosMetodosPago.push(nuevoMetodo);
-
-      
-      const responseUpdate = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/v1/usuarios/${usuarioId}`,
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/v1/usuarios/${usuarioId}/metodos-pago`,
         {
-          method: 'PUT',
+          method: 'POST',
           headers: {
             'Authorization': `Bearer ${auth.token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            metodoPago: nuevosMetodosPago
-          }),
+          body: JSON.stringify(bodyPayload),
         }
       );
 
-      if (!responseUpdate.ok) {
-        const errorData = await responseUpdate.json();
+      if (!response.ok) {
+        const errorData = await response.json();
         return rejectWithValue(errorData.message || 'Error al agregar método de pago');
       }
 
-      const usuarioActualizado = await responseUpdate.json();
+      const result = await response.json();
       console.log('✅ Método de pago agregado exitosamente');
-      
-      return usuarioActualizado.metodoPago;
+
+      return Array.isArray(result.usuario.metodoPago)
+        ? result.usuario.metodoPago
+        : [];
     } catch (error) {
       console.error('Error en agregarMetodoPago:', error);
       return rejectWithValue('Error de conexión');
@@ -312,67 +283,36 @@ export const agregarMetodoPago = createAsyncThunk(
   }
 );
 
-
 export const eliminarMetodoPago = createAsyncThunk(
   'usuario/eliminarMetodoPago',
   async ({ usuarioId, metodoId }, { getState, rejectWithValue }) => {
     try {
       const { auth } = getState();
       console.log('🗑️ Eliminando método de pago:', metodoId);
-      
-      
-      const responseGet = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/v1/usuarios/${usuarioId}`,
+
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/v1/usuarios/${usuarioId}/metodos-pago`,
         {
-          headers: {
-            'Authorization': `Bearer ${auth.token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (!responseGet.ok) {
-        throw new Error('Error al obtener usuario actual');
-      }
-
-      const usuarioActual = await responseGet.json();
-      const metodosPagoActuales = usuarioActual.metodoPago || [];
-
-      
-      const nuevosMetodosPago = metodosPagoActuales.filter(mp => 
-        (mp.id || mp._id) !== metodoId
-      );
-
-      
-      const metodoEliminado = metodosPagoActuales.find(mp => (mp.id || mp._id) === metodoId);
-      if (metodoEliminado?.predeterminado && nuevosMetodosPago.length > 0) {
-        nuevosMetodosPago[0].predeterminado = true;
-      }
-
-      
-      const responseUpdate = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/v1/usuarios/${usuarioId}`,
-        {
-          method: 'PUT',
+          method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${auth.token}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            metodoPago: nuevosMetodosPago
+            metodoPagoId: metodoId
           }),
         }
       );
 
-      if (!responseUpdate.ok) {
-        const errorData = await responseUpdate.json();
+      if (!response.ok) {
+        const errorData = await response.json();
         return rejectWithValue(errorData.message || 'Error al eliminar método de pago');
       }
 
-      const usuarioActualizado = await responseUpdate.json();
+      const result = await response.json();
       console.log('✅ Método de pago eliminado exitosamente');
-      
-      return usuarioActualizado.metodoPago;
+
+      return Array.isArray(result.usuario.metodoPago) ? result.usuario.metodoPago : [];
     } catch (error) {
       console.error('Error en eliminarMetodoPago:', error);
       return rejectWithValue('Error de conexión');
@@ -380,40 +320,14 @@ export const eliminarMetodoPago = createAsyncThunk(
   }
 );
 
-
 export const actualizarMetodoPagoPredeterminado = createAsyncThunk(
   'usuario/actualizarMetodoPredeterminado',
   async ({ usuarioId, metodoId }, { getState, rejectWithValue }) => {
     try {
       const { auth } = getState();
-      
-      
-      const responseGet = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/v1/usuarios/${usuarioId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${auth.token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
 
-      if (!responseGet.ok) {
-        throw new Error('Error al obtener usuario actual');
-      }
-
-      const usuarioActual = await responseGet.json();
-      const metodosPagoActuales = usuarioActual.metodoPago || [];
-
-      
-      const nuevosMetodosPago = metodosPagoActuales.map(mp => ({
-        ...mp,
-        predeterminado: (mp.id || mp._id) === metodoId
-      }));
-
-      
-      const responseUpdate = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/v1/usuarios/${usuarioId}`,
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/v1/usuarios/${usuarioId}/metodos-pago/predeterminado`,
         {
           method: 'PUT',
           headers: {
@@ -421,18 +335,18 @@ export const actualizarMetodoPagoPredeterminado = createAsyncThunk(
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            metodoPago: nuevosMetodosPago
+            metodoPagoId: metodoId
           }),
         }
       );
 
-      if (!responseUpdate.ok) {
-        const errorData = await responseUpdate.json();
+      if (!response.ok) {
+        const errorData = await response.json();
         return rejectWithValue(errorData.message || 'Error al actualizar método predeterminado');
       }
 
-      const usuarioActualizado = await responseUpdate.json();
-      return usuarioActualizado.metodoPago;
+      const result = await response.json();
+      return Array.isArray(result.usuario.metodoPago) ? result.usuario.metodoPago : [];
     } catch (error) {
       console.error('Error en actualizarMetodoPagoPredeterminado:', error);
       return rejectWithValue('Error de conexión');
@@ -441,46 +355,188 @@ export const actualizarMetodoPagoPredeterminado = createAsyncThunk(
 );
 
 
+
+
+
+export const crearEmpresaInmobiliaria = createAsyncThunk(
+  'usuario/crearEmpresa',
+  async ({ usuarioId, datosEmpresa }, { getState, rejectWithValue }) => {
+    try {
+      const { auth } = getState();
+      console.log('🏢 Creando empresa inmobiliaria para usuario:', usuarioId);
+
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/v1/empresas-inmobiliarias`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${auth.token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            usuarioId,
+            ...datosEmpresa
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return rejectWithValue(errorData.message || 'Error al crear empresa inmobiliaria');
+      }
+
+      const empresa = await response.json();
+      console.log('✅ Empresa inmobiliaria creada exitosamente:', empresa._id);
+
+      return empresa;
+    } catch (error) {
+      console.error('Error en crearEmpresaInmobiliaria:', error);
+      return rejectWithValue('Error de conexión');
+    }
+  }
+);
+
+export const crearProveedor = createAsyncThunk(
+  'usuario/crearProveedor',
+  async ({ usuarioId, datosProveedor }, { getState, rejectWithValue }) => {
+    try {
+      const { auth } = getState();
+      console.log('🔧 Creando proveedor para usuario:', usuarioId);
+
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/v1/proveedores`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${auth.token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            usuarioId,
+            ...datosProveedor
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return rejectWithValue(errorData.message || 'Error al crear proveedor');
+      }
+
+      const proveedor = await response.json();
+      console.log('✅ Proveedor creado exitosamente:', proveedor._id);
+
+      return proveedor;
+    } catch (error) {
+      console.error('Error en crearProveedor:', error);
+      return rejectWithValue('Error de conexión');
+    }
+  }
+);
+
+export const obtenerEmpresaPorUsuario = createAsyncThunk(
+  'usuario/obtenerEmpresaPorUsuario',
+  async (usuarioId, { getState, rejectWithValue }) => {
+    try {
+      const { auth } = getState();
+
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/v1/empresas-inmobiliarias/usuario/${usuarioId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${auth.token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return rejectWithValue(errorData.message || 'Error al obtener empresa');
+      }
+
+      const empresa = await response.json();
+      return empresa;
+    } catch (error) {
+      console.error('Error en obtenerEmpresaPorUsuario:', error);
+      return rejectWithValue('Error de conexión');
+    }
+  }
+);
+
+export const obtenerProveedorPorUsuario = createAsyncThunk(
+  'usuario/obtenerProveedorPorUsuario',
+  async (usuarioId, { getState, rejectWithValue }) => {
+    try {
+      const { auth } = getState();
+
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/v1/proveedores/usuario/${usuarioId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${auth.token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return rejectWithValue(errorData.message || 'Error al obtener proveedor');
+      }
+
+      const proveedor = await response.json();
+      return proveedor;
+    } catch (error) {
+      console.error('Error en obtenerProveedorPorUsuario:', error);
+      return rejectWithValue('Error de conexión');
+    }
+  }
+);
+
 const initialState = {
-  
+
   usuarios: [],
   usuarioSeleccionado: null,
-  
-  
+
+
   oficinasPropias: [],
   serviciosContratados: [],
   serviciosOfrecidos: [],
-  
-  
+
+
+  empresaAsociada: null,
+  proveedorAsociado: null,
+
+
   metodosPago: [],
   loadingMetodosPago: false,
   errorMetodosPago: null,
-  
-  
+
+
   pagination: {
     skip: 0,
     limit: 10,
     total: 0,
   },
-  
-  
+
+
   loading: false,
   error: null,
   loadingDetalle: false,
   errorDetalle: null,
+  loadingEmpresa: false,
+  loadingProveedor: false,
 };
-
 
 const usuarioSlice = createSlice({
   name: 'usuario',
   initialState,
   reducers: {
-    
+
     actualizarDatosUsuario: (state, action) => {
-      
-      
       const { tipoUsuario } = action.payload;
-      
+
       if (tipoUsuario === 'cliente') {
         state.oficinasPropias = action.payload.oficinasPropias || state.oficinasPropias;
       } else if (tipoUsuario === 'usuario') {
@@ -489,73 +545,92 @@ const usuarioSlice = createSlice({
         state.serviciosOfrecidos = action.payload.serviciosOfrecidos || state.serviciosOfrecidos;
       }
     },
-    
-    
+
+
     actualizarOficinasPropias: (state, action) => {
       state.oficinasPropias = action.payload;
     },
-    
+
     agregarOficinaPropia: (state, action) => {
       if (!state.oficinasPropias.includes(action.payload)) {
         state.oficinasPropias.push(action.payload);
       }
     },
-    
+
     eliminarOficinaPropia: (state, action) => {
       state.oficinasPropias = state.oficinasPropias.filter(id => id !== action.payload);
     },
-    
-    
+
+
     actualizarServiciosContratados: (state, action) => {
       state.serviciosContratados = action.payload;
     },
-    
-    
+
+
     actualizarServiciosOfrecidos: (state, action) => {
       state.serviciosOfrecidos = action.payload;
     },
-    
-    
+
+
     seleccionarUsuario: (state, action) => {
       state.usuarioSeleccionado = action.payload;
     },
-    
+
     limpiarUsuarioSeleccionado: (state) => {
       state.usuarioSeleccionado = null;
+      state.empresaAsociada = null;
+      state.proveedorAsociado = null;
     },
-    
-    
+
+
     setMetodosPago: (state, action) => {
       state.metodosPago = action.payload;
     },
-    
+
     clearErrorMetodosPago: (state) => {
       state.errorMetodosPago = null;
     },
-    
-    
+
+
     setPaginacion: (state, action) => {
       state.pagination = { ...state.pagination, ...action.payload };
     },
-    
-    
+
+
     setLoading: (state, action) => {
       state.loading = action.payload;
     },
-    
+
     setError: (state, action) => {
       state.error = action.payload;
     },
-    
+
     clearError: (state) => {
       state.error = null;
       state.errorDetalle = null;
     },
+
+
+    setEmpresaAsociada: (state, action) => {
+      state.empresaAsociada = action.payload;
+    },
+
+    setProveedorAsociado: (state, action) => {
+      state.proveedorAsociado = action.payload;
+    },
+
+    clearEmpresaAsociada: (state) => {
+      state.empresaAsociada = null;
+    },
+
+    clearProveedorAsociado: (state) => {
+      state.proveedorAsociado = null;
+    },
   },
-  
+
   extraReducers: (builder) => {
     builder
-      
+
       .addCase(obtenerUsuarios.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -569,8 +644,6 @@ const usuarioSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      
-      
       .addCase(obtenerUsuarioPorId.pending, (state) => {
         state.loadingDetalle = true;
         state.errorDetalle = null;
@@ -583,20 +656,18 @@ const usuarioSlice = createSlice({
         state.loadingDetalle = false;
         state.errorDetalle = action.payload;
       })
-      
-      
       .addCase(actualizarUsuario.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(actualizarUsuario.fulfilled, (state, action) => {
         state.loading = false;
-        
+
         const index = state.usuarios.findIndex(u => (u.id || u._id) === (action.payload.id || action.payload._id));
         if (index !== -1) {
           state.usuarios[index] = action.payload;
         }
-        
+
         if (state.usuarioSeleccionado && (state.usuarioSeleccionado.id || state.usuarioSeleccionado._id) === (action.payload.id || action.payload._id)) {
           state.usuarioSeleccionado = action.payload;
         }
@@ -605,16 +676,12 @@ const usuarioSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      
-      
       .addCase(eliminarUsuario.fulfilled, (state, action) => {
         state.usuarios = state.usuarios.filter(u => (u.id || u._id) !== action.payload);
         if (state.usuarioSeleccionado && (state.usuarioSeleccionado.id || state.usuarioSeleccionado._id) === action.payload) {
           state.usuarioSeleccionado = null;
         }
       })
-      
-      
       .addCase(cambiarRolUsuario.fulfilled, (state, action) => {
         const { usuarioId, nuevoRol } = action.payload;
         const index = state.usuarios.findIndex(u => (u.id || u._id) === usuarioId);
@@ -622,13 +689,9 @@ const usuarioSlice = createSlice({
           state.usuarios[index].tipoUsuario = nuevoRol;
         }
       })
-      
-      
       .addCase(obtenerUsuariosPorTipo.fulfilled, (state, action) => {
         state.usuarios = action.payload;
       })
-      
-      
       .addCase(obtenerMetodosPagoUsuario.pending, (state) => {
         state.loadingMetodosPago = true;
         state.errorMetodosPago = null;
@@ -641,8 +704,6 @@ const usuarioSlice = createSlice({
         state.loadingMetodosPago = false;
         state.errorMetodosPago = action.payload;
       })
-      
-      
       .addCase(agregarMetodoPago.pending, (state) => {
         state.loadingMetodosPago = true;
         state.errorMetodosPago = null;
@@ -655,8 +716,6 @@ const usuarioSlice = createSlice({
         state.loadingMetodosPago = false;
         state.errorMetodosPago = action.payload;
       })
-      
-      
       .addCase(eliminarMetodoPago.pending, (state) => {
         state.loadingMetodosPago = true;
         state.errorMetodosPago = null;
@@ -669,8 +728,6 @@ const usuarioSlice = createSlice({
         state.loadingMetodosPago = false;
         state.errorMetodosPago = action.payload;
       })
-      
-      
       .addCase(actualizarMetodoPagoPredeterminado.pending, (state) => {
         state.loadingMetodosPago = true;
         state.errorMetodosPago = null;
@@ -682,6 +739,54 @@ const usuarioSlice = createSlice({
       .addCase(actualizarMetodoPagoPredeterminado.rejected, (state, action) => {
         state.loadingMetodosPago = false;
         state.errorMetodosPago = action.payload;
+      })
+      .addCase(crearEmpresaInmobiliaria.pending, (state) => {
+        state.loadingEmpresa = true;
+        state.error = null;
+      })
+      .addCase(crearEmpresaInmobiliaria.fulfilled, (state, action) => {
+        state.loadingEmpresa = false;
+        state.empresaAsociada = action.payload;
+      })
+      .addCase(crearEmpresaInmobiliaria.rejected, (state, action) => {
+        state.loadingEmpresa = false;
+        state.error = action.payload;
+      })
+      .addCase(crearProveedor.pending, (state) => {
+        state.loadingProveedor = true;
+        state.error = null;
+      })
+      .addCase(crearProveedor.fulfilled, (state, action) => {
+        state.loadingProveedor = false;
+        state.proveedorAsociado = action.payload;
+      })
+      .addCase(crearProveedor.rejected, (state, action) => {
+        state.loadingProveedor = false;
+        state.error = action.payload;
+      })
+      .addCase(obtenerEmpresaPorUsuario.pending, (state) => {
+        state.loadingEmpresa = true;
+        state.error = null;
+      })
+      .addCase(obtenerEmpresaPorUsuario.fulfilled, (state, action) => {
+        state.loadingEmpresa = false;
+        state.empresaAsociada = action.payload;
+      })
+      .addCase(obtenerEmpresaPorUsuario.rejected, (state, action) => {
+        state.loadingEmpresa = false;
+        state.error = action.payload;
+      })
+      .addCase(obtenerProveedorPorUsuario.pending, (state) => {
+        state.loadingProveedor = true;
+        state.error = null;
+      })
+      .addCase(obtenerProveedorPorUsuario.fulfilled, (state, action) => {
+        state.loadingProveedor = false;
+        state.proveedorAsociado = action.payload;
+      })
+      .addCase(obtenerProveedorPorUsuario.rejected, (state, action) => {
+        state.loadingProveedor = false;
+        state.error = action.payload;
       });
   }
 });
@@ -700,7 +805,11 @@ export const {
   setPaginacion,
   setLoading,
   setError,
-  clearError
+  clearError,
+  setEmpresaAsociada,
+  setProveedorAsociado,
+  clearEmpresaAsociada,
+  clearProveedorAsociado
 } = usuarioSlice.actions;
 
 export default usuarioSlice.reducer;

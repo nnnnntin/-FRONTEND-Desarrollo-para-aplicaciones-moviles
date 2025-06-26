@@ -17,12 +17,12 @@ export const obtenerReservas = createAsyncThunk(
           },
         }
       );
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         return rejectWithValue(errorData.message || 'Error al obtener reservas');
       }
-      
+
       const data = await response.json();
       return data;
     } catch (error) {
@@ -40,7 +40,7 @@ export const obtenerReservasPorUsuario = createAsyncThunk(
       const { auth } = getState();
       console.log('Obteniendo reservas para usuario:', usuarioId);
       console.log('Token:', auth.token ? 'Presente' : 'No presente');
-      
+
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/reservas/usuario/${usuarioId}`,
         {
@@ -50,20 +50,20 @@ export const obtenerReservasPorUsuario = createAsyncThunk(
           },
         }
       );
-      
+
       console.log('Response status:', response.status);
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         console.error('Error response:', errorData);
         return rejectWithValue(errorData.message || 'Error al obtener reservas por usuario');
       }
-      
+
       const data = await response.json();
       console.log('Datos recibidos:', data);
-      
-      
-      
+
+
+
       if (Array.isArray(data)) {
         return data;
       } else if (data.reservas && Array.isArray(data.reservas)) {
@@ -94,12 +94,12 @@ export const obtenerReservaPorId = createAsyncThunk(
           },
         }
       );
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         return rejectWithValue(errorData.message || 'Error al obtener reserva');
       }
-      
+
       const data = await response.json();
       return data;
     } catch (error) {
@@ -126,12 +126,12 @@ export const crearReserva = createAsyncThunk(
           body: JSON.stringify(datosReserva),
         }
       );
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         return rejectWithValue(errorData.message || 'Error al crear reserva');
       }
-      
+
       const data = await response.json();
       return data;
     } catch (error) {
@@ -158,12 +158,12 @@ export const actualizarReserva = createAsyncThunk(
           body: JSON.stringify(datosActualizacion),
         }
       );
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         return rejectWithValue(errorData.message || 'Error al actualizar reserva');
       }
-      
+
       const data = await response.json();
       return data;
     } catch (error) {
@@ -189,12 +189,12 @@ export const eliminarReserva = createAsyncThunk(
           },
         }
       );
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         return rejectWithValue(errorData.message || 'Error al eliminar reserva');
       }
-      
+
       return id;
     } catch (error) {
       console.error('Error en eliminarReserva:', error);
@@ -220,12 +220,12 @@ export const cancelarReserva = createAsyncThunk(
           body: JSON.stringify({ reservaId, motivo }),
         }
       );
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         return rejectWithValue(errorData.message || 'Error al cancelar reserva');
       }
-      
+
       const data = await response.json();
       return reservaId;
     } catch (error) {
@@ -237,18 +237,18 @@ export const cancelarReserva = createAsyncThunk(
 
 
 const initialState = {
-  
+
   reservas: [],
   reservaSeleccionada: null,
 
-  
+
   pagination: {
     skip: 0,
     limit: 10,
     total: 0,
   },
 
-  
+
   loading: false,
   error: null,
   loadingDetalle: false,
@@ -260,7 +260,7 @@ const reservasSlice = createSlice({
   name: 'reservas',
   initialState,
   reducers: {
-    
+
     setPaginacion: (state, action) => {
       state.pagination = { ...state.pagination, ...action.payload };
     },
@@ -268,7 +268,7 @@ const reservasSlice = createSlice({
       state.error = null;
       state.errorDetalle = null;
     },
-    
+
     clearReservas: (state) => {
       state.reservas = [];
       state.reservaSeleccionada = null;
@@ -277,14 +277,14 @@ const reservasSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      
+
       .addCase(obtenerReservas.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(obtenerReservas.fulfilled, (state, action) => {
         state.loading = false;
-        
+
         if (Array.isArray(action.payload)) {
           state.reservas = action.payload;
           state.pagination.total = action.payload.length;
@@ -302,14 +302,14 @@ const reservasSlice = createSlice({
         console.error('Error al obtener reservas:', action.payload);
       })
 
-      
+
       .addCase(obtenerReservasPorUsuario.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(obtenerReservasPorUsuario.fulfilled, (state, action) => {
         state.loading = false;
-        
+
         state.reservas = Array.isArray(action.payload) ? action.payload : [];
         console.log('Reservas guardadas en el estado:', state.reservas);
       })
@@ -320,7 +320,7 @@ const reservasSlice = createSlice({
         console.error('Error al obtener reservas por usuario:', action.payload);
       })
 
-      
+
       .addCase(obtenerReservaPorId.pending, (state) => {
         state.loadingDetalle = true;
         state.errorDetalle = null;
@@ -334,7 +334,7 @@ const reservasSlice = createSlice({
         state.errorDetalle = action.payload;
       })
 
-      
+
       .addCase(crearReserva.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -348,7 +348,7 @@ const reservasSlice = createSlice({
         state.error = action.payload;
       })
 
-      
+
       .addCase(actualizarReserva.fulfilled, (state, action) => {
         const idx = state.reservas.findIndex(r => (r._id || r.id) === (action.payload._id || action.payload.id));
         if (idx !== -1) {
@@ -356,12 +356,12 @@ const reservasSlice = createSlice({
         }
       })
 
-      
+
       .addCase(eliminarReserva.fulfilled, (state, action) => {
         state.reservas = state.reservas.filter(r => (r._id || r.id) !== action.payload);
       })
 
-      
+
       .addCase(cancelarReserva.fulfilled, (state, action) => {
         const idx = state.reservas.findIndex(r => (r._id || r.id) === action.payload);
         if (idx !== -1) {

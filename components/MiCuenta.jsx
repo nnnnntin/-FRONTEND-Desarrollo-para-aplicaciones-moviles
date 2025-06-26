@@ -25,16 +25,16 @@ const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
 const MiCuenta = ({ navigation }) => {
   const dispatch = useDispatch();
-  
-  
+
+
   const { usuario, token, tipoUsuario } = useSelector(state => state.auth);
-  
+
   const { loading: usuarioLoading } = useSelector(state => state.usuario);
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     username: '',
     nombre: '',
@@ -56,18 +56,18 @@ const MiCuenta = ({ navigation }) => {
   useEffect(() => {
     console.log('🔵 Usuario en Redux (auth):', usuario);
     if (usuario) {
-      
+
       const data = {
         username: usuario.username || '',
         nombre: usuario.nombre || '',
         apellidos: usuario.apellidos || '',
         email: usuario.email || '',
-        
+
         telefono: usuario.datosPersonales?.telefono || '',
         documentoIdentidad: usuario.datosPersonales?.documentoIdentidad || '',
-        
+
         imagen: usuario.imagen || '',
-        
+
         calle: usuario.direccion?.calle || '',
         ciudad: usuario.direccion?.ciudad || '',
         codigoPostal: usuario.direccion?.codigoPostal || '',
@@ -75,7 +75,7 @@ const MiCuenta = ({ navigation }) => {
         password: '',
         confirmPassword: ''
       };
-      
+
       console.log('🔵 Datos formateados para el formulario:', data);
       setFormData(data);
       setEditData(data);
@@ -84,7 +84,7 @@ const MiCuenta = ({ navigation }) => {
 
   const handleEdit = async () => {
     if (isEditing) {
-      
+
       if (!editData.nombre.trim() || !editData.email.trim()) {
         Alert.alert('Error', 'El nombre y email son obligatorios');
         return;
@@ -103,52 +103,52 @@ const MiCuenta = ({ navigation }) => {
       try {
         setIsLoading(true);
 
-        
+
         const updateData = {
           nombre: editData.nombre.trim(),
           apellidos: editData.apellidos.trim(),
         };
 
-        
+
         if (editData.imagen) {
           updateData.imagen = editData.imagen;
         }
 
-        
+
         const datosPersonales = {};
         if (editData.telefono.trim()) datosPersonales.telefono = editData.telefono.trim();
         if (editData.documentoIdentidad.trim()) datosPersonales.documentoIdentidad = editData.documentoIdentidad.trim();
-        
+
         if (Object.keys(datosPersonales).length > 0) {
           updateData.datosPersonales = datosPersonales;
         }
 
-        
+
         const direccion = {};
         if (editData.calle.trim()) direccion.calle = editData.calle.trim();
         if (editData.ciudad.trim()) direccion.ciudad = editData.ciudad.trim();
         if (editData.codigoPostal.trim()) direccion.codigoPostal = editData.codigoPostal.trim();
         if (editData.pais.trim()) direccion.pais = editData.pais.trim();
-        
+
         if (Object.keys(direccion).length > 0) {
           updateData.direccion = direccion;
         }
 
-        
+
         if (editData.password) {
           updateData.password = editData.password;
         }
 
         console.log('🔵 Actualizando datos del usuario:', updateData);
 
-        
+
         const result = await dispatch(actualizarUsuario({
           usuarioId: usuario.id || usuario._id,
           datosActualizacion: updateData
         }));
 
         if (actualizarUsuario.fulfilled.match(result)) {
-          
+
           const updatedFormData = {
             ...editData,
             password: '',
@@ -212,23 +212,23 @@ const MiCuenta = ({ navigation }) => {
 
   const uploadToCloudinary = async (imageUri) => {
     const formData = new FormData();
-    
+
     formData.append('file', {
       uri: imageUri,
       name: 'profile_image.jpeg',
       type: 'image/jpeg'
     });
-    
+
     formData.append('upload_preset', UPLOAD_PRESET);
-    
+
     try {
       const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
         method: 'POST',
         body: formData
       });
-      
+
       const data = await response.json();
-      
+
       if (data.secure_url) {
         return data.secure_url;
       } else {
@@ -246,7 +246,7 @@ const MiCuenta = ({ navigation }) => {
 
     try {
       setUploadingImage(true);
-      
+
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -256,13 +256,13 @@ const MiCuenta = ({ navigation }) => {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const cloudinaryUrl = await uploadToCloudinary(result.assets[0].uri);
-        
-        
+
+
         await updateProfileImage(cloudinaryUrl);
-        
+
         setEditData(prev => ({ ...prev, imagen: cloudinaryUrl }));
         setFormData(prev => ({ ...prev, imagen: cloudinaryUrl }));
-        
+
         Alert.alert('Éxito', 'Foto actualizada correctamente');
       }
     } catch (error) {
@@ -279,7 +279,7 @@ const MiCuenta = ({ navigation }) => {
 
     try {
       setUploadingImage(true);
-      
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -289,13 +289,13 @@ const MiCuenta = ({ navigation }) => {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const cloudinaryUrl = await uploadToCloudinary(result.assets[0].uri);
-        
-        
+
+
         await updateProfileImage(cloudinaryUrl);
-        
+
         setEditData(prev => ({ ...prev, imagen: cloudinaryUrl }));
         setFormData(prev => ({ ...prev, imagen: cloudinaryUrl }));
-        
+
         Alert.alert('Éxito', 'Foto actualizada correctamente');
       }
     } catch (error) {
@@ -308,7 +308,7 @@ const MiCuenta = ({ navigation }) => {
 
   const updateProfileImage = async (imageUrl) => {
     try {
-      
+
       const result = await dispatch(actualizarUsuario({
         usuarioId: usuario.id || usuario._id,
         datosActualizacion: { imagen: imageUrl }
@@ -324,7 +324,7 @@ const MiCuenta = ({ navigation }) => {
 
   const showImageOptions = () => {
     if (uploadingImage) return;
-    
+
     Alert.alert(
       'Cambiar foto de perfil',
       'Selecciona una opción',
@@ -355,7 +355,7 @@ const MiCuenta = ({ navigation }) => {
   };
 
   const renderImageContainer = () => {
-    const imageSource = editData.imagen 
+    const imageSource = editData.imagen
       ? { uri: editData.imagen }
       : require('../assets/images/logo.png');
 
@@ -413,7 +413,6 @@ const MiCuenta = ({ navigation }) => {
           </View>
 
           <View style={styles.formContainer}>
-            {/* Usuario */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Nombre de usuario</Text>
               <TextInput
@@ -425,9 +424,8 @@ const MiCuenta = ({ navigation }) => {
               <Text style={styles.helpText}>El nombre de usuario no se puede cambiar</Text>
             </View>
 
-            {/* Información personal */}
             <Text style={styles.sectionTitle}>Información Personal</Text>
-            
+
             <View style={styles.rowContainer}>
               <View style={styles.halfInputContainer}>
                 <Text style={styles.label}>Nombre *</Text>
@@ -464,9 +462,8 @@ const MiCuenta = ({ navigation }) => {
               <Text style={styles.helpText}>El email no se puede cambiar desde aquí</Text>
             </View>
 
-            {/* Contacto */}
             <Text style={styles.sectionTitle}>Información de Contacto</Text>
-            
+
             <View style={styles.rowContainer}>
               <View style={styles.halfInputContainer}>
                 <Text style={styles.label}>Teléfono</Text>
@@ -491,9 +488,8 @@ const MiCuenta = ({ navigation }) => {
               </View>
             </View>
 
-            {/* Dirección */}
             <Text style={styles.sectionTitle}>Dirección</Text>
-            
+
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Calle y número</Text>
               <TextInput
@@ -540,11 +536,10 @@ const MiCuenta = ({ navigation }) => {
               />
             </View>
 
-            {/* Cambiar contraseña */}
             {isEditing && (
               <>
                 <Text style={styles.sectionTitle}>Cambiar Contraseña (opcional)</Text>
-                
+
                 <View style={styles.inputContainer}>
                   <Text style={styles.label}>Nueva contraseña</Text>
                   <TextInput

@@ -112,7 +112,7 @@ const CrearServicio = ({ navigation }) => {
 
     try {
       const result = await dispatch(crearServicioAdicional(servicioData));
-      
+
       if (result.success) {
         Alert.alert(
           'Servicio creado',
@@ -365,8 +365,8 @@ const CrearServicio = ({ navigation }) => {
             <Text style={styles.cancelButtonText}>Cancelar</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]} 
+          <TouchableOpacity
+            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
             onPress={handleSubmit}
             disabled={loading}
           >

@@ -1,16 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { agregarMetodoPago } from '../store/slices/usuarioSlice';
@@ -19,10 +19,10 @@ const AgregarTarjeta = ({ navigation, route }) => {
   const dispatch = useDispatch();
   const loadingMetodosPago = useSelector(state => state.usuario.loadingMetodosPago);
   const usuario = useSelector(state => state.auth.usuario);
-  
+
   const { usuarioId, onTarjetaAgregada } = route?.params || {};
 
-  
+
   const [numeroTarjeta, setNumeroTarjeta] = useState('');
   const [cvc, setCvc] = useState('');
   const [fechaExpiracion, setFechaExpiracion] = useState('');
@@ -56,42 +56,63 @@ const AgregarTarjeta = ({ navigation, route }) => {
   };
 
   const detectarTipoTarjeta = (numero) => {
-    const primerDigito = numero.charAt(0);
-    if (primerDigito === '4') return 'Visa';
-    if (primerDigito === '5') return 'Mastercard';
-    if (primerDigito === '3') return 'American Express';
-    return 'Tarjeta';
+    const numeroLimpio = numero.replace(/\s/g, '');
+
+    if (numeroLimpio.startsWith('4')) return 'Visa';
+
+    if (numeroLimpio.startsWith('5') ||
+      (numeroLimpio.startsWith('2') &&
+        parseInt(numeroLimpio.substring(0, 4)) >= 2221 &&
+        parseInt(numeroLimpio.substring(0, 4)) <= 2720)) {
+      return 'Mastercard';
+    }
+
+    if (numeroLimpio.startsWith('34') || numeroLimpio.startsWith('37')) {
+      return 'American Express';
+    }
+
+    if (numeroLimpio.startsWith('6')) return 'Discover';
+
+    if (numeroLimpio.startsWith('30') ||
+      numeroLimpio.startsWith('36') ||
+      numeroLimpio.startsWith('38')) {
+      return 'Diners Club';
+    }
+
+    if (numeroLimpio.startsWith('35')) return 'JCB';
+
+    return null;
   };
 
   const validarFormulario = () => {
     const errores = [];
 
-    
+
     if (!numeroTarjeta || numeroTarjeta.replace(/\s/g, '').length < 16) {
       errores.push('Por favor ingresa un número de tarjeta válido (16 dígitos)');
     }
 
-    
+
     if (!cvc || cvc.length < 3) {
       errores.push('Por favor ingresa un CVC válido (3-4 dígitos)');
     }
 
-    
+
     if (!fechaExpiracion || fechaExpiracion.length < 5) {
       errores.push('Por favor ingresa una fecha de expiración válida (MM/AA)');
     } else {
-      
+
       const [mes, año] = fechaExpiracion.split('/');
       const fechaActual = new Date();
       const añoCompleto = 2000 + parseInt(año);
       const fechaTarjeta = new Date(añoCompleto, parseInt(mes) - 1);
-      
+
       if (fechaTarjeta < fechaActual) {
         errores.push('La tarjeta está vencida');
       }
     }
 
-    
+
     if (!nombreTitular.trim()) {
       errores.push('Por favor ingresa el nombre del titular');
     }
@@ -105,7 +126,9 @@ const AgregarTarjeta = ({ navigation, route }) => {
   };
 
   const handleAgregar = async () => {
+
     if (!validarFormulario()) return;
+
 
     const tipoTarjeta = detectarTipoTarjeta(numeroTarjeta);
     const ultimosCuatroDigitos = numeroTarjeta.replace(/\s/g, '').slice(-4);
@@ -116,47 +139,43 @@ const AgregarTarjeta = ({ navigation, route }) => {
       return;
     }
 
-    
+
     const metodoPagoData = {
-      tipo: 'tarjeta',
-      ultimosDigitos: ultimosCuatroDigitos,
-      fechaExpiracion: fechaExpiracion,
-      predeterminado: predeterminado,
-      
+      numeroTarjeta: numeroTarjeta.replace(/\s/g, ''),
+      cvc,
+      fechaExpiracion,
       nombreTitular: nombreTitular.trim(),
-      marca: tipoTarjeta.toLowerCase(),
-      
-      
+      predeterminado,
+
+      ...(tipoTarjeta && { marca: tipoTarjeta }),
     };
 
     console.log('🏦 Agregando nuevo método de pago:', metodoPagoData);
 
     try {
+
       const resultAction = await dispatch(agregarMetodoPago({
         usuarioId: userId,
         metodoPago: metodoPagoData
       }));
 
       if (agregarMetodoPago.fulfilled.match(resultAction)) {
-        
+
         Alert.alert(
           'Tarjeta Agregada',
-          `${tipoTarjeta} •••• ${ultimosCuatroDigitos} ha sido agregada exitosamente`,
+          `${tipoTarjeta ? tipoTarjeta.toUpperCase() : 'Tarjeta'} •••• ${ultimosCuatroDigitos} ha sido agregada exitosamente`,
           [
             {
               text: 'OK',
               onPress: () => {
-                
-                if (onTarjetaAgregada) {
-                  onTarjetaAgregada();
-                }
+                if (onTarjetaAgregada) onTarjetaAgregada();
                 navigation.goBack();
               }
             }
           ]
         );
       } else {
-        
+
         const errorMessage = resultAction.payload || 'Error al agregar la tarjeta';
         Alert.alert('Error', errorMessage);
       }
@@ -165,6 +184,7 @@ const AgregarTarjeta = ({ navigation, route }) => {
       Alert.alert('Error', 'Ocurrió un error inesperado');
     }
   };
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -183,8 +203,8 @@ const AgregarTarjeta = ({ navigation, route }) => {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -196,7 +216,6 @@ const AgregarTarjeta = ({ navigation, route }) => {
         </View>
 
         <View style={styles.formContainer}>
-          {/* Nombre del titular */}
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Nombre del titular</Text>
             <TextInput
@@ -210,7 +229,6 @@ const AgregarTarjeta = ({ navigation, route }) => {
             />
           </View>
 
-          {/* Número de tarjeta */}
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Número de tarjeta</Text>
             <View style={styles.inputWithIcon}>
@@ -234,7 +252,6 @@ const AgregarTarjeta = ({ navigation, route }) => {
             </View>
           </View>
 
-          {/* Fecha y CVC en la misma fila */}
           <View style={styles.rowContainer}>
             <View style={styles.halfInputContainer}>
               <Text style={styles.inputLabel}>Fecha expiración</Text>
@@ -266,7 +283,6 @@ const AgregarTarjeta = ({ navigation, route }) => {
             </View>
           </View>
 
-          {/* Opción predeterminado */}
           <TouchableOpacity
             style={styles.checkboxContainer}
             onPress={() => setPredeterminado(!predeterminado)}
@@ -283,7 +299,6 @@ const AgregarTarjeta = ({ navigation, route }) => {
             </Text>
           </TouchableOpacity>
 
-          {/* Botón agregar */}
           <TouchableOpacity
             style={[styles.agregarButton, loadingMetodosPago && styles.agregarButtonDisabled]}
             onPress={handleAgregar}
@@ -296,7 +311,6 @@ const AgregarTarjeta = ({ navigation, route }) => {
             )}
           </TouchableOpacity>
 
-          {/* Nota de seguridad */}
           <View style={styles.securityNote}>
             <Ionicons name="shield-checkmark" size={20} color="#27ae60" />
             <Text style={styles.securityNoteText}>

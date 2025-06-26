@@ -20,10 +20,10 @@ const GestionServicios = ({ navigation }) => {
   const dispatch = useDispatch();
   const { oficinasPropias } = useSelector(state => state.usuario);
   const { serviciosPorEspacio, proveedores, loading } = useSelector(state => state.proveedores);
-  
+
   const [tabActiva, setTabActiva] = useState('incluidos');
 
-  
+
   const misEspacios = [
     {
       id: 1,
@@ -57,10 +57,10 @@ const GestionServicios = ({ navigation }) => {
 
   const cargarDatos = async () => {
     try {
-      
+
       await dispatch(obtenerProveedores(0, 50));
-      
-      
+
+
       for (const espacioId of oficinasPropias) {
         await dispatch(obtenerServiciosPorEspacio(espacioId));
       }
@@ -70,9 +70,9 @@ const GestionServicios = ({ navigation }) => {
   };
 
   const getProveedoresExternosPorEspacio = (espacioId) => {
-    
+
     if (!proveedores) return [];
-    
+
     return proveedores
       .filter(proveedor => proveedor.espaciosAtendidos?.includes(espacioId))
       .map(proveedor => ({
@@ -87,7 +87,7 @@ const GestionServicios = ({ navigation }) => {
 
   const toggleServicioIncluido = async (espacioId, servicioId) => {
     try {
-      
+
       setEspaciosData(prev => prev.map(espacio => {
         if (espacio.id === espacioId) {
           return {
@@ -102,17 +102,17 @@ const GestionServicios = ({ navigation }) => {
         return espacio;
       }));
 
-      
+
       const servicio = espaciosData
         .find(e => e.id === espacioId)
         ?.serviciosIncluidos.find(s => s._id === servicioId);
-      
+
       if (servicio) {
         await dispatch(toggleServicioAdicional(servicioId, !servicio.activo));
       }
     } catch (error) {
       console.error('Error toggling servicio:', error);
-      
+
       setEspaciosData(prev => prev.map(espacio => {
         if (espacio.id === espacioId) {
           return {
@@ -131,11 +131,11 @@ const GestionServicios = ({ navigation }) => {
 
   const toggleProveedorExterno = async (espacioId, proveedorId) => {
     try {
-      
+
       const proveedor = proveedores.find(p => p._id === proveedorId);
       if (proveedor) {
         await dispatch(toggleServicioAdicional(proveedorId, !proveedor.activo));
-        await cargarDatos(); 
+        await cargarDatos();
       }
     } catch (error) {
       console.error('Error toggling proveedor:', error);
@@ -200,7 +200,7 @@ const GestionServicios = ({ navigation }) => {
   const renderEspacio = ({ item: espacio }) => {
     const serviciosIncluidos = espacio.serviciosIncluidos || [];
     const proveedoresExternos = getProveedoresExternosPorEspacio(espacio.id);
-    
+
     const servicios = tabActiva === 'incluidos'
       ? serviciosIncluidos
       : proveedoresExternos;

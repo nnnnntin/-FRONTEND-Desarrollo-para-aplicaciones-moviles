@@ -12,7 +12,7 @@ const ImageUploaderCl = () => {
     const handleUpload = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-        if(status !== 'granted'){
+        if (status !== 'granted') {
             setMessage('Permiso denegado');
             return;
         }
@@ -22,7 +22,7 @@ const ImageUploaderCl = () => {
             quality: 1
         })
 
-        if(result.canceled){
+        if (result.canceled) {
             setMessage('Seleccion cancelada');
             return;
         }
@@ -47,11 +47,11 @@ const ImageUploaderCl = () => {
 
             const data = await response.json();
 
-            if(data.secure_url){
+            if (data.secure_url) {
                 setMessage('Imagen subida correctamente: ' + data.secure_url);
                 console.log('URL de la imagen:', data.secure_url);
                 console.log('Public ID:', data.public_id);
-            }else{
+            } else {
                 console.log('Error en respuesta:', data);
                 setMessage("Error inesperado al subir imagen");
             }
@@ -61,23 +61,23 @@ const ImageUploaderCl = () => {
         }
     }
 
-  return (
-    <View style={styles.container}>
-        <Button title='Subir imagen a Cloudinary' onPress={handleUpload}/>
-        { message ? <Text style={styles.message}>{message}</Text> : null}
-    </View>
-  )
+    return (
+        <View style={styles.container}>
+            <Button title='Subir imagen a Cloudinary' onPress={handleUpload} />
+            {message ? <Text style={styles.message}>{message}</Text> : null}
+        </View>
+    )
 }
 
 export default ImageUploaderCl
 
 const styles = StyleSheet.create({
-    container:{
+    container: {
         padding: 20,
         alignItems: 'center',
         justifyContent: 'center'
     },
-    message:{
+    message: {
         marginTop: 20,
         textAlign: 'center'
     }

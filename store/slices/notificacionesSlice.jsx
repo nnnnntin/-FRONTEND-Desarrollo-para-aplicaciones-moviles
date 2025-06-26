@@ -12,21 +12,21 @@ const notificacionesSlice = createSlice({
   name: 'notificaciones',
   initialState,
   reducers: {
-    
+
     setLoading: (state, action) => {
       state.isLoading = action.payload;
     },
-    
+
     setError: (state, action) => {
       state.error = action.payload;
       state.isLoading = false;
     },
-    
+
     clearError: (state) => {
       state.error = null;
     },
 
-    
+
     setNotificaciones: (state, action) => {
       state.notificaciones = action.payload;
       state.totalNoLeidas = action.payload.filter(n => !n.leida).length;
@@ -47,10 +47,10 @@ const notificacionesSlice = createSlice({
       if (index !== -1) {
         const wasUnread = !state.notificaciones[index].leida;
         const isNowRead = action.payload.leida;
-        
+
         state.notificaciones[index] = { ...state.notificaciones[index], ...action.payload };
-        
-        
+
+
         if (wasUnread && isNowRead) {
           state.totalNoLeidas = Math.max(0, state.totalNoLeidas - 1);
         } else if (!wasUnread && !isNowRead) {
@@ -116,7 +116,7 @@ export const cargarNotificacionesUsuario = (usuarioId, token, options = {}) => {
 
       const { limit = 50, leidas } = options;
       let url = `${process.env.EXPO_PUBLIC_API_URL}/v1/notificaciones/usuario/${usuarioId}?limit=${limit}`;
-      
+
       if (typeof leidas === 'boolean') {
         url += `&leidas=${leidas}`;
       }
@@ -137,8 +137,8 @@ export const cargarNotificacionesUsuario = (usuarioId, token, options = {}) => {
 
       const data = await response.json();
       console.log('🔵 Datos recibidos del backend:', data);
-      
-      
+
+
       let notificacionesData;
       if (Array.isArray(data)) {
         notificacionesData = data;
@@ -152,7 +152,7 @@ export const cargarNotificacionesUsuario = (usuarioId, token, options = {}) => {
 
       console.log('🔵 Notificaciones extraídas:', notificacionesData);
 
-      
+
       const notificacionesProcesadas = notificacionesData
         .map(notif => mapearNotificacion(notif))
         .sort((a, b) => new Date(b.fechaRaw) - new Date(a.fechaRaw));
@@ -160,7 +160,7 @@ export const cargarNotificacionesUsuario = (usuarioId, token, options = {}) => {
       console.log('🔵 Notificaciones procesadas:', notificacionesProcesadas);
 
       dispatch(setNotificaciones(notificacionesProcesadas));
-      
+
     } catch (error) {
       console.error('🔴 Error al cargar notificaciones:', error);
       dispatch(setError(error.message || 'Error al cargar notificaciones'));
@@ -188,13 +188,13 @@ export const marcarNotificacionComoLeida = (notificacionId, token) => {
       if (response.ok) {
         dispatch(marcarComoLeida(notificacionId));
       } else {
-        
+
         dispatch(marcarComoLeida(notificacionId));
         console.warn('🟡 No se pudo marcar como leída en el servidor');
       }
     } catch (error) {
       console.error('🔴 Error al marcar como leída:', error);
-      
+
       dispatch(marcarComoLeida(notificacionId));
     }
   };
@@ -258,7 +258,7 @@ export const eliminarNotificacionPorId = (notificacionId, token) => {
 const mapearNotificacion = (notifBackend) => {
   console.log('🔍 Mapeando notificación desde backend:', notifBackend);
 
-  
+
   const tiposConfig = {
     'reserva': { icono: 'calendar', color: '#4a90e2' },
     'confirmacion_reserva': { icono: 'checkmark-circle', color: '#27ae60' },
@@ -284,17 +284,17 @@ const mapearNotificacion = (notifBackend) => {
   const tipoNotif = notifBackend.tipoNotificacion || notifBackend.tipo || 'default';
   const config = tiposConfig[tipoNotif] || tiposConfig['default'];
 
-  
+
   let fechaFormateada = 'Fecha no disponible';
   let fechaRaw = new Date();
-  
+
   if (notifBackend.fechaCreacion || notifBackend.createdAt || notifBackend.fecha) {
     const fechaString = notifBackend.fechaCreacion || notifBackend.createdAt || notifBackend.fecha;
     fechaRaw = new Date(fechaString);
     fechaFormateada = formatearFecha(fechaRaw);
   }
 
-  
+
   let estadoLeido = false;
   if (notifBackend.hasOwnProperty('leido')) {
     estadoLeido = notifBackend.leido;
@@ -309,7 +309,7 @@ const mapearNotificacion = (notifBackend) => {
     mensaje: notifBackend.mensaje || notifBackend.contenido || 'Sin mensaje',
     fecha: fechaFormateada,
     fechaRaw: fechaRaw,
-    leida: estadoLeido, 
+    leida: estadoLeido,
     icono: config.icono,
     color: config.color,
     prioridad: notifBackend.prioridad || 'normal',
@@ -377,7 +377,7 @@ const formatearFecha = (fecha) => {
 
 
 export const selectNotificaciones = (state) => state.notificaciones.notificaciones;
-export const selectNotificacionesNoLeidas = (state) => 
+export const selectNotificacionesNoLeidas = (state) =>
   state.notificaciones.notificaciones.filter(n => !n.leida);
 export const selectTotalNoLeidas = (state) => state.notificaciones.totalNoLeidas;
 export const selectIsLoading = (state) => state.notificaciones.isLoading;

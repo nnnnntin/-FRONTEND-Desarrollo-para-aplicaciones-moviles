@@ -22,19 +22,19 @@ const Login = ({ navigation, setIsLogged }) => {
   const [password, setPassword] = useState('');
   const [currentView, setCurrentView] = useState('login');
   const [tipoUsuario, setTipoUsuario] = useState('usuario');
-  
+
   const dispatch = useDispatch();
-  
+
   const { loading, error, isLoggedIn } = useSelector(state => state.auth);
 
-  
+
   useEffect(() => {
     if (isLoggedIn) {
       setIsLogged(true);
     }
   }, [isLoggedIn, setIsLogged]);
 
-  
+
   useEffect(() => {
     if (error) {
       Alert.alert('Error', error);
@@ -47,28 +47,28 @@ const Login = ({ navigation, setIsLogged }) => {
     console.log('🔴 Email:', email);
     console.log('🔴 Password:', password);
     console.log('🔴 Loading state:', loading);
-    
+
     if (!email.trim() || !password.trim()) {
       Alert.alert('Error', 'Por favor completa todos los campos');
       return;
     }
 
-    
+
     const username = email;
-    
+
     console.log('🔴 Despachando loginUsuario con:', { username, password });
-    
+
     try {
       const result = await dispatch(loginUsuario({ username, password }));
       console.log('🔴 Resultado del dispatch:', result);
-      
-      
+
+
       if (loginUsuario.fulfilled.match(result)) {
         console.log('🟢 Login exitoso, navegando...');
-        
+
       } else if (loginUsuario.rejected.match(result)) {
         console.log('🔴 Login falló:', result.payload);
-        
+
       }
     } catch (error) {
       console.log('🔴 Error en dispatch:', error);
@@ -99,11 +99,11 @@ const Login = ({ navigation, setIsLogged }) => {
 
   if (currentView === 'forgotPassword') {
     return (
-      <KeyboardAvoidingView 
-        style={styles.keyboardAvoidingView} 
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContainer}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -129,11 +129,11 @@ const Login = ({ navigation, setIsLogged }) => {
 
   if (currentView === 'forgotEmail') {
     return (
-      <KeyboardAvoidingView 
-        style={styles.keyboardAvoidingView} 
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContainer}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -157,11 +157,11 @@ const Login = ({ navigation, setIsLogged }) => {
   }
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.keyboardAvoidingView} 
+    <KeyboardAvoidingView
+      style={styles.keyboardAvoidingView}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: '100%', 
+    minHeight: '100%',
   },
   logo: {
     width: 120,

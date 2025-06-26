@@ -33,20 +33,28 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
   const dispatch = useDispatch();
 
   
-  const { tipoUsuario, usuario, token } = useSelector(state => state.auth);
-  
-  
-  const { oficinasPropias, serviciosContratados, serviciosOfrecidos } = useSelector(state => state.usuario);
-  
+  const {
+    tipoUsuario = 'usuario',
+    usuario = {},
+    token = null
+  } = useSelector(state => state.auth || {});
+
   
   const {
-    espaciosFiltrados,
-    filtroTipo,
-    textoBusqueda,
-    loading,
-    error,
-    refreshing
-  } = useSelector(state => state.espacios);
+    oficinasPropias = [],
+    serviciosContratados = [],
+    serviciosOfrecidos = []
+  } = useSelector(state => state.usuario || {});
+
+  
+  const {
+    espaciosFiltrados = [], 
+    filtroTipo = 'todos',
+    textoBusqueda = '',
+    loading = false,
+    error = null,
+    refreshing = false
+  } = useSelector(state => state.espacios || {});
 
   const tipos = [
     { id: 'todos', nombre: 'Todos', icono: 'apps', endpoint: null },
@@ -70,15 +78,30 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
     }
   }, [error, dispatch]);
 
+  
   const cargarEspacios = async () => {
     try {
+      console.log('🚀 Iniciando carga de espacios...');
+      console.log('🔍 Tipo de usuario:', tipoUsuario);
+      console.log('🔍 Filtro actual:', filtroTipo);
+      console.log('🔍 Usuario:', usuario);
+
       if (tipoUsuario === 'cliente') {
-        
         console.log('🔥 Cargando espacios del cliente...');
-        await dispatch(cargarEspaciosCliente());
+        const result = await dispatch(cargarEspaciosCliente());
+        console.log('📦 Resultado cargarEspaciosCliente:', result);
+
+        if (cargarEspaciosCliente.rejected.match(result)) {
+          console.error('🔴 Error en cargarEspaciosCliente:', result.payload);
+        }
       } else {
-        
-        await dispatch(cargarTodosLosEspacios({ filtroTipo }));
+        console.log('🌍 Cargando todos los espacios...');
+        const result = await dispatch(cargarTodosLosEspacios({ filtroTipo }));
+        console.log('📦 Resultado cargarTodosLosEspacios:', result);
+
+        if (cargarTodosLosEspacios.rejected.match(result)) {
+          console.error('🔴 Error en cargarTodosLosEspacios:', result.payload);
+        }
       }
     } catch (error) {
       console.error('🔴 Error al cargar espacios:', error);
@@ -87,6 +110,7 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
 
   
   const handleFiltroChange = (nuevoFiltro) => {
+    console.log('🔄 Cambiando filtro a:', nuevoFiltro);
     dispatch(setFiltroTipo(nuevoFiltro));
   };
 
@@ -112,15 +136,20 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
 
   
   const verDetalleOficina = (espacio) => {
-    const params = { 
+    if (!espacio || !espacio.datosCompletos) {
+      Alert.alert('Error', 'No se pudieron cargar los datos del espacio');
+      return;
+    }
+
+    const params = {
       oficina: espacio,
-      espacio: espacio.datosCompletos 
+      espacio: espacio.datosCompletos
     };
 
     if (tipoUsuario === 'cliente') {
       
       let propietarioIdStr = null;
-      
+
       if (espacio.datosCompletos.propietarioId) {
         if (typeof espacio.datosCompletos.propietarioId === 'object') {
           propietarioIdStr = espacio.datosCompletos.propietarioId._id || espacio.datosCompletos.propietarioId.$oid;
@@ -128,10 +157,10 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
           propietarioIdStr = espacio.datosCompletos.propietarioId;
         }
       }
-      
+
       propietarioIdStr = propietarioIdStr?.toString();
       const userIdStr = usuario?.id?.toString() || usuario?._id?.toString();
-      
+
       params.esPropia = propietarioIdStr && userIdStr && propietarioIdStr === userIdStr;
     } else {
       params.esPropia = false;
@@ -220,8 +249,14 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
 
   const EspacioCard = ({ espacio }) => {
     
-    let propietarioIdStr = null;
+    if (!espacio || !espacio.datosCompletos) {
+      console.warn('⚠️ EspacioCard: espacio sin datos completos:', espacio);
+      return null;
+    }
+
     
+    let propietarioIdStr = null;
+
     if (espacio.datosCompletos.propietarioId) {
       if (typeof espacio.datosCompletos.propietarioId === 'object') {
         propietarioIdStr = espacio.datosCompletos.propietarioId._id || espacio.datosCompletos.propietarioId.$oid;
@@ -229,10 +264,10 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
         propietarioIdStr = espacio.datosCompletos.propietarioId;
       }
     }
-    
+
     propietarioIdStr = propietarioIdStr?.toString();
     const userIdStr = usuario?.id?.toString() || usuario?._id?.toString();
-    
+
     const esPropio = tipoUsuario === 'cliente' && propietarioIdStr && userIdStr && propietarioIdStr === userIdStr;
 
     return (
@@ -267,7 +302,7 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
             </View>
           </View>
 
-          {espacio.servicios.length > 0 && (
+          {Array.isArray(espacio.servicios) && espacio.servicios.length > 0 && (
             <View style={styles.servicesContainer}>
               <Text style={styles.servicesLabel}>Servicios</Text>
               <View style={styles.servicesIcons}>
@@ -307,6 +342,14 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
     );
   };
 
+  
+  console.log('🎯 Estado actual de espacios:', {
+    espaciosFiltrados: espaciosFiltrados?.length || 0,
+    loading,
+    error,
+    tipoUsuario
+  });
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
@@ -330,8 +373,8 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -398,7 +441,7 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
             <ActivityIndicator size="large" color="#4a90e2" />
             <Text style={styles.loadingText}>Cargando espacios...</Text>
           </View>
-        ) : espaciosFiltrados.length === 0 ? (
+        ) : !Array.isArray(espaciosFiltrados) || espaciosFiltrados.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons
               name={
@@ -439,11 +482,11 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
         ) : (
           <View style={styles.espaciosContainer}>
             <Text style={styles.espaciosCount}>
-              {espaciosFiltrados.length} espacio{espaciosFiltrados.length !== 1 ? 's' : ''} 
+              {espaciosFiltrados.length} espacio{espaciosFiltrados.length !== 1 ? 's' : ''}
               {textoBusqueda ? ` encontrado${espaciosFiltrados.length !== 1 ? 's' : ''}` : ' disponible'}
             </Text>
             {espaciosFiltrados.map((espacio) => (
-              <EspacioCard key={espacio.id} espacio={espacio} />
+              <EspacioCard key={espacio.id || Math.random()} espacio={espacio} />
             ))}
           </View>
         )}

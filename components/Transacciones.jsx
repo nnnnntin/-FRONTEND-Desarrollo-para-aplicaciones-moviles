@@ -28,7 +28,7 @@ const Transacciones = ({ navigation, route }) => {
     const fecha = transaccion?.fecha || '01/01/2026';
     const precio = transaccion?.precio || '$1200.00';
     const usuario = 'Juan Pérez';
-    
+
     return `
       <html>
         <head>
@@ -138,7 +138,7 @@ const Transacciones = ({ navigation, route }) => {
   const handleImprimir = async () => {
     try {
       const htmlContent = generarPDFContent();
-      
+
       const { uri } = await Print.printToFileAsync({
         html: htmlContent,
         base64: false,
@@ -161,7 +161,7 @@ const Transacciones = ({ navigation, route }) => {
   const handleCompartir = async () => {
     try {
       const htmlContent = generarPDFContent();
-      
+
       const { uri } = await Print.printToFileAsync({
         html: htmlContent,
         base64: false,
@@ -169,14 +169,14 @@ const Transacciones = ({ navigation, route }) => {
 
       const fileName = `transaccion_${transaccion?.fecha?.replace(/\//g, '-') || 'comprobante'}.pdf`;
       const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-      
+
       await FileSystem.moveAsync({
         from: uri,
         to: fileUri,
       });
 
       const canShare = await Sharing.isAvailableAsync();
-      
+
       if (canShare) {
         await Sharing.shareAsync(fileUri, {
           mimeType: 'application/pdf',

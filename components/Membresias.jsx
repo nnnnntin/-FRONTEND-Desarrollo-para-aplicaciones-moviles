@@ -25,10 +25,10 @@ import {
 import { actualizarDatosUsuario } from '../store/slices/usuarioSlice';
 
 const Membresias = ({ navigation }) => {
-  
+
   const dispatch = useDispatch();
   const { usuario, token } = useSelector(state => state.auth);
-  const { 
+  const {
     membresiasActivas,
     promocionesActivas,
     suscripcionActual,
@@ -38,13 +38,13 @@ const Membresias = ({ navigation }) => {
     errorSuscripcion
   } = useSelector(state => state.membresias);
 
-  
+
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     cargarDatos();
-    
+
     return () => {
       dispatch(clearError());
     };
@@ -52,9 +52,9 @@ const Membresias = ({ navigation }) => {
 
   useEffect(() => {
     if (usuario?.membresia?.tipoMembresiaId) {
-      
-      const planActual = planes.find(plan => 
-        plan.id === usuario.membresia.tipoMembresiaId || 
+
+      const planActual = planes.find(plan =>
+        plan.id === usuario.membresia.tipoMembresiaId ||
         plan.nombre.toLowerCase() === usuario.tipoUsuario?.toLowerCase()
       );
       if (planActual) {
@@ -63,7 +63,7 @@ const Membresias = ({ navigation }) => {
     }
   }, [usuario]);
 
-  
+
   useEffect(() => {
     if (error || errorSuscripcion) {
       Alert.alert('Error', error || errorSuscripcion);
@@ -71,14 +71,14 @@ const Membresias = ({ navigation }) => {
     }
   }, [error, errorSuscripcion, dispatch]);
 
-  
+
   const cargarDatos = () => {
     console.log('🔵 Iniciando carga de datos de membresías...');
     dispatch(obtenerMembresiasActivas());
     dispatch(obtenerPromocionesActivas());
   };
 
-  
+
   useEffect(() => {
     console.log('🔍 Estado actual de membresías:', {
       membresiasActivas,
@@ -88,7 +88,7 @@ const Membresias = ({ navigation }) => {
     });
   }, [membresiasActivas, loading, error]);
 
-  
+
   const mapearMembresiaParaUI = (m) => {
     const getColorPorTipo = (tipo) => {
       switch (tipo?.toLowerCase()) {
@@ -113,15 +113,15 @@ const Membresias = ({ navigation }) => {
       return '$0.00';
     };
 
-    
+
     const beneficiosStrings = Array.isArray(m.beneficios)
       ? m.beneficios.map(b =>
-          typeof b === 'string'
-            ? b
-            : b.descripcion
-              ? b.descripcion
-              : JSON.stringify(b)
-        )
+        typeof b === 'string'
+          ? b
+          : b.descripcion
+            ? b.descripcion
+            : JSON.stringify(b)
+      )
       : [];
 
     return {
@@ -140,69 +140,69 @@ const Membresias = ({ navigation }) => {
       popular: m.tipo?.toLowerCase() === 'premium',
       tipoUsuario:
         m.tipo === 'basico' ? 'usuario' :
-        m.tipo === 'premium' ? 'cliente' :
-        m.tipo === 'empresarial' ? 'proveedor' :
-        m.tipo,
+          m.tipo === 'premium' ? 'cliente' :
+            m.tipo === 'empresarial' ? 'proveedor' :
+              m.tipo,
       datosCompletos: m
     };
   };
 
-  
-  const planes = membresiasActivas && membresiasActivas.length > 0 
+
+  const planes = membresiasActivas && membresiasActivas.length > 0
     ? membresiasActivas.map(mapearMembresiaParaUI)
     : [
-        {
-          id: 'basico-fallback',
-          nombre: 'Básico',
-          precio: '$19.99',
-          precioNumerico: 19.99,
-          periodo: 'mes',
-          color: '#95a5a6',
-          tipoUsuario: 'usuario',
-          beneficios: [
-            '5 reservas mensuales',
-            'Acceso a oficinas estándar',
-            'Soporte por email',
-            'Cancelación gratuita hasta 24h antes'
-          ]
-        },
-        {
-          id: 'premium-fallback',
-          nombre: 'Premium',
-          precio: '$49.99',
-          precioNumerico: 49.99,
-          periodo: 'mes',
-          color: '#4a90e2',
-          popular: true,
-          tipoUsuario: 'cliente',
-          beneficios: [
-            '20 reservas mensuales',
-            'Acceso a todas las oficinas',
-            'Soporte prioritario 24/7',
-            'Cancelación gratuita hasta 2h antes',
-            'Descuento 10% en servicios',
-            'Invitados gratis (2 por reserva)'
-          ]
-        },
-        {
-          id: 'empresarial-fallback',
-          nombre: 'Empresarial',
-          precio: '$149.99',
-          precioNumerico: 149.99,
-          periodo: 'mes',
-          color: '#9b59b6',
-          beneficios: [
-            'Reservas ilimitadas',
-            'Acceso VIP a todas las ubicaciones',
-            'Gestor de cuenta dedicado',
-            'Cancelación gratuita sin restricciones',
-            'Descuento 25% en servicios',
-            'Invitados ilimitados',
-            'Facturación corporativa',
-            'Estadísticas de uso detalladas'
-          ]
-        }
-      ];
+      {
+        id: 'basico-fallback',
+        nombre: 'Básico',
+        precio: '$19.99',
+        precioNumerico: 19.99,
+        periodo: 'mes',
+        color: '#95a5a6',
+        tipoUsuario: 'usuario',
+        beneficios: [
+          '5 reservas mensuales',
+          'Acceso a oficinas estándar',
+          'Soporte por email',
+          'Cancelación gratuita hasta 24h antes'
+        ]
+      },
+      {
+        id: 'premium-fallback',
+        nombre: 'Premium',
+        precio: '$49.99',
+        precioNumerico: 49.99,
+        periodo: 'mes',
+        color: '#4a90e2',
+        popular: true,
+        tipoUsuario: 'cliente',
+        beneficios: [
+          '20 reservas mensuales',
+          'Acceso a todas las oficinas',
+          'Soporte prioritario 24/7',
+          'Cancelación gratuita hasta 2h antes',
+          'Descuento 10% en servicios',
+          'Invitados gratis (2 por reserva)'
+        ]
+      },
+      {
+        id: 'empresarial-fallback',
+        nombre: 'Empresarial',
+        precio: '$149.99',
+        precioNumerico: 149.99,
+        periodo: 'mes',
+        color: '#9b59b6',
+        beneficios: [
+          'Reservas ilimitadas',
+          'Acceso VIP a todas las ubicaciones',
+          'Gestor de cuenta dedicado',
+          'Cancelación gratuita sin restricciones',
+          'Descuento 25% en servicios',
+          'Invitados ilimitados',
+          'Facturación corporativa',
+          'Estadísticas de uso detalladas'
+        ]
+      }
+    ];
 
   const handleGoBack = () => navigation.goBack();
 
@@ -375,7 +375,7 @@ const Membresias = ({ navigation }) => {
     );
   };
 
-  
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -419,7 +419,7 @@ const Membresias = ({ navigation }) => {
               </Text>
               {usuario.membresia.fechaVencimiento && (
                 <Text style={styles.currentPlanSubtext}>
-                  {usuario.membresia.renovacionAutomatica 
+                  {usuario.membresia.renovacionAutomatica
                     ? `Próximo cobro: ${new Date(usuario.membresia.fechaVencimiento).toLocaleDateString()}`
                     : `Vence: ${new Date(usuario.membresia.fechaVencimiento).toLocaleDateString()}`
                   }

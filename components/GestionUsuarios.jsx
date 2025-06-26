@@ -28,19 +28,19 @@ import {
 } from '../store/slices/usuarioSlice';
 
 const GestionUsuarios = ({ navigation }) => {
-  
+
   const dispatch = useDispatch();
   const { token, usuario: usuarioLogueado } = useSelector(state => state.auth);
-  const { 
-    usuarios, 
-    usuarioSeleccionado, 
-    loading, 
-    error, 
+  const {
+    usuarios,
+    usuarioSeleccionado,
+    loading,
+    error,
     loadingDetalle,
-    pagination 
+    pagination
   } = useSelector(state => state.usuario);
 
-  
+
   const [tabActiva, setTabActiva] = useState('todos');
   const [busqueda, setBusqueda] = useState('');
   const [modalDetalles, setModalDetalles] = useState(false);
@@ -49,14 +49,14 @@ const GestionUsuarios = ({ navigation }) => {
   useEffect(() => {
     verificarPermisos();
     cargarUsuarios();
-    
-    
+
+
     return () => {
       dispatch(clearError());
     };
   }, [dispatch]);
 
-  
+
   useEffect(() => {
     if (error) {
       Alert.alert('Error', error);
@@ -74,12 +74,12 @@ const GestionUsuarios = ({ navigation }) => {
     }
   };
 
-  
+
   const cargarUsuarios = () => {
     dispatch(obtenerUsuarios({ skip: 0, limit: 100 }));
   };
 
-  
+
   const usuariosMapeados = usuarios.map(user => ({
     id: user._id || user.id,
     nombre: user.nombre + (user.apellidos ? ' ' + user.apellidos : ''),
@@ -146,16 +146,16 @@ const GestionUsuarios = ({ navigation }) => {
     }
   };
 
-  
+
   const handleVerDetalles = (usuario) => {
     dispatch(seleccionarUsuario(usuario));
     setModalDetalles(true);
   };
 
-  
+
   const handleCambiarEstado = async (usuario, nuevoEstado) => {
     const estadoActivo = nuevoEstado === 'activo';
-    
+
     Alert.alert(
       'Cambiar estado',
       `¿Estás seguro de cambiar el estado de ${usuario.nombre} a ${nuevoEstado}?`,
@@ -166,8 +166,8 @@ const GestionUsuarios = ({ navigation }) => {
           onPress: async () => {
             try {
               setIsUpdating(true);
-              
-              
+
+
               const result = await dispatch(actualizarUsuario({
                 usuarioId: usuario.id,
                 datosActualizacion: { activo: estadoActivo }
@@ -175,7 +175,7 @@ const GestionUsuarios = ({ navigation }) => {
 
               if (actualizarUsuario.fulfilled.match(result)) {
                 Alert.alert('Éxito', 'Estado actualizado correctamente');
-                
+
                 cargarUsuarios();
               } else {
                 throw new Error(result.payload || 'Error al actualizar usuario');
@@ -192,7 +192,7 @@ const GestionUsuarios = ({ navigation }) => {
     );
   };
 
-  
+
   const handleCambiarRol = async (usuario, nuevoRol) => {
     Alert.alert(
       'Cambiar rol',
@@ -204,8 +204,8 @@ const GestionUsuarios = ({ navigation }) => {
           onPress: async () => {
             try {
               setIsUpdating(true);
-              
-              
+
+
               const result = await dispatch(cambiarRolUsuario({
                 usuarioId: usuario.id,
                 nuevoRol: nuevoRol
@@ -213,7 +213,7 @@ const GestionUsuarios = ({ navigation }) => {
 
               if (cambiarRolUsuario.fulfilled.match(result)) {
                 Alert.alert('Éxito', 'Rol actualizado correctamente');
-                
+
                 cargarUsuarios();
               } else {
                 throw new Error(result.payload || 'Error al cambiar rol');
@@ -230,7 +230,7 @@ const GestionUsuarios = ({ navigation }) => {
     );
   };
 
-  
+
   const handleEliminarUsuario = async (usuario) => {
     Alert.alert(
       'Eliminar usuario',
@@ -243,8 +243,8 @@ const GestionUsuarios = ({ navigation }) => {
           onPress: async () => {
             try {
               setIsUpdating(true);
-              
-              
+
+
               const result = await dispatch(eliminarUsuario(usuario.id));
 
               if (eliminarUsuario.fulfilled.match(result)) {
@@ -266,7 +266,7 @@ const GestionUsuarios = ({ navigation }) => {
     );
   };
 
-  
+
   const handleCerrarModal = () => {
     setModalDetalles(false);
     dispatch(limpiarUsuarioSeleccionado());
@@ -404,7 +404,6 @@ const GestionUsuarios = ({ navigation }) => {
         )}
 
         <View style={styles.modalAcciones}>
-          {/* Cambiar tipo de usuario */}
           <View style={styles.accionesSection}>
             <Text style={styles.accionesTitle}>Cambiar tipo de usuario</Text>
             <View style={styles.rolesContainer}>
@@ -430,7 +429,6 @@ const GestionUsuarios = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Cambiar rol dentro del tipo */}
           <View style={styles.accionesSection}>
             <Text style={styles.accionesTitle}>Cambiar rol</Text>
             <View style={styles.rolesContainer}>
@@ -456,7 +454,6 @@ const GestionUsuarios = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Acciones de estado */}
           <View style={styles.accionesSection}>
             <Text style={styles.accionesTitle}>Acciones</Text>
             <View style={styles.botonesContainer}>
@@ -526,7 +523,7 @@ const GestionUsuarios = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#2c3e50" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Gestión de Usuarios</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.refreshButton}
           onPress={cargarUsuarios}
           disabled={loading}

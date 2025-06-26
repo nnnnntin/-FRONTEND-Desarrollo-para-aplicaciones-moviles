@@ -254,13 +254,13 @@ const ReportesAdmin = ({ navigation }) => {
       mes: 'este mes',
       año: 'este año'
     };
-    
+
     if (tipo === 'ingresos') {
       return `Evolución de ingresos - ${periodos[periodoSeleccionado]}`;
     } else {
-      return `Reservas por ${periodoSeleccionado === 'día' ? 'período del día' : 
-                            periodoSeleccionado === 'semana' ? 'día de la semana' :
-                            periodoSeleccionado === 'mes' ? 'semana del mes' : 'trimestre'}`;
+      return `Reservas por ${periodoSeleccionado === 'día' ? 'período del día' :
+        periodoSeleccionado === 'semana' ? 'día de la semana' :
+          periodoSeleccionado === 'mes' ? 'semana del mes' : 'trimestre'}`;
     }
   };
 

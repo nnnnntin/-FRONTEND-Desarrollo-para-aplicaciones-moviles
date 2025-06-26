@@ -1,5 +1,4 @@
 import { createStackNavigator } from '@react-navigation/stack';
-import { StyleSheet } from 'react-native';
 import Login from '../components/Login';
 import Registro from '../components/Registro';
 import RestablecerContraseña from '../components/RestablecerContraseña';
@@ -30,29 +29,23 @@ const Pila = ({ setIsLogged, resetSession }) => {
           };
         },
       }}
-      initialRouteName="Login"
+      initialRouteName="Iniciar sesión"
     >
-      <Stack.Screen name="Login">
+      <Stack.Screen name="Iniciar sesión">
         {props => (
-          <Login 
-            {...props} 
+          <Login
+            {...props}
             setIsLogged={setIsLogged}
             resetSession={resetSession}
           />
         )}
       </Stack.Screen>
-      
-      <Stack.Screen 
+
+      <Stack.Screen
         name="Registro"
         options={{
           headerShown: true,
           title: 'Crear Cuenta',
-          headerStyle: {
-            backgroundColor: '#3498db',
-            elevation: 0,
-            shadowOpacity: 0,
-          },
-          headerTintColor: '#fff',
           headerTitleStyle: {
             fontWeight: 'bold',
             fontSize: 18,
@@ -61,14 +54,14 @@ const Pila = ({ setIsLogged, resetSession }) => {
         }}
       >
         {props => (
-          <Registro 
+          <Registro
             {...props}
             setIsLogged={setIsLogged}
           />
         )}
       </Stack.Screen>
-      
-      <Stack.Screen 
+
+      <Stack.Screen
         name="RestablecerMail"
         options={{
           headerShown: true,
@@ -87,13 +80,13 @@ const Pila = ({ setIsLogged, resetSession }) => {
         }}
       >
         {props => (
-          <RestablecerMail 
+          <RestablecerMail
             {...props}
           />
         )}
       </Stack.Screen>
-      
-      <Stack.Screen 
+
+      <Stack.Screen
         name="RestablecerContraseña"
         options={{
           headerShown: true,
@@ -109,11 +102,11 @@ const Pila = ({ setIsLogged, resetSession }) => {
             fontSize: 18,
           },
           headerBackTitleVisible: false,
-          headerLeft: null, 
+          headerLeft: null,
         }}
       >
         {props => (
-          <RestablecerContraseña 
+          <RestablecerContraseña
             {...props}
             setIsLogged={setIsLogged}
           />

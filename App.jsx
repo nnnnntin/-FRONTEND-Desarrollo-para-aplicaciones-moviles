@@ -11,23 +11,23 @@ import { store } from './store/store';
 const AppContent = () => {
   const [isLogged, setIsLogged] = useState(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
-  
+
   const auth = useSelector(state => state.auth);
   const dispatch = useDispatch();
 
   const handleSetIsLogged = useCallback(async (newLoginState) => {
     console.log(`🔄 Cambiando estado de login a: ${newLoginState}`);
-    
+
     if (newLoginState) {
-      
+
       let userData = auth?.usuario;
-      
+
       if (!userData) {
         try {
           const storedUser = await SecureStore.getItemAsync('usuario');
           if (storedUser) {
             const parsedUser = JSON.parse(storedUser);
-            
+
             dispatch(loguear({
               usuario: parsedUser.usuario || parsedUser,
               tipoUsuario: parsedUser.tipoUsuario || parsedUser.usuario?.tipoUsuario,
@@ -51,7 +51,7 @@ const AppContent = () => {
             const storedUser = await SecureStore.getItemAsync('usuario');
             if (storedUser) {
               const parsedUser = JSON.parse(storedUser);
-              
+
               dispatch(loguear({
                 usuario: parsedUser.usuario || parsedUser,
                 tipoUsuario: parsedUser.tipoUsuario || parsedUser.usuario?.tipoUsuario,
@@ -95,18 +95,18 @@ const AppContent = () => {
         const isLoggedStorage = await SecureStore.getItemAsync("isLogged");
         const usuarioStorage = await SecureStore.getItemAsync("usuario");
         const tipoUsuarioStorage = await SecureStore.getItemAsync("tipoUsuario");
-        
+
         if (isLoggedStorage === 'true' && usuarioStorage) {
           try {
             const parsedUser = JSON.parse(usuarioStorage);
-            
+
             dispatch(loguear({
               usuario: parsedUser.usuario || parsedUser,
               tipoUsuario: tipoUsuarioStorage || parsedUser.tipoUsuario || parsedUser.usuario?.tipoUsuario,
               token: parsedUser.token
             }));
             setIsLogged(true);
-            
+
             console.log(`✅ Sesión existente encontrada: ${tipoUsuarioStorage || parsedUser.usuario?.tipoUsuario}`);
           } catch (parseError) {
             console.error('Error parseando datos de usuario:', parseError);
@@ -116,14 +116,14 @@ const AppContent = () => {
           console.log('ℹ️ No hay sesión activa');
           setIsLogged(false);
         }
-      } catch (error) { 
+      } catch (error) {
         console.error('Error verificando sesión:', error);
         setIsLogged(false);
       } finally {
         setIsCheckingSession(false);
       }
     }
-    
+
     verificarSesion();
   }, [dispatch]);
 
@@ -135,17 +135,17 @@ const AppContent = () => {
     );
   }
 
-  console.log('🔍 Estado actual:', { 
-    isLogged, 
-    
+  console.log('🔍 Estado actual:', {
+    isLogged,
+
     hasUserData: !!auth?.usuario,
     userType: auth?.usuario?.tipoUsuario || auth?.tipoUsuario
   });
 
   return (
     <NavigationContainer>
-      <Pantallas 
-        isLogged={isLogged} 
+      <Pantallas
+        isLogged={isLogged}
         setIsLogged={handleSetIsLogged}
         resetSession={resetSession}
       />

@@ -16,7 +16,7 @@ const rootReducer = combineReducers({
   membresias: membresiaReducer,
   notificaciones: notificacionesReducer,
   reservas: reservasReducer,
-  proveedores: proveedoresReducer 
+  proveedores: proveedoresReducer
 });
 
 const enhancer = composeWithDevTools(

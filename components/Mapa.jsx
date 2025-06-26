@@ -41,11 +41,11 @@ const Mapa = ({ navigation }) => {
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distancia = R * c;
     return distancia;
   };
@@ -282,7 +282,7 @@ const Mapa = ({ navigation }) => {
 
   const getMarcadores = () => {
     let espacios = [];
-    
+
     if (tipoUsuario === 'usuario') {
       espacios = filtroActivo === 'todos' ? espaciosDisponibles : espaciosDisponibles.filter(e => e.tipo === filtroActivo);
     } else if (tipoUsuario === 'cliente') {
@@ -322,11 +322,11 @@ const Mapa = ({ navigation }) => {
     const nextIndex = (currentIndex + 1) % radiosDisponibles.length;
     const nuevoRadio = radiosDisponibles[nextIndex];
     setRadioKm(nuevoRadio);
-    
+
     if (ubicacion) {
       const latitudeDelta = nuevoRadio / 111;
       const longitudeDelta = nuevoRadio / (111 * Math.cos(ubicacion.latitude * Math.PI / 180));
-      
+
       setRegion({
         latitude: ubicacion.latitude,
         longitude: ubicacion.longitude,
@@ -419,16 +419,16 @@ const Mapa = ({ navigation }) => {
               <Ionicons name="navigate-circle" size={20} color="#4a90e2" />
               <Text style={styles.radioText}>Radio: {radioKm} km</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={[styles.circleToggle, mostrarCirculo && styles.circleToggleActive]}
               onPress={() => setMostrarCirculo(!mostrarCirculo)}
               activeOpacity={0.7}
             >
-              <Ionicons 
-                name={mostrarCirculo ? "eye" : "eye-off"} 
-                size={18} 
-                color={mostrarCirculo ? "#fff" : "#4a90e2"} 
+              <Ionicons
+                name={mostrarCirculo ? "eye" : "eye-off"}
+                size={18}
+                color={mostrarCirculo ? "#fff" : "#4a90e2"}
               />
             </TouchableOpacity>
           </View>
@@ -454,7 +454,7 @@ const Mapa = ({ navigation }) => {
         {ubicacion && mostrarCirculo && tipoUsuario === 'usuario' && (
           <Circle
             center={ubicacion}
-            radius={radioKm * 1000} 
+            radius={radioKm * 1000}
             strokeColor="rgba(74, 144, 226, 0.5)"
             fillColor="rgba(74, 144, 226, 0.1)"
             strokeWidth={2}
@@ -500,7 +500,7 @@ const Mapa = ({ navigation }) => {
       <View style={styles.informacion}>
         <Text style={styles.infoTexto}>
           <Ionicons name="location" size={14} color="#4a90e2" />
-          {marcadores.length} {tipoUsuario === 'proveedor' ? 'servicios disponibles' : 'espacios'} 
+          {marcadores.length} {tipoUsuario === 'proveedor' ? 'servicios disponibles' : 'espacios'}
           {tipoUsuario === 'usuario' && ` en ${radioKm} km`}
         </Text>
       </View>

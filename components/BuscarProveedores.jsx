@@ -23,12 +23,12 @@ import {
 const BuscarProveedores = ({ navigation, route }) => {
   const { oficina } = route.params;
   const dispatch = useDispatch();
-  
-  const { 
-    proveedores, 
-    proveedorSeleccionado, 
-    loading, 
-    error 
+
+  const {
+    proveedores,
+    proveedorSeleccionado,
+    loading,
+    error
   } = useSelector(state => state.proveedores);
 
   const [searchText, setSearchText] = useState('');
@@ -66,19 +66,19 @@ const BuscarProveedores = ({ navigation, route }) => {
   const aplicarFiltros = async () => {
     try {
       const filtros = {};
-      
+
       if (filtroCategoria !== 'todos') {
         filtros.tipo = filtroCategoria;
       }
-      
+
       if (filtroCalificacion > 0) {
         filtros.calificacionMinima = filtroCalificacion;
       }
-      
+
       if (searchText.trim()) {
         filtros.busqueda = searchText.trim();
       }
-      
+
       await dispatch(filtrarProveedores(filtros));
     } catch (error) {
       console.error('Error aplicando filtros:', error);
@@ -88,7 +88,7 @@ const BuscarProveedores = ({ navigation, route }) => {
   const getProveedoresFiltrados = () => {
     let filtrados = proveedores || [];
 
-    
+
     if (searchText) {
       filtrados = filtrados.filter(p =>
         p.nombre?.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -97,7 +97,7 @@ const BuscarProveedores = ({ navigation, route }) => {
       );
     }
 
-    
+
     if (filtroPrecio !== 'todos') {
       filtrados = filtrados.filter(p => {
         const precioPromedio = p.servicios?.reduce((sum, s) => sum + (s.precio || 0), 0) / (p.servicios?.length || 1);
@@ -138,9 +138,9 @@ const BuscarProveedores = ({ navigation, route }) => {
                 mensaje: `Hola ${proveedor.nombre}, me interesa que ofrezcas tus servicios en mi espacio "${oficina.nombre}". ¿Podrías enviarme una propuesta?`,
                 estado: 'enviada'
               };
-              
+
               const result = await dispatch(crearSolicitudServicio(solicitudData));
-              
+
               if (result.success) {
                 Alert.alert(
                   'Solicitud enviada',

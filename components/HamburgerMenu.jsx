@@ -15,7 +15,7 @@ import { useSelector } from 'react-redux';
 const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation }) => {
   const slideAnim = React.useRef(new Animated.Value(-300)).current;
 
-  
+
   const { tipoUsuario, usuario } = useSelector(state => state.auth);
 
   React.useEffect(() => {
@@ -213,12 +213,12 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
       case 'usuario':
         return 'Usuario';
       case 'cliente':
-        
+
         return usuario?.empresa || 'Cliente';
       case 'proveedor':
-        
+
         return usuario?.servicio || 'Proveedor';
-      case 'administrador': 
+      case 'administrador':
         return 'Administrador';
       default:
         return '';

@@ -988,7 +988,7 @@ const proveedoresSlice = createSlice({
     }
   },
   extraReducers: (builder) => {
-    
+
     builder
       .addCase(obtenerProveedores.pending, (state) => {
         state.loading = true;
@@ -1006,7 +1006,7 @@ const proveedoresSlice = createSlice({
         state.error = payload;
       });
 
-    
+
     builder
       .addCase(crearProveedor.pending, (state) => {
         state.loading = true;
@@ -1021,7 +1021,7 @@ const proveedoresSlice = createSlice({
         state.error = payload;
       });
 
-    
+
     builder
       .addCase(obtenerProveedorPorId.pending, (state) => {
         state.loading = true;
@@ -1036,7 +1036,7 @@ const proveedoresSlice = createSlice({
         state.error = payload;
       });
 
-    
+
     builder
       .addCase(actualizarProveedor.fulfilled, (state, { payload }) => {
         const idx = state.proveedores.findIndex(p => p._id === payload._id);
@@ -1051,7 +1051,7 @@ const proveedoresSlice = createSlice({
         }
       });
 
-    
+
     builder
       .addCase(eliminarProveedor.fulfilled, (state, { payload }) => {
         state.proveedores = state.proveedores.filter(p => p._id !== payload);
@@ -1063,7 +1063,7 @@ const proveedoresSlice = createSlice({
         }
       });
 
-    
+
     builder
       .addCase(obtenerProveedoresPorTipo.pending, (state) => {
         state.loading = true;
@@ -1078,7 +1078,7 @@ const proveedoresSlice = createSlice({
         state.error = payload;
       });
 
-    
+
     builder
       .addCase(obtenerProveedoresVerificados.pending, (state) => {
         state.loading = true;
@@ -1093,7 +1093,7 @@ const proveedoresSlice = createSlice({
         state.error = payload;
       });
 
-    
+
     builder
       .addCase(activarProveedor.fulfilled, (state, { payload }) => {
         const idx = state.proveedores.findIndex(p => p._id === payload._id);
@@ -1108,7 +1108,7 @@ const proveedoresSlice = createSlice({
         }
       });
 
-    
+
     builder
       .addCase(verificarProveedor.fulfilled, (state, { payload }) => {
         const idx = state.proveedores.findIndex(p => p._id === payload._id);
@@ -1123,7 +1123,7 @@ const proveedoresSlice = createSlice({
         }
       });
 
-    
+
     builder
       .addCase(actualizarCalificacionProveedor.fulfilled, (state, { payload }) => {
         const idx = state.proveedores.findIndex(p => p._id === payload._id);
@@ -1138,7 +1138,7 @@ const proveedoresSlice = createSlice({
         }
       });
 
-    
+
     builder
       .addCase(actualizarContactoProveedor.fulfilled, (state, { payload }) => {
         const idx = state.proveedores.findIndex(p => p._id === payload._1);
@@ -1153,7 +1153,7 @@ const proveedoresSlice = createSlice({
         }
       });
 
-    
+
     builder
       .addCase(actualizarMetodoPagoProveedor.fulfilled, (state, { payload }) => {
         const idx = state.proveedores.findIndex(p => p._id === payload._id);
@@ -1168,7 +1168,7 @@ const proveedoresSlice = createSlice({
         }
       });
 
-    
+
     builder
       .addCase(obtenerProveedoresPorCalificacion.pending, (state) => {
         state.loading = true;
@@ -1183,7 +1183,7 @@ const proveedoresSlice = createSlice({
         state.error = payload;
       });
 
-    
+
     builder
       .addCase(obtenerRankingProveedores.pending, (state) => {
         state.loading = true;
@@ -1198,7 +1198,7 @@ const proveedoresSlice = createSlice({
         state.error = payload;
       });
 
-    
+
     builder
       .addCase(filtrarProveedores.pending, (state) => {
         state.loading = true;
@@ -1213,7 +1213,7 @@ const proveedoresSlice = createSlice({
         state.error = payload;
       });
 
-    
+
     builder
       .addCase(obtenerServiciosAdicionales.pending, (state) => {
         state.loading = true;
@@ -1322,7 +1322,7 @@ const proveedoresSlice = createSlice({
         state.serviciosAdicionales = payload;
       });
 
-    
+
     builder
       .addCase(crearSolicitudServicio.pending, (state) => {
         state.loading = true;

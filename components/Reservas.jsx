@@ -34,12 +34,12 @@ const Reservas = ({ navigation }) => {
   const [enviandoReseña, setEnviandoReseña] = useState(false);
 
   useEffect(() => {
-    
-    
-    
-    
 
-    
+
+
+
+
+
     if (usuario?.id || usuario?._id) {
       const userId = usuario.id || usuario._id;
       console.log('🔍 Obteniendo reservas para usuario:', userId);
@@ -54,22 +54,22 @@ const Reservas = ({ navigation }) => {
       year: 'numeric'
     });
 
-  
-  
+
+
   const mapearReserva = reservaBackend => {
     console.log('Mapeando reserva:', reservaBackend);
 
     let fechaReserva = 'Fecha no disponible';
     let fechaReservaRaw = new Date();
 
-    
+
     const fuente = reservaBackend.fechaInicio || reservaBackend.fecha || reservaBackend.fechaReserva;
     if (fuente) {
       fechaReservaRaw = new Date(fuente);
       fechaReserva = formatearFecha(fechaReservaRaw);
     }
 
-    
+
     let nombreEspacio = 'Espacio no especificado';
     let espacioInfo = {};
 
@@ -80,10 +80,10 @@ const Reservas = ({ navigation }) => {
         tipo: entidad.tipo || 'oficina'
       };
 
-      
+
       switch (entidad.tipo) {
         case 'oficina':
-          nombreEspacio = `Oficina ${entidad.id.slice(-4)}`; 
+          nombreEspacio = `Oficina ${entidad.id.slice(-4)}`;
           break;
         case 'sala':
           nombreEspacio = `Sala de reuniones ${entidad.id.slice(-4)}`;
@@ -96,10 +96,10 @@ const Reservas = ({ navigation }) => {
       }
     }
 
-    
+
     const estado = reservaBackend.estado || 'pendiente';
 
-    
+
     const yaReseñada = reservaBackend.reseña ||
       reservaBackend.calificacion ||
       reservaBackend.yaReseñada ||
@@ -107,7 +107,7 @@ const Reservas = ({ navigation }) => {
 
     const puedeReseñar = ['completada', 'finalizada'].includes(estado) && !yaReseñada;
 
-    
+
     let duracion = '';
     if (reservaBackend.horaInicio && reservaBackend.horaFin) {
       const inicio = reservaBackend.horaInicio.split(':');
@@ -118,7 +118,7 @@ const Reservas = ({ navigation }) => {
       duracion = `${horas} hora${horas !== 1 ? 's' : ''}`;
     }
 
-    
+
     let horario = '';
     if (reservaBackend.horaInicio && reservaBackend.horaFin) {
       horario = `${reservaBackend.horaInicio} - ${reservaBackend.horaFin}`;
@@ -194,7 +194,7 @@ const Reservas = ({ navigation }) => {
     }
     try {
       setEnviandoReseña(true);
-      
+
       await new Promise(res => setTimeout(res, 1000));
       Alert.alert('Reseña enviada', 'Gracias por tu opinión', [
         { text: 'OK', onPress: () => setModalReseña(false) }

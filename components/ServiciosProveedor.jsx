@@ -77,9 +77,9 @@ const ServiciosProveedor = ({ navigation }) => {
     try {
       const nuevoEstado = estadoActual === 'activo' ? false : true;
       const result = await dispatch(toggleServicioAdicional(servicioId, nuevoEstado));
-      
+
       if (result.success) {
-        await cargarServicios(); 
+        await cargarServicios();
       } else {
         Alert.alert('Error', 'No se pudo cambiar el estado del servicio');
       }
@@ -131,7 +131,7 @@ const ServiciosProveedor = ({ navigation }) => {
       };
 
       const result = await dispatch(actualizarServicioAdicional(servicioSeleccionado._id, servicioActualizado));
-      
+
       if (result.success) {
         setModalVisible(false);
         await cargarServicios();
@@ -147,7 +147,7 @@ const ServiciosProveedor = ({ navigation }) => {
 
   const getServiciosFiltrados = () => {
     if (!serviciosProveedor) return [];
-    
+
     switch (tabActiva) {
       case 'activos':
         return serviciosProveedor.filter(s => s.activo === true);
@@ -161,7 +161,7 @@ const ServiciosProveedor = ({ navigation }) => {
 
   const getEstadisticas = () => {
     if (!serviciosProveedor) return { activos: 0, pausados: 0, totalTrabajos: 0, totalSolicitudes: 0 };
-    
+
     const activos = serviciosProveedor.filter(s => s.activo === true).length;
     const pausados = serviciosProveedor.filter(s => s.activo === false).length;
     const totalTrabajos = serviciosProveedor.reduce((sum, s) => sum + (s.trabajosCompletados || 0), 0);

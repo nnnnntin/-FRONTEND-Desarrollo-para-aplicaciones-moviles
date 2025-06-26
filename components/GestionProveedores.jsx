@@ -14,7 +14,7 @@ import {
   View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { 
+import {
   obtenerProveedores,
   filtrarProveedores,
   activarProveedor,
@@ -50,17 +50,17 @@ const GestionProveedores = ({ navigation }) => {
   const aplicarFiltros = async () => {
     try {
       const filtros = {};
-      
+
       if (tabActiva !== 'todos') {
         if (tabActiva === 'activos') filtros.activo = true;
         if (tabActiva === 'pendientes') filtros.verificado = false;
         if (tabActiva === 'suspendidos') filtros.activo = false;
       }
-      
+
       if (busqueda.trim()) {
         filtros.busqueda = busqueda.trim();
       }
-      
+
       await dispatch(filtrarProveedores(filtros));
     } catch (error) {
       console.error('Error aplicando filtros:', error);

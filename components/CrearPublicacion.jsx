@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Image,
@@ -14,104 +14,153 @@ import {
   View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { agregarOficinaPropia } from '../store/slices/usuarioSlice';
-import { obtenerServiciosAdicionales } from '../store/slices/proveedoresSlice';
+import { crearPublicacion } from '../store/slices/espaciosSlice';
 
 const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
 const CrearPublicacion = ({ navigation }) => {
   const dispatch = useDispatch();
-  const { oficinasPropias } = useSelector(state => state.usuario);
-  const { serviciosAdicionales, loading } = useSelector(state => state.proveedores);
+  const { loading } = useSelector(state => state.espacios);
+  const { usuario } = useSelector(state => state.auth);
 
   const [formData, setFormData] = useState({
     nombre: '',
     tipo: 'oficina',
     descripcion: '',
-    direccion: '',
+    
+    ubicacion: {
+      edificioId: '', 
+      piso: '',
+      numero: '',
+      coordenadas: {
+        lat: null,
+        lng: null
+      },
+      direccionCompleta: {
+        calle: '',
+        numero: '',
+        ciudad: '',
+        departamento: '',
+        codigoPostal: '',
+        pais: 'Uruguay'
+      }
+    },
     capacidad: '',
-    precio: '',
-    horarioApertura: '',
-    horarioCierre: '',
-    diasDisponibles: {
-      lunes: true,
-      martes: true,
-      miercoles: true,
-      jueves: true,
-      viernes: true,
-      sabado: false,
-      domingo: false
-    }
+    
+    precios: {
+      porHora: '',
+      porDia: '',
+      porMes: ''
+    },
+    
+    disponibilidad: {
+      horario: {
+        apertura: '09:00',
+        cierre: '18:00'
+      },
+      dias: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes']
+    },
+    
+    configuracion: '', 
+    superficieM2: '', 
+    zona: '', 
+    sector: '', 
+    
+    amenidades: [],
+    equipamiento: [], 
+    estado: 'disponible',
+    activo: true
   });
 
   const [imagenes, setImagenes] = useState([]);
-  const [serviciosSeleccionados, setServiciosSeleccionados] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
 
   const tipos = [
-    { id: 'oficina', nombre: 'Oficina', icono: 'business' },
-    { id: 'espacio', nombre: 'Espacio', icono: 'square' },
-    { id: 'escritorio', nombre: 'Escritorio', icono: 'desktop' },
-    { id: 'sala', nombre: 'Sala de reuniones', icono: 'people' }
+    {
+      id: 'oficina',
+      nombre: 'Oficina',
+      icono: 'business',
+      endpoint: 'oficinas',
+      subtipos: ['privada', 'compartida', 'coworking']
+    },
+    {
+      id: 'espacio',
+      nombre: 'Espacio',
+      icono: 'square',
+      endpoint: 'espacios',
+      subtipos: []
+    },
+    {
+      id: 'escritorio',
+      nombre: 'Escritorio',
+      icono: 'desktop',
+      endpoint: 'escritorios-flexibles',
+      subtipos: ['individual', 'compartido', 'standing']
+    },
+    {
+      id: 'sala',
+      nombre: 'Sala de reuniones',
+      icono: 'people',
+      endpoint: 'salas-reunion',
+      subtipos: ['mesa_redonda', 'auditorio', 'en_u', 'aula', 'flexible']
+    }
   ];
 
-  useEffect(() => {
-    cargarServiciosDisponibles();
-  }, []);
-
-  const cargarServiciosDisponibles = async () => {
-    try {
-      await dispatch(obtenerServiciosAdicionales(0, 50));
-    } catch (error) {
-      console.error('Error cargando servicios:', error);
-    }
+  
+  const amenidadesDisponibles = {
+    oficina: ['wifi', 'aire_acondicionado', 'seguridad', 'parking', 'cocina', 'baño_privado'],
+    espacio: ['wifi', 'aire_acondicionado', 'seguridad', 'parking', 'flexible'],
+    escritorio: ['monitor', 'teclado', 'mouse', 'reposapiés', 'lampara'],
+    sala: ['proyector', 'videoconferencia', 'pizarra', 'tv', 'aire_acondicionado']
   };
+
+  const tipoActual = tipos.find(t => t.id === formData.tipo);
 
   const handleGoBack = () => {
     navigation.goBack();
   };
 
-  const toggleServicio = (servicio) => {
-    setServiciosSeleccionados(prev => {
-      const existe = prev.find(s => s._id === servicio._id);
-      if (existe) {
-        return prev.filter(s => s._id !== servicio._id);
-      } else {
-        return [...prev, servicio];
-      }
-    });
+  const toggleAmenidad = (amenidad) => {
+    setFormData(prev => ({
+      ...prev,
+      amenidades: prev.amenidades.includes(amenidad)
+        ? prev.amenidades.filter(a => a !== amenidad)
+        : [...prev.amenidades, amenidad]
+    }));
   };
 
   const toggleDia = (dia) => {
     setFormData(prev => ({
       ...prev,
-      diasDisponibles: {
-        ...prev.diasDisponibles,
-        [dia]: !prev.diasDisponibles[dia]
+      disponibilidad: {
+        ...prev.disponibilidad,
+        dias: prev.disponibilidad.dias.includes(dia)
+          ? prev.disponibilidad.dias.filter(d => d !== dia)
+          : [...prev.disponibilidad.dias, dia]
       }
     }));
   };
 
   const uploadToCloudinary = async (imageUri) => {
     const formDataImage = new FormData();
-    
+
     formDataImage.append('file', {
       uri: imageUri,
-      name: `office_image_${Date.now()}.jpeg`,
+      name: `${formData.tipo}_${Date.now()}.jpeg`,
       type: 'image/jpeg'
     });
-    
+
     formDataImage.append('upload_preset', UPLOAD_PRESET);
-    
+
     try {
       const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
         method: 'POST',
         body: formDataImage
       });
-      
+
       const data = await response.json();
-      
+
       if (data.secure_url) {
         return data.secure_url;
       } else {
@@ -134,11 +183,11 @@ const CrearPublicacion = ({ navigation }) => {
 
       if (!result.canceled && result.assets) {
         setUploadingImage(true);
-        
+
         try {
           const uploadPromises = result.assets.map(asset => uploadToCloudinary(asset.uri));
           const cloudinaryUrls = await Promise.all(uploadPromises);
-          
+
           setImagenes([...imagenes, ...cloudinaryUrls]);
           Alert.alert('Éxito', 'Imágenes subidas correctamente');
         } catch (error) {
@@ -157,9 +206,95 @@ const CrearPublicacion = ({ navigation }) => {
     setImagenes(imagenes.filter((_, i) => i !== index));
   };
 
+  
+  const construirPayload = () => {
+    const basePayload = {
+      nombre: formData.nombre,
+      capacidad: parseInt(formData.capacidad),
+      imagenes: imagenes,
+      usuarioId: usuario.id || usuario._id,
+      estado: formData.estado,
+      activo: formData.activo,
+      precios: {
+        porHora: formData.precios.porHora ? parseFloat(formData.precios.porHora) : undefined,
+        porDia: formData.precios.porDia ? parseFloat(formData.precios.porDia) : undefined,
+        porMes: formData.precios.porMes ? parseFloat(formData.precios.porMes) : undefined
+      }
+    };
+
+    
+    switch (formData.tipo) {
+      case 'oficina':
+        return {
+          ...basePayload,
+          codigo: `OF-${Date.now()}`,
+          tipo: formData.configuracion || 'privada',
+          ubicacion: {
+            ...formData.ubicacion,
+            piso: parseInt(formData.ubicacion.piso),
+          },
+          superficieM2: formData.superficieM2 ? parseFloat(formData.superficieM2) : undefined,
+          amenidades: formData.amenidades,
+          disponibilidad: formData.disponibilidad
+        };
+
+      case 'sala':
+        return {
+          ...basePayload,
+          codigo: `SR-${Date.now()}`,
+          configuracion: formData.configuracion,
+          ubicacion: {
+            ...formData.ubicacion,
+            piso: parseInt(formData.ubicacion.piso),
+          },
+          equipamiento: formData.amenidades.map(amenidad => ({
+            tipo: amenidad,
+            descripcion: `${amenidad} disponible`
+          })),
+          disponibilidad: formData.disponibilidad
+        };
+
+      case 'escritorio':
+        return {
+          ...basePayload,
+          codigo: `EF-${Date.now()}`,
+          tipo: formData.configuracion || 'individual',
+          ubicacion: {
+            ...formData.ubicacion,
+            piso: parseInt(formData.ubicacion.piso),
+            zona: formData.zona || 'General'
+          },
+          amenidades: formData.amenidades.map(amenidad => ({
+            tipo: amenidad,
+            descripcion: `${amenidad} incluido`
+          }))
+        };
+
+      case 'espacio':
+        return {
+          ...basePayload,
+          tipo: 'otro', 
+          ubicacion: {
+            ...formData.ubicacion,
+            piso: parseInt(formData.ubicacion.piso),
+            sector: formData.sector || 'General'
+          },
+          amenidades: formData.amenidades,
+          disponibilidad: {
+            horarioApertura: formData.disponibilidad.horario.apertura,
+            horarioCierre: formData.disponibilidad.horario.cierre,
+            diasDisponibles: formData.disponibilidad.dias
+          }
+        };
+
+      default:
+        return basePayload;
+    }
+  };
+
   const handleGuardar = async () => {
-    if (!formData.nombre || !formData.descripcion || !formData.direccion ||
-      !formData.capacidad || !formData.precio) {
+    
+    if (!formData.nombre || !formData.capacidad || !formData.ubicacion.direccionCompleta.calle) {
       Alert.alert('Error', 'Por favor completa todos los campos obligatorios');
       return;
     }
@@ -169,30 +304,42 @@ const CrearPublicacion = ({ navigation }) => {
       return;
     }
 
+    if (!formData.precios.porDia && !formData.precios.porHora && !formData.precios.porMes) {
+      Alert.alert('Error', 'Por favor indica al menos un precio');
+      return;
+    }
+
     try {
-      const nuevaOficina = {
-        id: Date.now(),
-        ...formData,
-        servicios: serviciosSeleccionados,
-        imagenes,
-        fechaCreacion: new Date().toISOString()
-      };
+      const payload = construirPayload();
+      const endpoint = tipoActual.endpoint;
 
-      dispatch(agregarOficinaPropia(nuevaOficina.id));
+      console.log('📤 Enviando payload:', payload);
+      console.log('🎯 Endpoint:', endpoint);
 
-      Alert.alert(
-        'Publicación creada',
-        'Tu publicación se ha creada exitosamente',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack()
-          }
-        ]
-      );
+      
+      const result = await dispatch(crearPublicacion({
+        payload,
+        endpoint,
+        tipo: formData.tipo
+      }));
+
+      if (crearPublicacion.fulfilled.match(result)) {
+        Alert.alert(
+          'Publicación creada',
+          'Tu publicación se ha creado exitosamente',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.goBack()
+            }
+          ]
+        );
+      } else {
+        throw new Error(result.payload || 'Error al crear la publicación');
+      }
     } catch (error) {
       console.error('Error creating publication:', error);
-      Alert.alert('Error', 'No se pudo crear la publicación. Inténtalo de nuevo.');
+      Alert.alert('Error', error.message || 'No se pudo crear la publicación. Inténtalo de nuevo.');
     }
   };
 
@@ -250,23 +397,32 @@ const CrearPublicacion = ({ navigation }) => {
             onChangeText={(text) => setFormData({ ...formData, nombre: text })}
           />
 
-          <Text style={styles.label}>Descripción *</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Describe tu espacio, características, ambiente..."
-            value={formData.descripcion}
-            onChangeText={(text) => setFormData({ ...formData, descripcion: text })}
-            multiline
-            numberOfLines={4}
-          />
-
-          <Text style={styles.label}>Dirección *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Dirección completa"
-            value={formData.direccion}
-            onChangeText={(text) => setFormData({ ...formData, direccion: text })}
-          />
+          {tipoActual?.subtipos.length > 0 && (
+            <>
+              <Text style={styles.label}>
+                {formData.tipo === 'sala' ? 'Configuración' : 'Tipo'} *
+              </Text>
+              <View style={styles.subtiposContainer}>
+                {tipoActual.subtipos.map(subtipo => (
+                  <TouchableOpacity
+                    key={subtipo}
+                    style={[
+                      styles.subtipoButton,
+                      formData.configuracion === subtipo && styles.subtipoButtonActive
+                    ]}
+                    onPress={() => setFormData({ ...formData, configuracion: subtipo })}
+                  >
+                    <Text style={[
+                      styles.subtipoText,
+                      formData.configuracion === subtipo && styles.subtipoTextActive
+                    ]}>
+                      {subtipo.replace('_', ' ').toUpperCase()}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
 
           <View style={styles.row}>
             <View style={styles.halfInput}>
@@ -279,13 +435,181 @@ const CrearPublicacion = ({ navigation }) => {
                 keyboardType="numeric"
               />
             </View>
+            {formData.tipo === 'oficina' && (
+              <View style={styles.halfInput}>
+                <Text style={styles.label}>Superficie (m²)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Metros cuadrados"
+                  value={formData.superficieM2}
+                  onChangeText={(text) => setFormData({ ...formData, superficieM2: text })}
+                  keyboardType="numeric"
+                />
+              </View>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Ubicación</Text>
+
+          <Text style={styles.label}>Calle *</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Nombre de la calle"
+            value={formData.ubicacion.direccionCompleta.calle}
+            onChangeText={(text) => setFormData({
+              ...formData,
+              ubicacion: {
+                ...formData.ubicacion,
+                direccionCompleta: {
+                  ...formData.ubicacion.direccionCompleta,
+                  calle: text
+                }
+              }
+            })}
+          />
+
+          <View style={styles.row}>
             <View style={styles.halfInput}>
-              <Text style={styles.label}>Precio por día *</Text>
+              <Text style={styles.label}>Número *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="1234"
+                value={formData.ubicacion.direccionCompleta.numero}
+                onChangeText={(text) => setFormData({
+                  ...formData,
+                  ubicacion: {
+                    ...formData.ubicacion,
+                    direccionCompleta: {
+                      ...formData.ubicacion.direccionCompleta,
+                      numero: text
+                    }
+                  }
+                })}
+              />
+            </View>
+            <View style={styles.halfInput}>
+              <Text style={styles.label}>Piso</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="1, 2, 3..."
+                value={formData.ubicacion.piso}
+                onChangeText={(text) => setFormData({
+                  ...formData,
+                  ubicacion: {
+                    ...formData.ubicacion,
+                    piso: text
+                  }
+                })}
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={styles.halfInput}>
+              <Text style={styles.label}>Ciudad *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Montevideo"
+                value={formData.ubicacion.direccionCompleta.ciudad}
+                onChangeText={(text) => setFormData({
+                  ...formData,
+                  ubicacion: {
+                    ...formData.ubicacion,
+                    direccionCompleta: {
+                      ...formData.ubicacion.direccionCompleta,
+                      ciudad: text
+                    }
+                  }
+                })}
+              />
+            </View>
+            <View style={styles.halfInput}>
+              <Text style={styles.label}>Departamento *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Montevideo"
+                value={formData.ubicacion.direccionCompleta.departamento}
+                onChangeText={(text) => setFormData({
+                  ...formData,
+                  ubicacion: {
+                    ...formData.ubicacion,
+                    direccionCompleta: {
+                      ...formData.ubicacion.direccionCompleta,
+                      departamento: text
+                    }
+                  }
+                })}
+              />
+            </View>
+          </View>
+
+          {formData.tipo === 'escritorio' && (
+            <>
+              <Text style={styles.label}>Zona</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ej: Zona A, Open Space, etc."
+                value={formData.zona}
+                onChangeText={(text) => setFormData({ ...formData, zona: text })}
+              />
+            </>
+          )}
+
+          {formData.tipo === 'espacio' && (
+            <>
+              <Text style={styles.label}>Sector</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ej: Norte, Sur, Principal, etc."
+                value={formData.sector}
+                onChangeText={(text) => setFormData({ ...formData, sector: text })}
+              />
+            </>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Precios</Text>
+          <View style={styles.row}>
+            <View style={styles.thirdInput}>
+              <Text style={styles.label}>Por hora</Text>
               <TextInput
                 style={styles.input}
                 placeholder="USD"
-                value={formData.precio}
-                onChangeText={(text) => setFormData({ ...formData, precio: text })}
+                value={formData.precios.porHora}
+                onChangeText={(text) => setFormData({
+                  ...formData,
+                  precios: { ...formData.precios, porHora: text }
+                })}
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={styles.thirdInput}>
+              <Text style={styles.label}>Por día</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="USD"
+                value={formData.precios.porDia}
+                onChangeText={(text) => setFormData({
+                  ...formData,
+                  precios: { ...formData.precios, porDia: text }
+                })}
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={styles.thirdInput}>
+              <Text style={styles.label}>Por mes</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="USD"
+                value={formData.precios.porMes}
+                onChangeText={(text) => setFormData({
+                  ...formData,
+                  precios: { ...formData.precios, porMes: text }
+                })}
                 keyboardType="numeric"
               />
             </View>
@@ -299,9 +623,15 @@ const CrearPublicacion = ({ navigation }) => {
               <Text style={styles.label}>Apertura</Text>
               <TextInput
                 style={styles.input}
-                placeholder="08:00"
-                value={formData.horarioApertura}
-                onChangeText={(text) => setFormData({ ...formData, horarioApertura: text })}
+                placeholder="09:00"
+                value={formData.disponibilidad.horario.apertura}
+                onChangeText={(text) => setFormData({
+                  ...formData,
+                  disponibilidad: {
+                    ...formData.disponibilidad,
+                    horario: { ...formData.disponibilidad.horario, apertura: text }
+                  }
+                })}
               />
             </View>
             <View style={styles.halfInput}>
@@ -309,26 +639,32 @@ const CrearPublicacion = ({ navigation }) => {
               <TextInput
                 style={styles.input}
                 placeholder="18:00"
-                value={formData.horarioCierre}
-                onChangeText={(text) => setFormData({ ...formData, horarioCierre: text })}
+                value={formData.disponibilidad.horario.cierre}
+                onChangeText={(text) => setFormData({
+                  ...formData,
+                  disponibilidad: {
+                    ...formData.disponibilidad,
+                    horario: { ...formData.disponibilidad.horario, cierre: text }
+                  }
+                })}
               />
             </View>
           </View>
 
           <Text style={styles.label}>Días disponibles</Text>
           <View style={styles.diasContainer}>
-            {Object.keys(formData.diasDisponibles).map(dia => (
+            {['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'].map(dia => (
               <TouchableOpacity
                 key={dia}
                 style={[
                   styles.diaButton,
-                  formData.diasDisponibles[dia] && styles.diaButtonActive
+                  formData.disponibilidad.dias.includes(dia) && styles.diaButtonActive
                 ]}
                 onPress={() => toggleDia(dia)}
               >
                 <Text style={[
                   styles.diaText,
-                  formData.diasDisponibles[dia] && styles.diaTextActive
+                  formData.disponibilidad.dias.includes(dia) && styles.diaTextActive
                 ]}>
                   {dia.charAt(0).toUpperCase() + dia.slice(1, 3)}
                 </Text>
@@ -340,15 +676,13 @@ const CrearPublicacion = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Imágenes</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <TouchableOpacity 
-              style={[styles.addImageButton, uploadingImage && styles.addImageButtonDisabled]} 
+            <TouchableOpacity
+              style={[styles.addImageButton, uploadingImage && styles.addImageButtonDisabled]}
               onPress={selectImage}
               disabled={uploadingImage}
             >
               {uploadingImage ? (
-                <>
-                  <Text style={styles.uploadingText}>Subiendo...</Text>
-                </>
+                <Text style={styles.uploadingText}>Subiendo...</Text>
               ) : (
                 <>
                   <Ionicons name="camera" size={32} color="#4a90e2" />
@@ -371,44 +705,32 @@ const CrearPublicacion = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Servicios disponibles</Text>
-          {loading ? (
-            <Text style={styles.loadingText}>Cargando servicios...</Text>
-          ) : (serviciosAdicionales || []).length === 0 ? (
-            <Text style={styles.noServiciosText}>No hay servicios disponibles</Text>
-          ) : (
-            (serviciosAdicionales || []).map(servicio => (
+          <Text style={styles.sectionTitle}>
+            {formData.tipo === 'sala' ? 'Equipamiento' : 'Amenidades'}
+          </Text>
+          <View style={styles.amenidadesContainer}>
+            {amenidadesDisponibles[formData.tipo]?.map(amenidad => (
               <TouchableOpacity
-                key={servicio._id}
+                key={amenidad}
                 style={[
-                  styles.servicioItem,
-                  serviciosSeleccionados.find(s => s._id === servicio._id) && styles.servicioItemActive
+                  styles.amenidadButton,
+                  formData.amenidades.includes(amenidad) && styles.amenidadButtonActive
                 ]}
-                onPress={() => toggleServicio(servicio)}
+                onPress={() => toggleAmenidad(amenidad)}
               >
-                <View style={styles.servicioInfo}>
-                  <Text style={styles.servicioNombre}>{servicio.nombre}</Text>
-                  <Text style={styles.servicioProveedor}>
-                    {servicio.tipo ? `Categoría: ${servicio.tipo}` : 'Servicio general'}
-                  </Text>
-                </View>
-                <View style={styles.servicioRight}>
-                  <Text style={styles.servicioPrecio}>
-                    ${servicio.precio || 0}/{servicio.unidadPrecio || 'servicio'}
-                  </Text>
-                  <Ionicons
-                    name={serviciosSeleccionados.find(s => s._id === servicio._id) ? "checkbox" : "square-outline"}
-                    size={24}
-                    color="#4a90e2"
-                  />
-                </View>
+                <Text style={[
+                  styles.amenidadText,
+                  formData.amenidades.includes(amenidad) && styles.amenidadTextActive
+                ]}>
+                  {amenidad.replace('_', ' ').toUpperCase()}
+                </Text>
               </TouchableOpacity>
-            ))
-          )}
+            ))}
+          </View>
         </View>
 
-        <TouchableOpacity 
-          style={[styles.guardarButton, loading && styles.guardarButtonDisabled]} 
+        <TouchableOpacity
+          style={[styles.guardarButton, loading && styles.guardarButtonDisabled]}
           onPress={handleGuardar}
           disabled={loading}
         >
@@ -497,6 +819,32 @@ const styles = StyleSheet.create({
   tipoTextActive: {
     color: '#fff',
   },
+  subtiposContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 15,
+  },
+  subtipoButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+  },
+  subtipoButtonActive: {
+    backgroundColor: '#4a90e2',
+    borderColor: '#4a90e2',
+  },
+  subtipoText: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    fontFamily: 'System',
+  },
+  subtipoTextActive: {
+    color: '#fff',
+  },
   label: {
     fontSize: 16,
     fontWeight: '600',
@@ -516,15 +864,14 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     fontFamily: 'System',
   },
-  textArea: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
   row: {
     flexDirection: 'row',
     gap: 15,
   },
   halfInput: {
+    flex: 1,
+  },
+  thirdInput: {
     flex: 1,
   },
   diasContainer: {
@@ -594,46 +941,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
   },
-  servicioItem: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 10,
+  amenidadesContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  amenidadButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 15,
+    backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#e1e5e9',
   },
-  servicioItemActive: {
+  amenidadButtonActive: {
+    backgroundColor: '#4a90e2',
     borderColor: '#4a90e2',
-    backgroundColor: '#f0f8ff',
   },
-  servicioInfo: {
-    flex: 1,
-  },
-  servicioNombre: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2c3e50',
-    fontFamily: 'System',
-  },
-  servicioProveedor: {
-    fontSize: 14,
+  amenidadText: {
+    fontSize: 12,
     color: '#7f8c8d',
-    marginTop: 2,
     fontFamily: 'System',
   },
-  servicioRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  servicioPrecio: {
-    fontSize: 14,
-    color: '#4a90e2',
-    fontWeight: '600',
-    fontFamily: 'System',
+  amenidadTextActive: {
+    color: '#fff',
   },
   guardarButton: {
     backgroundColor: '#4a90e2',
@@ -654,23 +985,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontFamily: 'System',
   },
-  bottomSpacing: {
-    height: 30,
-  },
-    loadingText: {
-    fontSize: 14,
-    color: '#7f8c8d',
-    textAlign: 'center',
-    paddingVertical: 20,
-  },
-  noServiciosText: {
-    fontSize: 14,
-    color: '#7f8c8d',
-    textAlign: 'center',
-    paddingVertical: 20,
-  },
   guardarButtonDisabled: {
     opacity: 0.6,
+  },
+  bottomSpacing: {
+    height: 30,
   },
 });
 

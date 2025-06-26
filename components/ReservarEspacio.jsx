@@ -17,8 +17,8 @@ import { obtenerServiciosPorEspacio } from '../store/slices/proveedoresSlice';
 const ReservarEspacio = ({ navigation, route }) => {
   const dispatch = useDispatch();
   const { espacio } = route.params;
-  
-  
+
+
   const { serviciosPorEspacio, loading } = useSelector(state => state.proveedores);
   const serviciosAdicionales = serviciosPorEspacio[espacio.id] || [];
 
@@ -32,7 +32,7 @@ const ReservarEspacio = ({ navigation, route }) => {
   const [cantidadPersonas, setCantidadPersonas] = useState(1);
   const [serviciosSeleccionados, setServiciosSeleccionados] = useState([]);
 
-  
+
   useEffect(() => {
     if (espacio.id) {
       dispatch(obtenerServiciosPorEspacio(espacio.id));
