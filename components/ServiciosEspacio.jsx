@@ -59,6 +59,7 @@ const ServiciosEspacio = ({ navigation, route }) => {
         Alert.alert('Error', result.error || 'Error al cambiar estado del servicio');
       }
     } catch (error) {
+      console.error(error);
       Alert.alert('Error', 'Error al cambiar estado del servicio');
     }
   };
@@ -127,6 +128,7 @@ const ServiciosEspacio = ({ navigation, route }) => {
         Alert.alert('Error', result.error || 'Error al guardar el servicio');
       }
     } catch (error) {
+      console.error(error);
       Alert.alert('Error', 'Error al guardar el servicio');
     }
   };
@@ -152,6 +154,7 @@ const ServiciosEspacio = ({ navigation, route }) => {
                 Alert.alert('Error', result.error || 'Error al eliminar el servicio');
               }
             } catch (error) {
+              console.error(error);
               Alert.alert('Error', 'Error al eliminar el servicio');
             }
           }

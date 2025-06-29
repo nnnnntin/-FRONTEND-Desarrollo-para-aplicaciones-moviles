@@ -44,7 +44,7 @@ const OfrecerServicios = ({ navigation, route }) => {
     try {
       await dispatch(obtenerServiciosPorProveedor(datosUsuario._id));
     } catch (error) {
-      console.error('Error cargando servicios del proveedor:', error);
+      console.error(error);
     }
   };
 
@@ -97,7 +97,7 @@ const OfrecerServicios = ({ navigation, route }) => {
         Alert.alert('Error', 'No se pudo enviar la propuesta. Inténtalo de nuevo.');
       }
     } catch (error) {
-      console.error('Error enviando propuesta:', error);
+      console.error(error);
       Alert.alert('Error', 'Ocurrió un error al enviar la propuesta');
     }
   };

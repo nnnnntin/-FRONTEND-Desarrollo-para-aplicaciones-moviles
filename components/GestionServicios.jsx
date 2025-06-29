@@ -65,7 +65,7 @@ const GestionServicios = ({ navigation }) => {
         await dispatch(obtenerServiciosPorEspacio(espacioId));
       }
     } catch (error) {
-      console.error('Error cargando datos:', error);
+      console.error(error);
     }
   };
 
@@ -111,8 +111,7 @@ const GestionServicios = ({ navigation }) => {
         await dispatch(toggleServicioAdicional(servicioId, !servicio.activo));
       }
     } catch (error) {
-      console.error('Error toggling servicio:', error);
-
+      console.error(error);
       setEspaciosData(prev => prev.map(espacio => {
         if (espacio.id === espacioId) {
           return {
@@ -138,7 +137,7 @@ const GestionServicios = ({ navigation }) => {
         await cargarDatos();
       }
     } catch (error) {
-      console.error('Error toggling proveedor:', error);
+      console.error(error);
     }
   };
 

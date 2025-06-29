@@ -23,18 +23,28 @@ export const crearPago = createAsyncThunk(
   async (pagoData, { getState, rejectWithValue }) => {
     try {
       const { auth } = getState();
+
       const res = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/pagos`,
         {
           method: 'POST',
-          headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': 'application/json' },
+          headers: { 
+            Authorization: `Bearer ${auth.token}`, 
+            'Content-Type': 'application/json' 
+          },
           body: JSON.stringify(pagoData)
         }
       );
+
       const data = await res.json();
-      if (!res.ok) return rejectWithValue(data.message || 'Error al crear pago');
+
+      if (!res.ok) {
+        return rejectWithValue(data.message || `Error ${res.status}: ${res.statusText}`);
+      }
+
       return data;
-    } catch {
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }

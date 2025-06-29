@@ -126,19 +126,14 @@ const AgregarTarjeta = ({ navigation, route }) => {
   };
 
   const handleAgregar = async () => {
-
     if (!validarFormulario()) return;
-
 
     const tipoTarjeta = detectarTipoTarjeta(numeroTarjeta);
     const ultimosCuatroDigitos = numeroTarjeta.replace(/\s/g, '').slice(-4);
     const userId = usuarioId || usuario?.id || usuario?._id;
-
     if (!userId) {
-      Alert.alert('Error', 'No se pudo identificar el usuario');
-      return;
+      return Alert.alert('Error', 'No se pudo identificar el usuario');
     }
-
 
     const metodoPagoData = {
       numeroTarjeta: numeroTarjeta.replace(/\s/g, ''),
@@ -146,45 +141,33 @@ const AgregarTarjeta = ({ navigation, route }) => {
       fechaExpiracion,
       nombreTitular: nombreTitular.trim(),
       predeterminado,
-
-      ...(tipoTarjeta && { marca: tipoTarjeta }),
+      marca: tipoTarjeta,
     };
 
-    console.log('🏦 Agregando nuevo método de pago:', metodoPagoData);
-
     try {
+      const payload = await dispatch(
+        agregarMetodoPago({ usuarioId: userId, metodoPago: metodoPagoData })
+      ).unwrap();
 
-      const resultAction = await dispatch(agregarMetodoPago({
-        usuarioId: userId,
-        metodoPago: metodoPagoData
-      }));
+      Alert.alert(
+        'Tarjeta Agregada',
+        `${(tipoTarjeta || 'Tarjeta').toUpperCase()} •••• ${ultimosCuatroDigitos} ha sido agregada exitosamente`,
+        [{
+          text: 'OK', onPress: () => {
+            if (onTarjetaAgregada) onTarjetaAgregada();
+            navigation.goBack();
+          }
+        }]
+      );
 
-      if (agregarMetodoPago.fulfilled.match(resultAction)) {
-
-        Alert.alert(
-          'Tarjeta Agregada',
-          `${tipoTarjeta ? tipoTarjeta.toUpperCase() : 'Tarjeta'} •••• ${ultimosCuatroDigitos} ha sido agregada exitosamente`,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                if (onTarjetaAgregada) onTarjetaAgregada();
-                navigation.goBack();
-              }
-            }
-          ]
-        );
-      } else {
-
-        const errorMessage = resultAction.payload || 'Error al agregar la tarjeta';
-        Alert.alert('Error', errorMessage);
-      }
     } catch (error) {
-      console.error('Error agregando tarjeta:', error);
-      Alert.alert('Error', 'Ocurrió un error inesperado');
+      console.error(error);
+      const mensaje = typeof err === 'string'
+        ? err
+        : err.message || JSON.stringify(err);
+      Alert.alert('Error al agregar tarjeta', mensaje);
     }
   };
-
 
   return (
     <SafeAreaView style={styles.container}>

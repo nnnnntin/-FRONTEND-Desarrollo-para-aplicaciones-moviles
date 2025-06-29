@@ -22,80 +22,62 @@ import {
   suscribirMembresia
 } from '../store/slices/membresiaSlice';
 
-import { actualizarDatosUsuario } from '../store/slices/usuarioSlice';
+import { loguear } from '../store/slices/authSlice';
 
 const Membresias = ({ navigation }) => {
-
   const dispatch = useDispatch();
   const { usuario, token } = useSelector(state => state.auth);
   const {
     membresiasActivas,
     promocionesActivas,
     suscripcionActual,
-    loading,
+    loadingMembresiasActivas,
     loadingSuscripcion,
-    error,
+    errorMembresiasActivas,
     errorSuscripcion
   } = useSelector(state => state.membresias);
-
 
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     cargarDatos();
-
     return () => {
       dispatch(clearError());
     };
   }, [dispatch]);
 
   useEffect(() => {
-    if (usuario?.membresia?.tipoMembresiaId) {
-
-      const planActual = planes.find(plan =>
-        plan.id === usuario.membresia.tipoMembresiaId ||
-        plan.nombre.toLowerCase() === usuario.tipoUsuario?.toLowerCase()
+    if (usuario?.membresia?.tipoMembresiaId && membresiasActivas.length > 0) {
+      const planActual = membresiasActivas.find(plan =>
+        (plan._id || plan.id) === usuario.membresia.tipoMembresiaId
       );
       if (planActual) {
-        setSelectedPlan(planActual.id);
+        setSelectedPlan(planActual._id || planActual.id);
       }
     }
-  }, [usuario]);
-
+  }, [usuario, membresiasActivas]);
 
   useEffect(() => {
-    if (error || errorSuscripcion) {
-      Alert.alert('Error', error || errorSuscripcion);
+    if (errorMembresiasActivas || errorSuscripcion) {
+      Alert.alert('Error', errorMembresiasActivas || errorSuscripcion);
       dispatch(clearError());
     }
-  }, [error, errorSuscripcion, dispatch]);
-
+  }, [errorMembresiasActivas, errorSuscripcion, dispatch]);
 
   const cargarDatos = () => {
-    console.log('🔵 Iniciando carga de datos de membresías...');
+    console.log('🔵 [Membresias] Cargando datos...');
     dispatch(obtenerMembresiasActivas());
     dispatch(obtenerPromocionesActivas());
   };
 
-
-  useEffect(() => {
-    console.log('🔍 Estado actual de membresías:', {
-      membresiasActivas,
-      loading,
-      error,
-      cantidad: membresiasActivas?.length
-    });
-  }, [membresiasActivas, loading, error]);
-
-
   const mapearMembresiaParaUI = (m) => {
     const getColorPorTipo = (tipo) => {
       switch (tipo?.toLowerCase()) {
-        case 'basico': case 'usuario': return '#95a5a6';
-        case 'premium': case 'cliente': return '#4a90e2';
-        case 'empresarial': case 'proveedor': return '#9b59b6';
-        case 'administrador': return '#e74c3c';
+        case 'basico': return '#95a5a6';
+        case 'estandar': return '#3498db';
+        case 'premium': return '#4a90e2';
+        case 'empresarial': return '#9b59b6';
         default: return '#7f8c8d';
       }
     };
@@ -113,6 +95,17 @@ const Membresias = ({ navigation }) => {
       return '$0.00';
     };
 
+    const formatearPeriodo = (precio) => {
+      if (typeof precio === 'object' && precio.periodicidad) {
+        const periodos = {
+          'mensual': 'mes',
+          'trimestral': 'trimestre',
+          'anual': 'año'
+        };
+        return periodos[precio.periodicidad] || 'mes';
+      }
+      return 'mes';
+    };
 
     const beneficiosStrings = Array.isArray(m.beneficios)
       ? m.beneficios.map(b =>
@@ -120,7 +113,7 @@ const Membresias = ({ navigation }) => {
           ? b
           : b.descripcion
             ? b.descripcion
-            : JSON.stringify(b)
+            : `${b.tipo}: ${b.valor || 'Incluido'}`
       )
       : [];
 
@@ -129,24 +122,23 @@ const Membresias = ({ navigation }) => {
       nombre: m.nombre,
       tipo: m.tipo,
       precio: formatearPrecio(m.precio),
-      precioNumerico: typeof m.precio === 'object' ? m.precio.valor : m.precio,
-      periodo: 'mes',
+      precioNumerico: typeof m.precio === 'object' ? m.precio.valor : (parseFloat(m.precio) || 0),
+      periodo: formatearPeriodo(m.precio),
       color: getColorPorTipo(m.tipo),
       descripcion: m.descripcion,
-      beneficios: beneficiosStrings,
+      beneficios: beneficiosStrings.length > 0 ? beneficiosStrings : [
+        'Acceso a espacios de trabajo',
+        'Soporte al cliente',
+        'Cancelación flexible'
+      ],
       duracion: m.duracion || 30,
       activo: m.activo,
       restricciones: m.restricciones,
       popular: m.tipo?.toLowerCase() === 'premium',
-      tipoUsuario:
-        m.tipo === 'basico' ? 'usuario' :
-          m.tipo === 'premium' ? 'cliente' :
-            m.tipo === 'empresarial' ? 'proveedor' :
-              m.tipo,
+      tipoUsuario: m.tipo,
       datosCompletos: m
     };
   };
-
 
   const planes = membresiasActivas && membresiasActivas.length > 0
     ? membresiasActivas.map(mapearMembresiaParaUI)
@@ -158,7 +150,7 @@ const Membresias = ({ navigation }) => {
         precioNumerico: 19.99,
         periodo: 'mes',
         color: '#95a5a6',
-        tipoUsuario: 'usuario',
+        tipoUsuario: 'basico',
         beneficios: [
           '5 reservas mensuales',
           'Acceso a oficinas estándar',
@@ -174,7 +166,7 @@ const Membresias = ({ navigation }) => {
         periodo: 'mes',
         color: '#4a90e2',
         popular: true,
-        tipoUsuario: 'cliente',
+        tipoUsuario: 'premium',
         beneficios: [
           '20 reservas mensuales',
           'Acceso a todas las oficinas',
@@ -204,12 +196,25 @@ const Membresias = ({ navigation }) => {
       }
     ];
 
-  const handleGoBack = () => navigation.goBack();
+  const handleGoBack = () => navigation.popToTop();
 
   const handleSuscribirse = (plan) => {
     const membresiaActual = usuario?.membresia;
+
     if (membresiaActual?.tipoMembresiaId === plan.id && membresiaActual?.renovacionAutomatica) {
       Alert.alert('Ya tienes este plan', 'Este es tu plan actual y está activo');
+      return;
+    }
+
+    if (plan.id.includes('fallback')) {
+      Alert.alert(
+        'Plan no disponible',
+        'Este plan no está disponible en este momento. Por favor, verifica tu conexión e intenta nuevamente.',
+        [
+          { text: 'Reintentar', onPress: cargarDatos },
+          { text: 'Cancelar', style: 'cancel' }
+        ]
+      );
       return;
     }
 
@@ -239,20 +244,38 @@ const Membresias = ({ navigation }) => {
       setIsUpdating(true);
       const cancelacionData = {
         usuarioId: usuario._id,
-        renovacionAutomatica: false,
-        fechaVencimiento: usuario.membresia?.fechaVencimiento || new Date().toISOString()
+        membresiaId: usuario.membresia?.tipoMembresiaId,
+        motivo: 'Cancelación solicitada por el usuario',
+        fechaCancelacion: new Date().toISOString(),
+        reembolsoParcial: false
       };
+
+      console.log('🔵 [Membresias] Enviando datos de cancelación:', cancelacionData);
+
       const result = await dispatch(cancelarMembresia(cancelacionData));
+
       if (cancelarMembresia.fulfilled.match(result)) {
-        dispatch(actualizarDatosUsuario(result.payload));
-        Alert.alert('Membresía cancelada', 'Tu membresía se cancelará al final del período actual. Mantendrás acceso hasta entonces.');
+        console.log('🟢 [Membresias] Cancelación exitosa:', result.payload);
+
+        const usuarioActualizado = result.payload.usuario;
+        dispatch(loguear({
+          usuario: usuarioActualizado,
+          token: token,
+          tipoUsuario: usuarioActualizado.tipoUsuario
+        }));
+
+        Alert.alert(
+          'Membresía cancelada',
+          'Tu membresía se cancelará al final del período actual. Mantendrás acceso hasta entonces.'
+        );
         setSelectedPlan(null);
       } else {
+        console.error('🔴 [Membresias] Error en cancelación:', result.payload);
         throw new Error(result.payload || 'Error al cancelar membresía');
       }
-    } catch (err) {
-      console.error('🔴 Error al cancelar membresía:', err);
-      Alert.alert('Error', err.message || 'No se pudo cancelar la membresía');
+    } catch (error) {
+      console.error('🔴 [Membresias] Error en cancelarMembresiaBackend:', error);
+      Alert.alert('Error', error.message || 'No se pudo cancelar la membresía');
     } finally {
       setIsUpdating(false);
     }
@@ -261,31 +284,155 @@ const Membresias = ({ navigation }) => {
   const actualizarMembresia = async (plan) => {
     try {
       setIsUpdating(true);
+      console.log('🔵 [Frontend] Iniciando suscripción a plan:', {
+        planNombre: plan.nombre,
+        planId: plan.id || plan._id,
+        planTipo: plan.tipo,
+        usuario: usuario.username
+      });
+
+      // ✅ VALIDACIÓN 1: ID de membresía válido
+      const membresiaId = plan.id || plan._id;
+      if (!membresiaId || membresiaId.includes('fallback')) {
+        throw new Error('ID de membresía inválido. Por favor, recarga la página e intenta nuevamente.');
+      }
+
+      // ✅ VALIDACIÓN 2: Usuario válido
+      if (!usuario || !usuario._id) {
+        throw new Error('Usuario no válido. Por favor, inicia sesión nuevamente.');
+      }
+
+      // ✅ CÁLCULO DE FECHAS
       const fechaInicio = new Date();
-      const fechaVencimiento = new Date();
-      fechaVencimiento.setMonth(fechaVencimiento.getMonth() + 1);
+      const duracion = plan.datosCompletos?.duracion || plan.duracion || 30;
+
+      console.log('🔵 [Frontend] Detalles de la suscripción:', {
+        membresiaId,
+        usuarioId: usuario._id,
+        duracion,
+        fechaInicio: fechaInicio.toISOString()
+      });
+
+      // ✅ DATOS PARA EL BACKEND - estructura exacta que espera el controlador
       const suscripcionData = {
         usuarioId: usuario._id,
-        tipoMembresiaId: plan.id,
+        membresiaId: membresiaId, // ⚠️ Usar exactamente 'membresiaId'
         fechaInicio: fechaInicio.toISOString(),
-        fechaVencimiento: fechaVencimiento.toISOString(),
-        renovacionAutomatica: true,
-        planDetalle: plan
+        metodoPagoId: 'default', // TODO: Implementar selección real de método de pago
+        renovacionAutomatica: true, // ⚠️ IMPORTANTE: true para suscripción activa
+        codigoPromocional: null // TODO: Implementar códigos promocionales
       };
+
+      console.log('🔵 [Frontend] Datos enviados al backend:', suscripcionData);
+
+      // ✅ LLAMADA AL BACKEND
       const result = await dispatch(suscribirMembresia(suscripcionData));
+
+      // ✅ MANEJO DE RESPUESTA EXITOSA
       if (suscribirMembresia.fulfilled.match(result)) {
-        dispatch(actualizarDatosUsuario(result.payload));
-        dispatch(actualizarSuscripcionActual(result.payload));
-        setSelectedPlan(plan.id);
-        Alert.alert('Suscripción exitosa', `¡Felicitaciones! Ahora tienes el plan ${plan.nombre}. Tu próximo cobro será el ${fechaVencimiento.toLocaleDateString()}.`);
+        console.log('🟢 [Frontend] Respuesta exitosa del backend:', result.payload);
+
+        const { usuario: usuarioActualizado, suscripcion } = result.payload;
+
+        // ✅ VALIDACIÓN DE RESPUESTA
+        if (!usuarioActualizado) {
+          throw new Error('No se recibió el usuario actualizado del servidor');
+        }
+
+        if (!usuarioActualizado.membresia || !usuarioActualizado.membresia.tipoMembresiaId) {
+          throw new Error('La membresía no se asignó correctamente al usuario');
+        }
+
+        console.log('🟢 [Frontend] Membresía asignada exitosamente:', {
+          usuarioId: usuarioActualizado._id,
+          membresiaId: usuarioActualizado.membresia.tipoMembresiaId,
+          fechaInicio: usuarioActualizado.membresia.fechaInicio,
+          fechaVencimiento: usuarioActualizado.membresia.fechaVencimiento,
+          renovacionAutomatica: usuarioActualizado.membresia.renovacionAutomatica
+        });
+
+        // ✅ ACTUALIZAR AUTH STORE con usuario completo
+        dispatch(loguear({
+          usuario: usuarioActualizado,
+          token: token,
+          tipoUsuario: usuarioActualizado.tipoUsuario
+        }));
+
+        // ✅ ACTUALIZAR ESTADO LOCAL DE SUSCRIPCIÓN
+        if (suscripcion) {
+          dispatch(actualizarSuscripcionActual(suscripcion));
+        }
+
+        // ✅ ACTUALIZAR UI
+        setSelectedPlan(membresiaId);
+
+        // ✅ CALCULAR FECHA DE VENCIMIENTO PARA MOSTRAR
+        const fechaVencimiento = new Date(usuarioActualizado.membresia.fechaVencimiento);
+
+        // ✅ MOSTRAR CONFIRMACIÓN
+        Alert.alert(
+          'Suscripción exitosa',
+          `¡Felicitaciones! Ahora tienes el plan ${plan.nombre}.\n\n` +
+          `Detalles:\n` +
+          `• Plan: ${plan.nombre} (${plan.tipo})\n` +
+          `• Próximo cobro: ${fechaVencimiento.toLocaleDateString()}\n` +
+          `• Renovación automática: ${usuarioActualizado.membresia.renovacionAutomatica ? 'Sí' : 'No'}`,
+          [
+            {
+              text: 'Perfecto',
+              onPress: () => {
+                // Opcional: Navegar a una pantalla de confirmación
+                console.log('🟢 [Frontend] Suscripción completada exitosamente');
+              }
+            }
+          ]
+        );
+
         return true;
+
       } else {
-        throw new Error(result.payload || 'Error al procesar la suscripción');
+        // ✅ MANEJO DE ERRORES DE LA API
+        console.error('🔴 [Frontend] Error en la respuesta del backend:', result.payload);
+
+        let errorMessage = 'Error al procesar la suscripción';
+
+        if (typeof result.payload === 'string') {
+          errorMessage = result.payload;
+        } else if (result.payload && result.payload.message) {
+          errorMessage = result.payload.message;
+        } else if (result.payload && result.payload.details) {
+          errorMessage = result.payload.details;
+        }
+
+        throw new Error(errorMessage);
       }
-    } catch (err) {
-      console.error('🔴 Error al actualizar membresía:', err);
-      Alert.alert('Error', err.message || 'No se pudo procesar la suscripción');
+
+    } catch (error) {
+      console.error('🔴 [Frontend] Error completo en actualizarMembresia:', {
+        message: error.message,
+        stack: error.stack,
+        planId: plan.id || plan._id,
+        usuarioId: usuario?._id
+      });
+
+      // ✅ MOSTRAR ERROR AL USUARIO
+      Alert.alert(
+        'Error en la suscripción',
+        error.message || 'No se pudo procesar la suscripción. Por favor, intenta nuevamente.',
+        [
+          {
+            text: 'Reintentar',
+            onPress: () => actualizarMembresia(plan)
+          },
+          {
+            text: 'Cancelar',
+            style: 'cancel'
+          }
+        ]
+      );
+
       return false;
+
     } finally {
       setIsUpdating(false);
     }
@@ -308,6 +455,7 @@ const Membresias = ({ navigation }) => {
   const renderPlan = (plan) => {
     const isActive = esPlanActivo(plan.id);
     const mActual = getMembresiaActual();
+
     return (
       <View
         key={plan.id}
@@ -362,7 +510,11 @@ const Membresias = ({ navigation }) => {
           </View>
         ) : (
           <TouchableOpacity
-            style={[styles.suscribirButton, { backgroundColor: plan.color }, (isUpdating || loadingSuscripcion) && styles.buttonDisabled]}
+            style={[
+              styles.suscribirButton,
+              { backgroundColor: plan.color },
+              (isUpdating || loadingSuscripcion) && styles.buttonDisabled
+            ]}
             onPress={() => handleSuscribirse(plan)}
             disabled={isUpdating || loadingSuscripcion}
           >
@@ -375,8 +527,7 @@ const Membresias = ({ navigation }) => {
     );
   };
 
-
-  if (loading) {
+  if (loadingMembresiasActivas && membresiasActivas.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
@@ -397,8 +548,16 @@ const Membresias = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#2c3e50" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Membresías</Text>
-        <TouchableOpacity style={styles.refreshButton} onPress={cargarDatos} disabled={loading}>
-          <Ionicons name="refresh" size={24} color={loading ? "#ccc" : "#4a90e2"} />
+        <TouchableOpacity
+          style={styles.refreshButton}
+          onPress={cargarDatos}
+          disabled={loadingMembresiasActivas}
+        >
+          <Ionicons
+            name="refresh"
+            size={24}
+            color={loadingMembresiasActivas ? "#ccc" : "#4a90e2"}
+          />
         </TouchableOpacity>
       </View>
 
@@ -439,6 +598,15 @@ const Membresias = ({ navigation }) => {
                 <Text style={styles.promocionCodigo}>Código: {promocion.codigo}</Text>
               </View>
             ))}
+          </View>
+        )}
+
+        {membresiasActivas.length === 0 && (
+          <View style={styles.fallbackNotice}>
+            <Ionicons name="warning" size={16} color="#f39c12" />
+            <Text style={styles.fallbackText}>
+              Mostrando planes offline. Verifica tu conexión.
+            </Text>
           </View>
         )}
 
@@ -515,13 +683,15 @@ const styles = StyleSheet.create({
   promocionTitulo: { fontSize: 14, fontWeight: 'bold', color: '#2c3e50', fontFamily: 'System' },
   promocionDescripcion: { fontSize: 12, color: '#7f8c8d', marginTop: 2, fontFamily: 'System' },
   promocionCodigo: { fontSize: 12, fontWeight: 'bold', color: '#f39c12', marginTop: 4, fontFamily: 'System' },
-  planesContainer: { paddingHorizontal: 20, paddingTop: 10 },
-  debugContainer: {
-    backgroundColor: '#f8f9fa', padding: 12, borderRadius: 8, marginBottom: 16,
-    borderWidth: 1, borderColor: '#e1e5e9'
+  fallbackNotice: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#ffeaa7', marginHorizontal: 20, marginVertical: 10,
+    padding: 8, borderRadius: 6
   },
-  debugTitle: { fontSize: 14, fontWeight: 'bold', color: '#2c3e50', marginBottom: 4 },
-  debugText: { fontSize: 12, color: '#7f8c8d', marginBottom: 2 },
+  fallbackText: {
+    fontSize: 12, color: '#d63031', marginLeft: 6, fontFamily: 'System'
+  },
+  planesContainer: { paddingHorizontal: 20, paddingTop: 10 },
   planCard: {
     backgroundColor: '#fff', borderRadius: 12, marginBottom: 20, overflow: 'hidden',
     elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
@@ -550,15 +720,30 @@ const styles = StyleSheet.create({
   activeBadge: { backgroundColor: '#27ae60', paddingVertical: 10, borderRadius: 8, alignItems: 'center', marginBottom: 10 },
   activeText: { fontSize: 14, fontWeight: 'bold', color: '#fff', fontFamily: 'System' },
   vencimientoText: { fontSize: 12, color: '#7f8c8d', textAlign: 'center', marginBottom: 10, fontFamily: 'System' },
-  cancelButton: { paddingVertical: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#e74c3c', flexDirection: 'row', justifyContent: 'center' },
+  cancelButton: {
+    paddingVertical: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1,
+    borderColor: '#e74c3c', flexDirection: 'row', justifyContent: 'center'
+  },
   cancelButtonText: { fontSize: 14, color: '#e74c3c', fontWeight: '600', fontFamily: 'System' },
   buttonDisabled: { opacity: 0.6 },
-  infoAdicional: { marginHorizontal: 20, marginTop: 10, padding: 16, backgroundColor: '#fff', borderRadius: 8, borderLeftWidth: 4, borderLeftColor: '#4a90e2' },
+  infoAdicional: {
+    marginHorizontal: 20, marginTop: 10, padding: 16, backgroundColor: '#fff',
+    borderRadius: 8, borderLeftWidth: 4, borderLeftColor: '#4a90e2'
+  },
   infoTitulo: { fontSize: 14, fontWeight: 'bold', color: '#2c3e50', marginBottom: 8, fontFamily: 'System' },
   infoTexto: { fontSize: 12, color: '#7f8c8d', lineHeight: 18, fontFamily: 'System' },
-  noDataContainer: { alignItems: 'center', padding: 40, backgroundColor: '#fff', borderRadius: 12, marginBottom: 20 },
-  noDataText: { fontSize: 16, color: '#7f8c8d', textAlign: 'center', marginTop: 16, marginBottom: 20 },
-  retryButton: { backgroundColor: '#4a90e2', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+  noDataContainer: {
+    alignItems: 'center', padding: 40, backgroundColor: '#fff',
+    borderRadius: 12, marginBottom: 20
+  },
+  noDataText: {
+    fontSize: 16, color: '#7f8c8d', textAlign: 'center',
+    marginTop: 16, marginBottom: 20
+  },
+  retryButton: {
+    backgroundColor: '#4a90e2', paddingHorizontal: 24,
+    paddingVertical: 12, borderRadius: 8
+  },
   retryButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
   loadingOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,

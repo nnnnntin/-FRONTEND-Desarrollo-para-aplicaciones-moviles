@@ -51,7 +51,7 @@ const ServiciosProveedor = ({ navigation }) => {
     try {
       await dispatch(obtenerServiciosPorProveedor(datosUsuario._id));
     } catch (error) {
-      console.error('Error cargando servicios:', error);
+      console.error(error);
     }
   };
 
@@ -84,7 +84,7 @@ const ServiciosProveedor = ({ navigation }) => {
         Alert.alert('Error', 'No se pudo cambiar el estado del servicio');
       }
     } catch (error) {
-      console.error('Error cambiando estado:', error);
+      console.error(error);
       Alert.alert('Error', 'Ocurrió un error al cambiar el estado');
     }
   };
@@ -107,7 +107,7 @@ const ServiciosProveedor = ({ navigation }) => {
                 Alert.alert('Error', 'No se pudo eliminar el servicio');
               }
             } catch (error) {
-              console.error('Error eliminando servicio:', error);
+              console.error(error);
               Alert.alert('Error', 'Ocurrió un error al eliminar el servicio');
             }
           }
@@ -140,7 +140,7 @@ const ServiciosProveedor = ({ navigation }) => {
         Alert.alert('Error', result.error || 'No se pudo actualizar el servicio');
       }
     } catch (error) {
-      console.error('Error actualizando servicio:', error);
+      console.error(error);
       Alert.alert('Error', 'Ocurrió un error al actualizar el servicio');
     }
   };

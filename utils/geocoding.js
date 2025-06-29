@@ -3,7 +3,7 @@
 
 export const obtenerCoordenadas = async (direccion) => {
     try {
-        
+
         const direccionCompleta = `${direccion.calle} ${direccion.numero}, ${direccion.ciudad}, ${direccion.departamento}, ${direccion.pais}`;
         const encodedAddress = encodeURIComponent(direccionCompleta);
 
@@ -19,15 +19,13 @@ export const obtenerCoordenadas = async (direccion) => {
                 lng: parseFloat(data[0].lon)
             };
         } else {
-            
+
             return {
                 lat: -34.9011,
                 lng: -56.1645
             };
         }
     } catch (error) {
-        console.error('Error obteniendo coordenadas:', error);
-        
         return {
             lat: -34.9011,
             lng: -56.1645

@@ -181,7 +181,7 @@ const GestionUsuarios = ({ navigation }) => {
                 throw new Error(result.payload || 'Error al actualizar usuario');
               }
             } catch (error) {
-              console.error('🔴 Error al cambiar estado:', error);
+              console.error(error);
               Alert.alert('Error', 'No se pudo actualizar el estado del usuario');
             } finally {
               setIsUpdating(false);
@@ -219,7 +219,7 @@ const GestionUsuarios = ({ navigation }) => {
                 throw new Error(result.payload || 'Error al cambiar rol');
               }
             } catch (error) {
-              console.error('🔴 Error al cambiar rol:', error);
+              console.error(error);
               Alert.alert('Error', 'No se pudo cambiar el rol del usuario');
             } finally {
               setIsUpdating(false);
@@ -255,7 +255,7 @@ const GestionUsuarios = ({ navigation }) => {
                 throw new Error(result.payload || 'Error al eliminar usuario');
               }
             } catch (error) {
-              console.error('🔴 Error al eliminar usuario:', error);
+              console.error(error);
               Alert.alert('Error', 'No se pudo eliminar el usuario');
             } finally {
               setIsUpdating(false);

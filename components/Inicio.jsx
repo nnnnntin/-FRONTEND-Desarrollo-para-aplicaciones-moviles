@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -32,23 +33,23 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const dispatch = useDispatch();
 
-  
+
   const {
     tipoUsuario = 'usuario',
     usuario = {},
     token = null
   } = useSelector(state => state.auth || {});
 
-  
+
   const {
     oficinasPropias = [],
     serviciosContratados = [],
     serviciosOfrecidos = []
   } = useSelector(state => state.usuario || {});
 
-  
+
   const {
-    espaciosFiltrados = [], 
+    espaciosFiltrados = [],
     filtroTipo = 'todos',
     textoBusqueda = '',
     loading = false,
@@ -65,12 +66,12 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
     { id: 'sala', nombre: 'Salas', icono: 'people', endpoint: '/v1/salas-reunion' }
   ];
 
-  
+
   useEffect(() => {
     cargarEspacios();
   }, [filtroTipo, tipoUsuario]);
 
-  
+
   useEffect(() => {
     if (error) {
       Alert.alert('Error', error);
@@ -78,48 +79,34 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
     }
   }, [error, dispatch]);
 
-  
+
   const cargarEspacios = async () => {
     try {
-      console.log('🚀 Iniciando carga de espacios...');
-      console.log('🔍 Tipo de usuario:', tipoUsuario);
-      console.log('🔍 Filtro actual:', filtroTipo);
-      console.log('🔍 Usuario:', usuario);
-
       if (tipoUsuario === 'cliente') {
-        console.log('🔥 Cargando espacios del cliente...');
         const result = await dispatch(cargarEspaciosCliente());
-        console.log('📦 Resultado cargarEspaciosCliente:', result);
-
         if (cargarEspaciosCliente.rejected.match(result)) {
-          console.error('🔴 Error en cargarEspaciosCliente:', result.payload);
         }
       } else {
-        console.log('🌍 Cargando todos los espacios...');
         const result = await dispatch(cargarTodosLosEspacios({ filtroTipo }));
-        console.log('📦 Resultado cargarTodosLosEspacios:', result);
-
         if (cargarTodosLosEspacios.rejected.match(result)) {
-          console.error('🔴 Error en cargarTodosLosEspacios:', result.payload);
         }
       }
     } catch (error) {
-      console.error('🔴 Error al cargar espacios:', error);
+      console.error(error);
     }
   };
 
-  
+
   const handleFiltroChange = (nuevoFiltro) => {
-    console.log('🔄 Cambiando filtro a:', nuevoFiltro);
     dispatch(setFiltroTipo(nuevoFiltro));
   };
 
-  
+
   const handleSearchChange = (texto) => {
     dispatch(setTextoBusqueda(texto));
   };
 
-  
+
   const onRefresh = async () => {
     dispatch(setRefreshing(true));
     await cargarEspacios();
@@ -134,20 +121,39 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
     setMenuVisible(false);
   };
 
-  
   const verDetalleOficina = (espacio) => {
+
     if (!espacio || !espacio.datosCompletos) {
       Alert.alert('Error', 'No se pudieron cargar los datos del espacio');
       return;
     }
 
+    const espacioId = espacio.id ||
+      espacio.datosCompletos._id ||
+      espacio.datosCompletos.id;
+
+    if (!espacioId) {
+      Alert.alert('Error', 'No se encontró el ID del espacio');
+      return;
+    }
+
+    if (!espacio.tipo) {
+      Alert.alert('Error', 'No se encontró el tipo del espacio');
+      return;
+    }
+
     const params = {
-      oficina: espacio,
+      oficina: {
+        id: espacioId,
+        nombre: espacio.nombre,
+        tipo: espacio.tipo,
+        direccion: espacio.direccion,
+        datosCompletos: espacio.datosCompletos
+      },
       espacio: espacio.datosCompletos
     };
 
     if (tipoUsuario === 'cliente') {
-      
       let propietarioIdStr = null;
 
       if (espacio.datosCompletos.propietarioId) {
@@ -199,6 +205,7 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
       }, 300);
 
     } catch (error) {
+      console.error(error);
       dispatch(desloguear());
       setMenuVisible(false);
 
@@ -248,13 +255,10 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
   };
 
   const EspacioCard = ({ espacio }) => {
-    
     if (!espacio || !espacio.datosCompletos) {
-      console.warn('⚠️ EspacioCard: espacio sin datos completos:', espacio);
       return null;
     }
 
-    
     let propietarioIdStr = null;
 
     if (espacio.datosCompletos.propietarioId) {
@@ -270,16 +274,30 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
 
     const esPropio = tipoUsuario === 'cliente' && propietarioIdStr && userIdStr && propietarioIdStr === userIdStr;
 
+    const imagenesDisponibles = espacio.fotos || espacio.imagenes || [];
+
     return (
       <View style={styles.card}>
-        <View style={[styles.cardImagePlaceholder, { backgroundColor: espacio.color }]}>
-          <Ionicons name={tipos.find(t => t.id === espacio.tipo)?.icono || 'business'} size={40} color="white" />
-          <Text style={styles.cardImageText}>{espacio.tipo}</Text>
+        <View style={styles.cardImageContainer}>
+          {Array.isArray(imagenesDisponibles) && imagenesDisponibles.length > 0 ? (
+            <Image
+              source={{ uri: imagenesDisponibles[0] }}
+              style={styles.cardImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.cardImagePlaceholder, { backgroundColor: espacio.color }]}>
+              <Ionicons name={tipos.find(t => t.id === espacio.tipo)?.icono || 'business'} size={40} color="white" />
+              <Text style={styles.cardImageText}>{espacio.tipo}</Text>
+            </View>
+          )}
+
           {esPropio && (
             <View style={styles.propiaIndicator}>
               <Text style={styles.propiaText}>Tu espacio</Text>
             </View>
           )}
+
           {!espacio.disponible && (
             <View style={styles.noDisponibleIndicator}>
               <Text style={styles.noDisponibleText}>No disponible</Text>
@@ -341,14 +359,6 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
       </View>
     );
   };
-
-  
-  console.log('🎯 Estado actual de espacios:', {
-    espaciosFiltrados: espaciosFiltrados?.length || 0,
-    loading,
-    error,
-    tipoUsuario
-  });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -844,6 +854,26 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     zIndex: 1000,
+  },
+  cardImageContainer: {
+    position: 'relative',
+  },
+  cardImage: {
+    width: '100%',
+    height: 200,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
 });
 

@@ -1,9 +1,11 @@
+
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import {
   Alert,
   Image,
+  Modal,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -15,6 +17,7 @@ import {
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { crearPublicacion } from '../store/slices/espaciosSlice';
+import MapSelector from './MapSelector';
 
 const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
@@ -28,11 +31,13 @@ const CrearPublicacion = ({ navigation }) => {
     nombre: '',
     tipo: 'oficina',
     descripcion: '',
-    
+
     ubicacion: {
-      edificioId: '', 
+      edificioId: '',
       piso: '',
       numero: '',
+      zona: '',
+      sector: '',
       coordenadas: {
         lat: null,
         lng: null
@@ -47,34 +52,34 @@ const CrearPublicacion = ({ navigation }) => {
       }
     },
     capacidad: '',
-    
+
     precios: {
       porHora: '',
       porDia: '',
       porMes: ''
     },
-    
+
     disponibilidad: {
       horario: {
         apertura: '09:00',
         cierre: '18:00'
       },
-      dias: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes']
+      dias: ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
     },
-    
-    configuracion: '', 
-    superficieM2: '', 
-    zona: '', 
-    sector: '', 
-    
+
+    configuracion: '',
+    superficieM2: '',
+    codigo: '',
+
     amenidades: [],
-    equipamiento: [], 
+    equipamiento: [],
     estado: 'disponible',
     activo: true
   });
 
   const [imagenes, setImagenes] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [mostrarMapa, setMostrarMapa] = useState(false);
 
   const tipos = [
     {
@@ -82,32 +87,45 @@ const CrearPublicacion = ({ navigation }) => {
       nombre: 'Oficina',
       icono: 'business',
       endpoint: 'oficinas',
-      subtipos: ['privada', 'compartida', 'coworking']
+      subtipos: ['privada', 'compartida', 'coworking'],
+      requiereCodigo: true,
+      requiereCapacidad: true,
+      requiereNumero: true
     },
     {
       id: 'espacio',
       nombre: 'Espacio',
       icono: 'square',
       endpoint: 'espacios',
-      subtipos: []
+      subtipos: [],
+      requiereCodigo: false,
+      requiereCapacidad: true,
+      requiereSector: true
     },
     {
       id: 'escritorio',
       nombre: 'Escritorio',
       icono: 'desktop',
       endpoint: 'escritorios-flexibles',
-      subtipos: ['individual', 'compartido', 'standing']
+      subtipos: ['individual', 'compartido', 'standing'],
+      requiereCodigo: true,
+      requiereCapacidad: false,
+      requiereZona: true,
+      requiereNumero: true
     },
     {
       id: 'sala',
       nombre: 'Sala de reuniones',
       icono: 'people',
       endpoint: 'salas-reunion',
-      subtipos: ['mesa_redonda', 'auditorio', 'en_u', 'aula', 'flexible']
+      subtipos: ['mesa_redonda', 'auditorio', 'en_u', 'aula', 'flexible'],
+      requiereCodigo: true,
+      requiereCapacidad: true,
+      requiereNumero: true,
+      requierePrecioHora: true
     }
   ];
 
-  
   const amenidadesDisponibles = {
     oficina: ['wifi', 'aire_acondicionado', 'seguridad', 'parking', 'cocina', 'baño_privado'],
     espacio: ['wifi', 'aire_acondicionado', 'seguridad', 'parking', 'flexible'],
@@ -119,6 +137,24 @@ const CrearPublicacion = ({ navigation }) => {
 
   const handleGoBack = () => {
     navigation.goBack();
+  };
+
+  const handleLocationSelect = (coordenadas) => {
+    setFormData(prev => ({
+      ...prev,
+      ubicacion: {
+        ...prev.ubicacion,
+        coordenadas: coordenadas
+      }
+    }));
+  };
+
+  const abrirMapa = () => {
+    setMostrarMapa(true);
+  };
+
+  const cerrarMapa = () => {
+    setMostrarMapa(false);
   };
 
   const toggleAmenidad = (amenidad) => {
@@ -167,7 +203,7 @@ const CrearPublicacion = ({ navigation }) => {
         throw new Error('Error al subir imagen a Cloudinary');
       }
     } catch (error) {
-      console.error('Error uploading to Cloudinary:', error);
+      console.error(error);
       throw error;
     }
   };
@@ -191,13 +227,14 @@ const CrearPublicacion = ({ navigation }) => {
           setImagenes([...imagenes, ...cloudinaryUrls]);
           Alert.alert('Éxito', 'Imágenes subidas correctamente');
         } catch (error) {
+          console.error(error);
           Alert.alert('Error', 'No se pudieron subir las imágenes');
         } finally {
           setUploadingImage(false);
         }
       }
     } catch (error) {
-      console.error('Error selecting image:', error);
+      console.error(error);
       Alert.alert('Error', 'No se pudo seleccionar la imagen');
     }
   };
@@ -206,47 +243,92 @@ const CrearPublicacion = ({ navigation }) => {
     setImagenes(imagenes.filter((_, i) => i !== index));
   };
 
-  
   const construirPayload = () => {
     const basePayload = {
       nombre: formData.nombre,
-      capacidad: parseInt(formData.capacidad),
       imagenes: imagenes,
       usuarioId: usuario.id || usuario._id,
       estado: formData.estado,
-      activo: formData.activo,
-      precios: {
-        porHora: formData.precios.porHora ? parseFloat(formData.precios.porHora) : undefined,
-        porDia: formData.precios.porDia ? parseFloat(formData.precios.porDia) : undefined,
-        porMes: formData.precios.porMes ? parseFloat(formData.precios.porMes) : undefined
-      }
+      activo: formData.activo
     };
 
-    
+    const buildUbicacion = () => {
+      const ubicacion = {
+        piso: parseInt(formData.ubicacion.piso),
+        coordenadas: {
+          lat: formData.ubicacion.coordenadas.lat,
+          lng: formData.ubicacion.coordenadas.lng
+        },
+        direccionCompleta: {
+          calle: formData.ubicacion.direccionCompleta.calle,
+          numero: formData.ubicacion.direccionCompleta.numero,
+          ciudad: formData.ubicacion.direccionCompleta.ciudad,
+          departamento: formData.ubicacion.direccionCompleta.departamento,
+          codigoPostal: formData.ubicacion.direccionCompleta.codigoPostal,
+          pais: formData.ubicacion.direccionCompleta.pais
+        }
+      };
+
+      if (tipoActual.requiereNumero) {
+        ubicacion.numero = formData.ubicacion.numero;
+      }
+      if (tipoActual.requiereZona) {
+        ubicacion.zona = formData.ubicacion.zona;
+      }
+      if (tipoActual.requiereSector) {
+        ubicacion.sector = formData.ubicacion.sector;
+      }
+
+      if (formData.ubicacion.edificioId && formData.ubicacion.edificioId.trim() !== '') {
+        ubicacion.edificioId = formData.ubicacion.edificioId;
+      }
+
+      return ubicacion;
+    };
+
+    const buildPrecios = () => {
+      const precios = {};
+
+      if (formData.precios.porHora) {
+        precios.porHora = parseFloat(formData.precios.porHora);
+      }
+      if (formData.precios.porDia) {
+        precios.porDia = parseFloat(formData.precios.porDia);
+      }
+      if (formData.precios.porMes) {
+        precios.porMes = parseFloat(formData.precios.porMes);
+      }
+
+      return precios;
+    };
+
     switch (formData.tipo) {
       case 'oficina':
-        return {
+        const oficinaPayload = {
           ...basePayload,
           codigo: `OF-${Date.now()}`,
           tipo: formData.configuracion || 'privada',
-          ubicacion: {
-            ...formData.ubicacion,
-            piso: parseInt(formData.ubicacion.piso),
-          },
-          superficieM2: formData.superficieM2 ? parseFloat(formData.superficieM2) : undefined,
+          ubicacion: buildUbicacion(),
+          capacidad: parseInt(formData.capacidad),
+          precios: buildPrecios(),
           amenidades: formData.amenidades,
           disponibilidad: formData.disponibilidad
         };
 
+        if (formData.superficieM2) {
+          oficinaPayload.superficieM2 = parseFloat(formData.superficieM2);
+        }
+
+        return oficinaPayload;
+
       case 'sala':
-        return {
+        const salaPayload = {
           ...basePayload,
           codigo: `SR-${Date.now()}`,
           configuracion: formData.configuracion,
-          ubicacion: {
-            ...formData.ubicacion,
-            piso: parseInt(formData.ubicacion.piso),
-          },
+          ubicacion: buildUbicacion(),
+          capacidad: parseInt(formData.capacidad),
+          precios: buildPrecios(),
           equipamiento: formData.amenidades.map(amenidad => ({
             tipo: amenidad,
             descripcion: `${amenidad} disponible`
@@ -254,31 +336,68 @@ const CrearPublicacion = ({ navigation }) => {
           disponibilidad: formData.disponibilidad
         };
 
+        return salaPayload;
+
       case 'escritorio':
-        return {
-          ...basePayload,
+        const escritorioUbicacion = buildUbicacion();
+
+        const escritorioPayload = {
           codigo: `EF-${Date.now()}`,
+
           tipo: formData.configuracion || 'individual',
+
           ubicacion: {
-            ...formData.ubicacion,
-            piso: parseInt(formData.ubicacion.piso),
-            zona: formData.zona || 'General'
+            ...(formData.ubicacion.edificioId && { edificioId: formData.ubicacion.edificioId }),
+
+            piso: parseInt(formData.ubicacion.piso, 10),
+            numero: formData.ubicacion.numero,
+            zona: formData.ubicacion.zona,
+
+            coordenadas: {
+              lat: formData.ubicacion.coordenadas.lat,
+              lng: formData.ubicacion.coordenadas.lng
+            },
+            direccionCompleta: {
+              calle: formData.ubicacion.direccionCompleta.calle,
+              numero: formData.ubicacion.direccionCompleta.numero,
+              ciudad: formData.ubicacion.direccionCompleta.ciudad,
+              departamento: formData.ubicacion.direccionCompleta.departamento,
+              codigoPostal: formData.ubicacion.direccionCompleta.codigoPostal,
+              pais: formData.ubicacion.direccionCompleta.pais
+            }
           },
+
+          precios: {
+            porDia: parseFloat(formData.precios.porDia),
+            ...(formData.precios.porHora && { porHora: parseFloat(formData.precios.porHora) }),
+            ...(formData.precios.porMes && { porMes: parseFloat(formData.precios.porMes) })
+          },
+
           amenidades: formData.amenidades.map(amenidad => ({
             tipo: amenidad,
             descripcion: `${amenidad} incluido`
-          }))
+          })),
+
+          imagenes,
+
+          usuarioId: usuario.id || usuario._id,
+
+          estado: formData.estado,
+          activo: formData.activo
         };
 
+
+        return escritorioPayload;
+
       case 'espacio':
-        return {
+        const espacioUbicacion = buildUbicacion();
+
+        const espacioPayload = {
           ...basePayload,
-          tipo: 'otro', 
-          ubicacion: {
-            ...formData.ubicacion,
-            piso: parseInt(formData.ubicacion.piso),
-            sector: formData.sector || 'General'
-          },
+          tipo: 'otro',
+          ubicacion: espacioUbicacion,
+          capacidad: parseInt(formData.capacidad),
+          precios: buildPrecios(),
           amenidades: formData.amenidades,
           disponibilidad: {
             horarioApertura: formData.disponibilidad.horario.apertura,
@@ -287,25 +406,92 @@ const CrearPublicacion = ({ navigation }) => {
           }
         };
 
+        return espacioPayload;
+
       default:
         return basePayload;
     }
   };
 
-  const handleGuardar = async () => {
-    
-    if (!formData.nombre || !formData.capacidad || !formData.ubicacion.direccionCompleta.calle) {
-      Alert.alert('Error', 'Por favor completa todos los campos obligatorios');
-      return;
+  const validarFormulario = () => {
+    const errores = [];
+
+    if (!formData.nombre.trim()) {
+      errores.push('El nombre es obligatorio');
+    }
+
+    if (!formData.ubicacion.direccionCompleta.calle.trim()) {
+      errores.push('La calle es obligatoria');
+    }
+
+    if (!formData.ubicacion.direccionCompleta.numero.trim()) {
+      errores.push('El número de dirección es obligatorio');
+    }
+
+    if (!formData.ubicacion.direccionCompleta.ciudad.trim()) {
+      errores.push('La ciudad es obligatoria');
+    }
+
+    if (!formData.ubicacion.direccionCompleta.departamento.trim()) {
+      errores.push('El departamento es obligatorio');
+    }
+
+    if (!formData.ubicacion.direccionCompleta.codigoPostal.trim()) {
+      errores.push('El código postal es obligatorio');
+    }
+
+    if (!formData.ubicacion.piso || formData.ubicacion.piso.trim() === '') {
+      errores.push('El piso es obligatorio');
+    }
+
+    if (tipoActual.requiereCapacidad && (!formData.capacidad || parseInt(formData.capacidad) < 1)) {
+      errores.push('La capacidad es obligatoria y debe ser mayor a 0');
+    }
+
+    if (tipoActual.requiereNumero && !formData.ubicacion.numero.trim()) {
+      errores.push('El número de oficina/sala es obligatorio');
+    }
+
+    if (tipoActual.requiereZona && !formData.ubicacion.zona.trim()) {
+      errores.push('La zona es obligatoria para escritorios');
+    }
+
+    if (tipoActual.requiereSector && !formData.ubicacion.sector.trim()) {
+      errores.push('El sector es obligatorio para espacios');
+    }
+
+    if (tipoActual.requierePrecioHora && (!formData.precios.porHora || parseFloat(formData.precios.porHora) <= 0)) {
+      errores.push('El precio por hora es obligatorio para salas de reunión');
+    }
+
+    if (formData.tipo === 'escritorio' && (!formData.precios.porDia || parseFloat(formData.precios.porDia) <= 0)) {
+      errores.push('El precio por día es obligatorio para escritorios');
+    }
+
+    if (!formData.ubicacion.coordenadas.lat || !formData.ubicacion.coordenadas.lng) {
+      errores.push('Debes seleccionar la ubicación en el mapa');
     }
 
     if (imagenes.length === 0) {
-      Alert.alert('Error', 'Por favor agrega al menos una imagen');
-      return;
+      errores.push('Debes agregar al menos una imagen');
+    }
+
+    if (tipoActual.subtipos.length > 0 && !formData.configuracion) {
+      errores.push(`Debes seleccionar un tipo de ${formData.tipo}`);
     }
 
     if (!formData.precios.porDia && !formData.precios.porHora && !formData.precios.porMes) {
-      Alert.alert('Error', 'Por favor indica al menos un precio');
+      errores.push('Debes indicar al menos un precio');
+    }
+
+    return errores;
+  };
+
+  const handleGuardar = async () => {
+    const errores = validarFormulario();
+
+    if (errores.length > 0) {
+      Alert.alert('Errores de validación', errores.join('\n'));
       return;
     }
 
@@ -313,10 +499,6 @@ const CrearPublicacion = ({ navigation }) => {
       const payload = construirPayload();
       const endpoint = tipoActual.endpoint;
 
-      console.log('📤 Enviando payload:', payload);
-      console.log('🎯 Endpoint:', endpoint);
-
-      
       const result = await dispatch(crearPublicacion({
         payload,
         endpoint,
@@ -338,7 +520,7 @@ const CrearPublicacion = ({ navigation }) => {
         throw new Error(result.payload || 'Error al crear la publicación');
       }
     } catch (error) {
-      console.error('Error creating publication:', error);
+      console.error(error);
       Alert.alert('Error', error.message || 'No se pudo crear la publicación. Inténtalo de nuevo.');
     }
   };
@@ -425,16 +607,18 @@ const CrearPublicacion = ({ navigation }) => {
           )}
 
           <View style={styles.row}>
-            <View style={styles.halfInput}>
-              <Text style={styles.label}>Capacidad *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Personas"
-                value={formData.capacidad}
-                onChangeText={(text) => setFormData({ ...formData, capacidad: text })}
-                keyboardType="numeric"
-              />
-            </View>
+            {tipoActual.requiereCapacidad && (
+              <View style={formData.tipo === 'oficina' ? styles.halfInput : styles.input}>
+                <Text style={styles.label}>Capacidad *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Personas"
+                  value={formData.capacidad}
+                  onChangeText={(text) => setFormData({ ...formData, capacidad: text })}
+                  keyboardType="numeric"
+                />
+              </View>
+            )}
             {formData.tipo === 'oficina' && (
               <View style={styles.halfInput}>
                 <Text style={styles.label}>Superficie (m²)</Text>
@@ -490,7 +674,7 @@ const CrearPublicacion = ({ navigation }) => {
               />
             </View>
             <View style={styles.halfInput}>
-              <Text style={styles.label}>Piso</Text>
+              <Text style={styles.label}>Piso *</Text>
               <TextInput
                 style={styles.input}
                 placeholder="1, 2, 3..."
@@ -506,6 +690,62 @@ const CrearPublicacion = ({ navigation }) => {
               />
             </View>
           </View>
+
+          {tipoActual.requiereNumero && (
+            <>
+              <Text style={styles.label}>
+                Número de {formData.tipo === 'oficina' ? 'oficina' : formData.tipo === 'sala' ? 'sala' : 'escritorio'} *
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ej: 101, A-5, etc."
+                value={formData.ubicacion.numero}
+                onChangeText={(text) => setFormData({
+                  ...formData,
+                  ubicacion: {
+                    ...formData.ubicacion,
+                    numero: text
+                  }
+                })}
+              />
+            </>
+          )}
+
+          {tipoActual.requiereZona && (
+            <>
+              <Text style={styles.label}>Zona *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ej: Zona A, Open Space, etc."
+                value={formData.ubicacion.zona}
+                onChangeText={(text) => setFormData({
+                  ...formData,
+                  ubicacion: {
+                    ...formData.ubicacion,
+                    zona: text
+                  }
+                })}
+              />
+            </>
+          )}
+
+          {tipoActual.requiereSector && (
+            <>
+              <Text style={styles.label}>Sector *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ej: Norte, Sur, Principal, etc."
+                value={formData.ubicacion.sector}
+                onChangeText={(text) => setFormData({
+                  ...formData,
+                  ubicacion: {
+                    ...formData.ubicacion,
+                    sector: text
+                  }
+                })}
+              />
+            </>
+          )}
 
           <View style={styles.row}>
             <View style={styles.halfInput}>
@@ -546,36 +786,81 @@ const CrearPublicacion = ({ navigation }) => {
             </View>
           </View>
 
-          {formData.tipo === 'escritorio' && (
-            <>
-              <Text style={styles.label}>Zona</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ej: Zona A, Open Space, etc."
-                value={formData.zona}
-                onChangeText={(text) => setFormData({ ...formData, zona: text })}
-              />
-            </>
-          )}
+          <Text style={styles.label}>Código Postal *</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="11000"
+            value={formData.ubicacion.direccionCompleta.codigoPostal}
+            onChangeText={(text) => setFormData({
+              ...formData,
+              ubicacion: {
+                ...formData.ubicacion,
+                direccionCompleta: {
+                  ...formData.ubicacion.direccionCompleta,
+                  codigoPostal: text
+                }
+              }
+            })}
+          />
 
-          {formData.tipo === 'espacio' && (
-            <>
-              <Text style={styles.label}>Sector</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ej: Norte, Sur, Principal, etc."
-                value={formData.sector}
-                onChangeText={(text) => setFormData({ ...formData, sector: text })}
-              />
-            </>
-          )}
+          <View style={styles.mapSection}>
+            <View style={styles.mapSectionHeader}>
+              <Ionicons name="location" size={20} color="#4a90e2" />
+              <Text style={styles.mapSectionTitle}>Ubicación en el mapa *</Text>
+            </View>
+
+            {formData.ubicacion.coordenadas.lat && formData.ubicacion.coordenadas.lng ? (
+              <View style={styles.locationSelected}>
+                <View style={styles.locationInfo}>
+                  <View style={styles.locationIcon}>
+                    <Ionicons name="checkmark-circle" size={20} color="#27ae60" />
+                  </View>
+                  <View style={styles.locationDetails}>
+                    <Text style={styles.locationLabel}>Coordenadas confirmadas</Text>
+                    <Text style={styles.locationCoords}>
+                      {formData.ubicacion.coordenadas.lat.toFixed(6)}, {formData.ubicacion.coordenadas.lng.toFixed(6)}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.editLocationBtn}
+                  onPress={abrirMapa}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="pencil" size={16} color="#4a90e2" />
+                  <Text style={styles.editLocationText}>Editar</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.selectLocationCard}
+                onPress={abrirMapa}
+                activeOpacity={0.7}
+              >
+                <View style={styles.selectLocationContent}>
+                  <View style={styles.mapIconContainer}>
+                    <Ionicons name="map" size={32} color="#4a90e2" />
+                  </View>
+                  <View style={styles.selectLocationTexts}>
+                    <Text style={styles.selectLocationTitle}>Seleccionar en el mapa</Text>
+                    <Text style={styles.selectLocationSubtitle}>
+                      Toca para abrir el mapa y marcar la ubicación exacta
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Precios</Text>
           <View style={styles.row}>
             <View style={styles.thirdInput}>
-              <Text style={styles.label}>Por hora</Text>
+              <Text style={styles.label}>
+                Por hora {tipoActual.requierePrecioHora ? '*' : ''}
+              </Text>
               <TextInput
                 style={styles.input}
                 placeholder="USD"
@@ -588,7 +873,9 @@ const CrearPublicacion = ({ navigation }) => {
               />
             </View>
             <View style={styles.thirdInput}>
-              <Text style={styles.label}>Por día</Text>
+              <Text style={styles.label}>
+                Por día {formData.tipo === 'escritorio' ? '*' : ''}
+              </Text>
               <TextInput
                 style={styles.input}
                 placeholder="USD"
@@ -653,7 +940,7 @@ const CrearPublicacion = ({ navigation }) => {
 
           <Text style={styles.label}>Días disponibles</Text>
           <View style={styles.diasContainer}>
-            {['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'].map(dia => (
+            {['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'].map(dia => (
               <TouchableOpacity
                 key={dia}
                 style={[
@@ -674,7 +961,7 @@ const CrearPublicacion = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Imágenes</Text>
+          <Text style={styles.sectionTitle}>Imágenes *</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <TouchableOpacity
               style={[styles.addImageButton, uploadingImage && styles.addImageButtonDisabled]}
@@ -728,7 +1015,6 @@ const CrearPublicacion = ({ navigation }) => {
             ))}
           </View>
         </View>
-
         <TouchableOpacity
           style={[styles.guardarButton, loading && styles.guardarButtonDisabled]}
           onPress={handleGuardar}
@@ -741,6 +1027,62 @@ const CrearPublicacion = ({ navigation }) => {
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
+
+      <Modal
+        visible={mostrarMapa}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        statusBarTranslucent={true}
+      >
+        <View style={styles.mapModalContainer}>
+          <View style={styles.mapModalHeader}>
+            <TouchableOpacity
+              onPress={cerrarMapa}
+              style={styles.mapModalCloseBtn}
+              activeOpacity={0.7}
+            >
+              <View style={styles.closeButtonCircle}>
+                <Ionicons name="close" size={20} color="#fff" />
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.mapModalTitleContainer}>
+              <Text style={styles.mapModalTitle}>Ubicación del espacio</Text>
+              <Text style={styles.mapModalSubtitle}>
+                {formData.nombre || 'Nuevo espacio'}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={cerrarMapa}
+              style={[
+                styles.mapModalSaveBtn,
+                !formData.ubicacion.coordenadas.lat && styles.mapModalSaveBtnDisabled
+              ]}
+              disabled={!formData.ubicacion.coordenadas.lat}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="checkmark"
+                size={18}
+                color={formData.ubicacion.coordenadas.lat ? "#fff" : "#bdc3c7"}
+              />
+              <Text style={[
+                styles.mapModalSaveText,
+                !formData.ubicacion.coordenadas.lat && styles.mapModalSaveTextDisabled
+              ]}>
+                Confirmar
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <MapSelector
+            onLocationSelect={handleLocationSelect}
+            initialLocation={formData.ubicacion.coordenadas.lat ? formData.ubicacion.coordenadas : null}
+            direccionCompleta={formData.ubicacion.direccionCompleta}
+          />
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -794,8 +1136,8 @@ const styles = StyleSheet.create({
   },
   tiposContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   tipoButton: {
     backgroundColor: '#fff',
@@ -805,6 +1147,14 @@ const styles = StyleSheet.create({
     borderColor: '#e1e5e9',
     alignItems: 'center',
     minWidth: 100,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    width: 100,
+    height: 100,
+    borderWidth: 2,
+    borderColor: '#e1e5e9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tipoButtonActive: {
     backgroundColor: '#4a90e2',
@@ -873,6 +1223,205 @@ const styles = StyleSheet.create({
   },
   thirdInput: {
     flex: 1,
+  },
+
+  mapSection: {
+    marginTop: 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+  },
+  mapSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  mapSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginLeft: 8,
+  },
+  locationSelected: {
+    backgroundColor: '#f0f9ff',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#27ae60',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  locationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  locationIcon: {
+    marginRight: 12,
+  },
+  locationDetails: {
+    flex: 1,
+  },
+  locationLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#27ae60',
+    marginBottom: 2,
+  },
+  locationCoords: {
+    fontSize: 12,
+    color: '#2c3e50',
+    fontFamily: 'monospace',
+  },
+  editLocationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#4a90e2',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  editLocationText: {
+    fontSize: 12,
+    color: '#4a90e2',
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  selectLocationCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e1e5e9',
+    borderStyle: 'dashed',
+    overflow: 'hidden',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  selectLocationContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+  },
+  mapIconContainer: {
+    width: 50,
+    height: 50,
+    backgroundColor: '#e3f2fd',
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  selectLocationTexts: {
+    flex: 1,
+  },
+  selectLocationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 4,
+  },
+  selectLocationSubtitle: {
+    fontSize: 13,
+    color: '#7f8c8d',
+    lineHeight: 18,
+  },
+  mapModalContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  mapModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 16,
+    backgroundColor: '#000000',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  mapModalCloseBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonCircle: {
+    width: 32,
+    height: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  mapModalTitleContainer: {
+    flex: 1,
+    alignItems: 'center',
+    marginHorizontal: 16,
+  },
+  mapModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  mapModalSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  mapModalSaveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4a90e2',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    minWidth: 100,
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  mapModalSaveBtnDisabled: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  mapModalSaveText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  mapModalSaveTextDisabled: {
+    color: '#bdc3c7',
   },
   diasContainer: {
     flexDirection: 'row',
@@ -990,6 +1539,13 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 30,
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginTop: 4,
+    fontStyle: 'italic',
+    lineHeight: 16,
   },
 });
 

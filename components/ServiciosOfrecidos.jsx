@@ -60,6 +60,7 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
         Alert.alert('Error', result.error || 'Error al cambiar estado del proveedor');
       }
     } catch (error) {
+      console.error(error);
       Alert.alert('Error', 'Error al cambiar estado del proveedor');
     }
   };
@@ -84,6 +85,7 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
                 Alert.alert('Error', result.error || 'Error al remover el proveedor');
               }
             } catch (error) {
+              console.error(error);
               Alert.alert('Error', 'Error al remover el proveedor');
             }
           }

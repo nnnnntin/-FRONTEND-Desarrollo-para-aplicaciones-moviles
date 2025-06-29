@@ -15,11 +15,10 @@ import {
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  obtenerProveedores,
-  filtrarProveedores,
   activarProveedor,
-  eliminarProveedor,
-  actualizarProveedorThunk
+  actualizarProveedorThunk,
+  filtrarProveedores,
+  obtenerProveedores
 } from '../store/slices/proveedoresSlice';
 
 const GestionProveedores = ({ navigation }) => {
@@ -43,7 +42,7 @@ const GestionProveedores = ({ navigation }) => {
     try {
       await dispatch(obtenerProveedores(0, 100));
     } catch (error) {
-      console.error('Error cargando proveedores:', error);
+      console.error(error);
     }
   };
 
@@ -63,7 +62,7 @@ const GestionProveedores = ({ navigation }) => {
 
       await dispatch(filtrarProveedores(filtros));
     } catch (error) {
-      console.error('Error aplicando filtros:', error);
+      console.error(error);
     }
   };
 
@@ -144,7 +143,7 @@ const GestionProveedores = ({ navigation }) => {
                 Alert.alert('Error', result.error || 'No se pudo actualizar el estado');
               }
             } catch (error) {
-              console.error('Error cambiando estado:', error);
+              console.error(error);
               Alert.alert('Error', 'Ocurrió un error al cambiar el estado');
             }
           }

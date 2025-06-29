@@ -12,7 +12,6 @@ const notificacionesSlice = createSlice({
   name: 'notificaciones',
   initialState,
   reducers: {
-
     setLoading: (state, action) => {
       state.isLoading = action.payload;
     },
@@ -25,7 +24,6 @@ const notificacionesSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
-
 
     setNotificaciones: (state, action) => {
       state.notificaciones = action.payload;
@@ -49,7 +47,6 @@ const notificacionesSlice = createSlice({
         const isNowRead = action.payload.leida;
 
         state.notificaciones[index] = { ...state.notificaciones[index], ...action.payload };
-
 
         if (wasUnread && isNowRead) {
           state.totalNoLeidas = Math.max(0, state.totalNoLeidas - 1);
@@ -90,9 +87,12 @@ const notificacionesSlice = createSlice({
       state.totalNoLeidas = 0;
       state.lastFetch = null;
     },
+
+    refrescarContadores: (state) => {
+      state.totalNoLeidas = state.notificaciones.filter(n => !n.leida).length;
+    }
   },
 });
-
 
 export const {
   setLoading,
@@ -105,8 +105,8 @@ export const {
   marcarTodasComoLeidas,
   eliminarNotificacion,
   limpiarNotificaciones,
+  refrescarContadores,
 } = notificacionesSlice.actions;
-
 
 export const cargarNotificacionesUsuario = (usuarioId, token, options = {}) => {
   return async (dispatch) => {
@@ -114,14 +114,12 @@ export const cargarNotificacionesUsuario = (usuarioId, token, options = {}) => {
       dispatch(setLoading(true));
       dispatch(clearError());
 
-      const { limit = 50, leidas } = options;
+      const { limit = 50, leidas, silencioso = false } = options;
       let url = `${process.env.EXPO_PUBLIC_API_URL}/v1/notificaciones/usuario/${usuarioId}?limit=${limit}`;
 
       if (typeof leidas === 'boolean') {
         url += `&leidas=${leidas}`;
       }
-
-      console.log('🔵 Haciendo petición a:', url);
 
       const response = await fetch(url, {
         method: 'GET',
@@ -136,8 +134,6 @@ export const cargarNotificacionesUsuario = (usuarioId, token, options = {}) => {
       }
 
       const data = await response.json();
-      console.log('🔵 Datos recibidos del backend:', data);
-
 
       let notificacionesData;
       if (Array.isArray(data)) {
@@ -150,20 +146,43 @@ export const cargarNotificacionesUsuario = (usuarioId, token, options = {}) => {
         notificacionesData = [];
       }
 
-      console.log('🔵 Notificaciones extraídas:', notificacionesData);
-
-
       const notificacionesProcesadas = notificacionesData
         .map(notif => mapearNotificacion(notif))
         .sort((a, b) => new Date(b.fechaRaw) - new Date(a.fechaRaw));
 
-      console.log('🔵 Notificaciones procesadas:', notificacionesProcesadas);
-
       dispatch(setNotificaciones(notificacionesProcesadas));
 
+      return notificacionesProcesadas;
+
     } catch (error) {
-      console.error('🔴 Error al cargar notificaciones:', error);
-      dispatch(setError(error.message || 'Error al cargar notificaciones'));
+      console.error('Error cargando notificaciones:', error);
+      if (!options.silencioso) {
+        dispatch(setError(error.message || 'Error al cargar notificaciones'));
+      }
+      return [];
+    }
+  };
+};
+
+export const recargarNotificacionesDesdeBackend = (usuarioId, token, opciones = {}) => {
+  return async (dispatch, getState) => {
+    try {
+      const state = getState();
+      const lastFetch = state.notificaciones.lastFetch;
+      const ahora = new Date();
+      
+      if (lastFetch) {
+        const tiempoTranscurrido = ahora - new Date(lastFetch);
+      }
+
+      const notificaciones = await dispatch(cargarNotificacionesUsuario(usuarioId, token, {
+        silencioso: true,
+        limit: 50
+      }));
+      
+      return notificaciones;
+    } catch (error) {
+      console.error(error);
     }
   };
 };
@@ -188,13 +207,10 @@ export const marcarNotificacionComoLeida = (notificacionId, token) => {
       if (response.ok) {
         dispatch(marcarComoLeida(notificacionId));
       } else {
-
         dispatch(marcarComoLeida(notificacionId));
-        console.warn('🟡 No se pudo marcar como leída en el servidor');
       }
     } catch (error) {
-      console.error('🔴 Error al marcar como leída:', error);
-
+      console.error('Error marcando notificación como leída:', error);
       dispatch(marcarComoLeida(notificacionId));
     }
   };
@@ -220,7 +236,7 @@ export const marcarTodasNotificacionesComoLeidas = (usuarioId, token) => {
         throw new Error('No se pudieron marcar todas como leídas');
       }
     } catch (error) {
-      console.error('🔴 Error al marcar todas como leídas:', error);
+      console.error('Error marcando todas como leídas:', error);
       dispatch(setError('No se pudieron marcar todas como leídas'));
       throw error;
     }
@@ -247,53 +263,53 @@ export const eliminarNotificacionPorId = (notificacionId, token) => {
         throw new Error('No se pudo eliminar la notificación');
       }
     } catch (error) {
-      console.error('🔴 Error al eliminar notificación:', error);
+      console.error('Error eliminando notificación:', error);
       dispatch(setError('No se pudo eliminar la notificación'));
       throw error;
     }
   };
 };
 
+export const crearNotificacionLocal = (datosNotificacion) => {
+  return (dispatch) => {
+    const notificacionMapeada = mapearNotificacion(datosNotificacion);
+    dispatch(addNotificacion(notificacionMapeada));
+  };
+};
+
+export const sincronizarNotificacionesPostAccion = (usuarioId, token, tipoAccion = 'general') => {
+  return async (dispatch) => {
+    try {      
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      await dispatch(recargarNotificacionesDesdeBackend(usuarioId, token, { forzar: true }));
+          } catch (error) {
+      console.error(error);
+    }
+  };
+};
 
 const mapearNotificacion = (notifBackend) => {
-  console.log('🔍 Mapeando notificación desde backend:', notifBackend);
-
-
   const tiposConfig = {
     'reserva': { icono: 'calendar', color: '#4a90e2' },
-    'confirmacion_reserva': { icono: 'checkmark-circle', color: '#27ae60' },
-    'cancelacion_reserva': { icono: 'close-circle', color: '#e74c3c' },
-    'nueva_reserva': { icono: 'calendar', color: '#4a90e2' },
     'pago': { icono: 'cash', color: '#27ae60' },
-    'pago_recibido': { icono: 'cash', color: '#27ae60' },
-    'membresia': { icono: 'card', color: '#9b59b6' },
-    'membresia_vencimiento': { icono: 'alert-circle', color: '#f39c12' },
-    'servicio': { icono: 'construct', color: '#9b59b6' },
-    'solicitud_servicio': { icono: 'briefcase', color: '#3498db' },
-    'servicio_completado': { icono: 'checkmark-done', color: '#27ae60' },
-    'reseña': { icono: 'star', color: '#f39c12' },
-    'calificacion': { icono: 'star', color: '#f39c12' },
-    'recordatorio': { icono: 'alarm', color: '#e67e22' },
     'sistema': { icono: 'information-circle', color: '#3498db' },
+    'recordatorio': { icono: 'alarm', color: '#e67e22' },
     'promocion': { icono: 'pricetag', color: '#e74c3c' },
-    'mantenimiento': { icono: 'settings', color: '#95a5a6' },
-    'bienvenida': { icono: 'heart', color: '#e91e63' },
     'default': { icono: 'notifications', color: '#7f8c8d' }
   };
 
   const tipoNotif = notifBackend.tipoNotificacion || notifBackend.tipo || 'default';
   const config = tiposConfig[tipoNotif] || tiposConfig['default'];
 
-
   let fechaFormateada = 'Fecha no disponible';
   let fechaRaw = new Date();
 
-  if (notifBackend.fechaCreacion || notifBackend.createdAt || notifBackend.fecha) {
-    const fechaString = notifBackend.fechaCreacion || notifBackend.createdAt || notifBackend.fecha;
+  if (notifBackend.createdAt || notifBackend.fechaCreacion || notifBackend.fecha) {
+    const fechaString = notifBackend.createdAt || notifBackend.fechaCreacion || notifBackend.fecha;
     fechaRaw = new Date(fechaString);
     fechaFormateada = formatearFecha(fechaRaw);
   }
-
 
   let estadoLeido = false;
   if (notifBackend.hasOwnProperty('leido')) {
@@ -306,23 +322,17 @@ const mapearNotificacion = (notifBackend) => {
     id: notifBackend._id || notifBackend.id,
     tipo: tipoNotif,
     titulo: notifBackend.titulo || obtenerTituloPorTipo(tipoNotif),
-    mensaje: notifBackend.mensaje || notifBackend.contenido || 'Sin mensaje',
+    mensaje: notifBackend.mensaje || 'Sin mensaje',
     fecha: fechaFormateada,
     fechaRaw: fechaRaw,
     leida: estadoLeido,
     icono: config.icono,
     color: config.color,
-    prioridad: notifBackend.prioridad || 'normal',
+    prioridad: notifBackend.prioridad || 'media',
+    accion: notifBackend.accion,
+    entidadRelacionada: notifBackend.entidadRelacionada,
     datosCompletos: notifBackend
   };
-
-  console.log('🔍 Notificación mapeada:', {
-    id: notificacionMapeada.id,
-    titulo: notificacionMapeada.titulo,
-    leidoOriginal: notifBackend.leido,
-    leidaMapeada: notificacionMapeada.leida,
-    tipo: notificacionMapeada.tipo
-  });
 
   return notificacionMapeada;
 };
@@ -330,23 +340,10 @@ const mapearNotificacion = (notifBackend) => {
 const obtenerTituloPorTipo = (tipo) => {
   const titulos = {
     'reserva': 'Nueva reserva',
-    'confirmacion_reserva': 'Reserva confirmada',
-    'cancelacion_reserva': 'Reserva cancelada',
-    'nueva_reserva': 'Nueva reserva recibida',
     'pago': 'Pago procesado',
-    'pago_recibido': 'Pago recibido',
-    'membresia': 'Información de membresía',
-    'membresia_vencimiento': 'Membresía por vencer',
-    'servicio': 'Servicio programado',
-    'solicitud_servicio': 'Nueva solicitud de servicio',
-    'servicio_completado': 'Servicio completado',
-    'reseña': 'Nueva reseña',
-    'calificacion': 'Nueva calificación',
-    'recordatorio': 'Recordatorio',
     'sistema': 'Notificación del sistema',
+    'recordatorio': 'Recordatorio',
     'promocion': 'Oferta especial',
-    'mantenimiento': 'Mantenimiento programado',
-    'bienvenida': 'Bienvenido',
     'default': 'Notificación'
   };
 
@@ -375,12 +372,12 @@ const formatearFecha = (fecha) => {
   }
 };
 
-
 export const selectNotificaciones = (state) => state.notificaciones.notificaciones;
 export const selectNotificacionesNoLeidas = (state) =>
   state.notificaciones.notificaciones.filter(n => !n.leida);
 export const selectTotalNoLeidas = (state) => state.notificaciones.totalNoLeidas;
 export const selectIsLoading = (state) => state.notificaciones.isLoading;
 export const selectError = (state) => state.notificaciones.error;
+export const selectLastFetch = (state) => state.notificaciones.lastFetch;
 
 export default notificacionesSlice.reducer;

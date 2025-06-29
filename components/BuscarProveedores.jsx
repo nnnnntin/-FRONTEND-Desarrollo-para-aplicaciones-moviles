@@ -59,7 +59,7 @@ const BuscarProveedores = ({ navigation, route }) => {
     try {
       await dispatch(obtenerProveedores(0, 50));
     } catch (error) {
-      console.error('Error cargando proveedores:', error);
+      console.error(error);
     }
   };
 
@@ -81,7 +81,7 @@ const BuscarProveedores = ({ navigation, route }) => {
 
       await dispatch(filtrarProveedores(filtros));
     } catch (error) {
-      console.error('Error aplicando filtros:', error);
+      console.error(error);
     }
   };
 
@@ -151,7 +151,7 @@ const BuscarProveedores = ({ navigation, route }) => {
                 Alert.alert('Error', 'No se pudo enviar la solicitud. Inténtalo de nuevo.');
               }
             } catch (error) {
-              console.error('Error enviando solicitud:', error);
+              console.error(error);
               Alert.alert('Error', 'No se pudo enviar la solicitud. Inténtalo de nuevo.');
             }
           }

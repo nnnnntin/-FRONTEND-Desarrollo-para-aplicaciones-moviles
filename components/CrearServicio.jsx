@@ -128,7 +128,7 @@ const CrearServicio = ({ navigation }) => {
         Alert.alert('Error', result.error || 'No se pudo crear el servicio');
       }
     } catch (error) {
-      console.error('Error creando servicio:', error);
+      console.error(error);
       Alert.alert('Error', 'Ocurrió un error al crear el servicio');
     }
   };

@@ -207,8 +207,6 @@ export const obtenerMetodosPagoUsuario = createAsyncThunk(
   async (usuarioId, { getState, rejectWithValue }) => {
     try {
       const { auth } = getState();
-      console.log('🏦 Obteniendo métodos de pago para usuario:', usuarioId);
-
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/usuarios/${usuarioId}`,
         {
@@ -225,12 +223,11 @@ export const obtenerMetodosPagoUsuario = createAsyncThunk(
       }
 
       const usuario = await response.json();
-      console.log('🏦 Métodos de pago recibidos:', usuario.metodoPago);
 
 
       return Array.isArray(usuario.metodoPago) ? usuario.metodoPago : [];
     } catch (error) {
-      console.error('Error en obtenerMetodosPagoUsuario:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -241,7 +238,6 @@ export const agregarMetodoPago = createAsyncThunk(
   async ({ usuarioId, metodoPago }, { getState, rejectWithValue }) => {
     try {
       const { auth } = getState();
-      console.log('🏦 Agregando método de pago:', metodoPago);
 
       const bodyPayload = {
         tipo: 'tarjeta_credito',
@@ -271,13 +267,12 @@ export const agregarMetodoPago = createAsyncThunk(
       }
 
       const result = await response.json();
-      console.log('✅ Método de pago agregado exitosamente');
 
       return Array.isArray(result.usuario.metodoPago)
         ? result.usuario.metodoPago
         : [];
     } catch (error) {
-      console.error('Error en agregarMetodoPago:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -288,7 +283,6 @@ export const eliminarMetodoPago = createAsyncThunk(
   async ({ usuarioId, metodoId }, { getState, rejectWithValue }) => {
     try {
       const { auth } = getState();
-      console.log('🗑️ Eliminando método de pago:', metodoId);
 
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/usuarios/${usuarioId}/metodos-pago`,
@@ -310,11 +304,10 @@ export const eliminarMetodoPago = createAsyncThunk(
       }
 
       const result = await response.json();
-      console.log('✅ Método de pago eliminado exitosamente');
 
       return Array.isArray(result.usuario.metodoPago) ? result.usuario.metodoPago : [];
     } catch (error) {
-      console.error('Error en eliminarMetodoPago:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -348,22 +341,17 @@ export const actualizarMetodoPagoPredeterminado = createAsyncThunk(
       const result = await response.json();
       return Array.isArray(result.usuario.metodoPago) ? result.usuario.metodoPago : [];
     } catch (error) {
-      console.error('Error en actualizarMetodoPagoPredeterminado:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
 );
-
-
-
-
 
 export const crearEmpresaInmobiliaria = createAsyncThunk(
   'usuario/crearEmpresa',
   async ({ usuarioId, datosEmpresa }, { getState, rejectWithValue }) => {
     try {
       const { auth } = getState();
-      console.log('🏢 Creando empresa inmobiliaria para usuario:', usuarioId);
 
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/empresas-inmobiliarias`,
@@ -386,11 +374,10 @@ export const crearEmpresaInmobiliaria = createAsyncThunk(
       }
 
       const empresa = await response.json();
-      console.log('✅ Empresa inmobiliaria creada exitosamente:', empresa._id);
 
       return empresa;
     } catch (error) {
-      console.error('Error en crearEmpresaInmobiliaria:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -401,7 +388,6 @@ export const crearProveedor = createAsyncThunk(
   async ({ usuarioId, datosProveedor }, { getState, rejectWithValue }) => {
     try {
       const { auth } = getState();
-      console.log('🔧 Creando proveedor para usuario:', usuarioId);
 
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/proveedores`,
@@ -424,11 +410,10 @@ export const crearProveedor = createAsyncThunk(
       }
 
       const proveedor = await response.json();
-      console.log('✅ Proveedor creado exitosamente:', proveedor._id);
 
       return proveedor;
     } catch (error) {
-      console.error('Error en crearProveedor:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -458,7 +443,7 @@ export const obtenerEmpresaPorUsuario = createAsyncThunk(
       const empresa = await response.json();
       return empresa;
     } catch (error) {
-      console.error('Error en obtenerEmpresaPorUsuario:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -488,7 +473,7 @@ export const obtenerProveedorPorUsuario = createAsyncThunk(
       const proveedor = await response.json();
       return proveedor;
     } catch (error) {
-      console.error('Error en obtenerProveedorPorUsuario:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }

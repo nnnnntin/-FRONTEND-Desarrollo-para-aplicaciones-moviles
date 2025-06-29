@@ -57,7 +57,6 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
         return (
           <>
             <Text style={styles.subtitle}>Recuperación de cuenta</Text>
-            <Text style={styles.description}>Correo electrónico</Text>
 
             <Text style={styles.label}>Introduce tu correo electrónico</Text>
             <TextInput
@@ -75,9 +74,8 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
             <TouchableOpacity style={styles.button} onPress={handleStep1}>
               <Text style={styles.buttonText}>Continuar</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity onPress={onForgotEmail} style={styles.forgotEmailButton}>
-              <Text style={styles.forgotEmailText}>¿Olvidaste tu correo?</Text>
+            <TouchableOpacity onPress={onBack} style={styles.backButton}>
+              <Text style={styles.backText}>Volver</Text>
             </TouchableOpacity>
           </>
         );
@@ -154,10 +152,6 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
         <View style={styles.content}>
           {renderStep()}
         </View>
-
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backText}>Volver</Text>
-        </TouchableOpacity>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -176,6 +170,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   subtitle: {
+    marginBottom: 30,
     fontSize: 18,
     color: '#7f8c8d',
     marginBottom: 8,
@@ -239,11 +234,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     fontFamily: 'System',
   },
-  backButton: {
-    marginTop: 30,
-    paddingVertical: 10,
-  },
   backText: {
+    marginTop: 15,
     fontSize: 16,
     color: '#4a90e2',
     fontWeight: '600',

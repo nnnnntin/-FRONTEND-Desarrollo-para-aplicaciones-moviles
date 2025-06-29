@@ -5,7 +5,7 @@ import { StatusBar, StyleSheet, Text, View } from 'react-native';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import Pantallas from './routes/Pantallas';
 
-import { loguear } from './store/slices/authSlice';
+import { desloguear, loguear } from './store/slices/authSlice';
 import { store } from './store/store';
 
 const AppContent = () => {
@@ -15,11 +15,29 @@ const AppContent = () => {
   const auth = useSelector(state => state.auth);
   const dispatch = useDispatch();
 
+  const verificarTokenYRedirigir = useCallback(async () => {
+    const { token, isLoggedIn } = auth;
+    
+    if (isLoggedIn && !token) {      
+      try {
+        await SecureStore.deleteItemAsync('isLogged');
+        await SecureStore.deleteItemAsync('usuario');
+        await SecureStore.deleteItemAsync('tipoUsuario');
+      } catch (error) {
+        console.error(error);
+      }
+      
+      dispatch(desloguear());
+      setIsLogged(false);
+      
+      return false; 
+    }
+    
+    return true; 
+  }, [auth, dispatch]);
+
   const handleSetIsLogged = useCallback(async (newLoginState) => {
-    console.log(`🔄 Cambiando estado de login a: ${newLoginState}`);
-
     if (newLoginState) {
-
       let userData = auth?.usuario;
 
       if (!userData) {
@@ -34,18 +52,15 @@ const AppContent = () => {
               token: parsedUser.token
             }));
             userData = parsedUser.usuario || parsedUser;
-            console.log(`🔄 Datos de usuario cargados desde storage`);
           }
         } catch (error) {
-          console.error('Error cargando datos de usuario:', error);
+          console.error(error);
         }
       }
 
       if (userData) {
         setIsLogged(true);
-        console.log(`✅ Login confirmado para: ${userData.tipoUsuario}`);
       } else {
-        console.log(`⏳ Esperando datos de usuario...`);
         setTimeout(async () => {
           try {
             const storedUser = await SecureStore.getItemAsync('usuario');
@@ -58,20 +73,17 @@ const AppContent = () => {
                 token: parsedUser.token
               }));
               setIsLogged(true);
-              console.log(`✅ Login confirmado después de espera`);
             } else {
-              console.log(`❌ No se encontraron datos de usuario válidos`);
               setIsLogged(false);
             }
           } catch (error) {
-            console.error('Error en verificación tardía:', error);
+            console.error(error);
             setIsLogged(false);
           }
         }, 500);
       }
     } else {
       setIsLogged(false);
-      console.log(`✅ Logout confirmado`);
     }
   }, [auth, dispatch]);
 
@@ -80,18 +92,17 @@ const AppContent = () => {
       await SecureStore.deleteItemAsync('isLogged');
       await SecureStore.deleteItemAsync('usuario');
       await SecureStore.deleteItemAsync('tipoUsuario');
+      dispatch(desloguear());
       setIsLogged(false);
-      console.log(`🔄 Sesión reseteada completamente`);
     } catch (error) {
-      console.error('Error reseteando sesión:', error);
+      console.error(error);
       setIsLogged(false);
     }
-  }, []);
+  }, [dispatch]);
 
   useEffect(() => {
     const verificarSesion = async () => {
       try {
-        console.log('🔍 Verificando sesión existente...');
         const isLoggedStorage = await SecureStore.getItemAsync("isLogged");
         const usuarioStorage = await SecureStore.getItemAsync("usuario");
         const tipoUsuarioStorage = await SecureStore.getItemAsync("tipoUsuario");
@@ -99,6 +110,11 @@ const AppContent = () => {
         if (isLoggedStorage === 'true' && usuarioStorage) {
           try {
             const parsedUser = JSON.parse(usuarioStorage);
+            
+            if (!parsedUser.token) {
+              await resetSession();
+              return;
+            }
 
             dispatch(loguear({
               usuario: parsedUser.usuario || parsedUser,
@@ -107,17 +123,15 @@ const AppContent = () => {
             }));
             setIsLogged(true);
 
-            console.log(`✅ Sesión existente encontrada: ${tipoUsuarioStorage || parsedUser.usuario?.tipoUsuario}`);
-          } catch (parseError) {
-            console.error('Error parseando datos de usuario:', parseError);
-            setIsLogged(false);
+          } catch (error) {
+            console.error(error);
+            await resetSession();
           }
         } else {
-          console.log('ℹ️ No hay sesión activa');
           setIsLogged(false);
         }
       } catch (error) {
-        console.error('Error verificando sesión:', error);
+        console.error(error);
         setIsLogged(false);
       } finally {
         setIsCheckingSession(false);
@@ -125,7 +139,13 @@ const AppContent = () => {
     }
 
     verificarSesion();
-  }, [dispatch]);
+  }, [dispatch, resetSession]);
+
+  useEffect(() => {
+    if (!isCheckingSession && auth.isLoggedIn) {
+      verificarTokenYRedirigir();
+    }
+  }, [auth.token, auth.isLoggedIn, isCheckingSession, verificarTokenYRedirigir]);
 
   if (isCheckingSession) {
     return (
@@ -134,14 +154,6 @@ const AppContent = () => {
       </View>
     );
   }
-
-  console.log('🔍 Estado actual:', {
-    isLogged,
-
-    hasUserData: !!auth?.usuario,
-    userType: auth?.usuario?.tipoUsuario || auth?.tipoUsuario
-  });
-
   return (
     <NavigationContainer>
       <Pantallas

@@ -42,10 +42,9 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
         if (navigation && navigation.navigate) {
           navigation.navigate(screenName);
         } else {
-          console.error('Navigation object no disponible o no tiene método navigate');
         }
       } catch (error) {
-        console.error('Error al navegar:', error);
+        console.error(error);
       }
     }, 100);
   };

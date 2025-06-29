@@ -2,7 +2,6 @@ import { createStackNavigator } from '@react-navigation/stack';
 import Login from '../components/Login';
 import Registro from '../components/Registro';
 import RestablecerContraseña from '../components/RestablecerContraseña';
-import RestablecerMail from '../components/RestablecerMail';
 
 const Stack = createStackNavigator();
 
@@ -29,9 +28,9 @@ const Pila = ({ setIsLogged, resetSession }) => {
           };
         },
       }}
-      initialRouteName="Iniciar sesión"
+      initialRouteName="Login"
     >
-      <Stack.Screen name="Iniciar sesión">
+      <Stack.Screen name="Login">
         {props => (
           <Login
             {...props}
@@ -57,31 +56,6 @@ const Pila = ({ setIsLogged, resetSession }) => {
           <Registro
             {...props}
             setIsLogged={setIsLogged}
-          />
-        )}
-      </Stack.Screen>
-
-      <Stack.Screen
-        name="RestablecerMail"
-        options={{
-          headerShown: true,
-          title: 'Recuperar Contraseña',
-          headerStyle: {
-            backgroundColor: '#e74c3c',
-            elevation: 0,
-            shadowOpacity: 0,
-          },
-          headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-            fontSize: 18,
-          },
-          headerBackTitleVisible: false,
-        }}
-      >
-        {props => (
-          <RestablecerMail
-            {...props}
           />
         )}
       </Stack.Screen>

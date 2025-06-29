@@ -15,7 +15,6 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { clearError, loginUsuario } from '../store/slices/authSlice';
 import RestablecerContraseña from './RestablecerContraseña';
-import RestablecerMail from './RestablecerMail';
 
 const Login = ({ navigation, setIsLogged }) => {
   const [email, setEmail] = useState('');
@@ -43,11 +42,6 @@ const Login = ({ navigation, setIsLogged }) => {
   }, [error, dispatch]);
 
   const handleLogin = async () => {
-    console.log('🔴 HandleLogin iniciado');
-    console.log('🔴 Email:', email);
-    console.log('🔴 Password:', password);
-    console.log('🔴 Loading state:', loading);
-
     if (!email.trim() || !password.trim()) {
       Alert.alert('Error', 'Por favor completa todos los campos');
       return;
@@ -56,22 +50,14 @@ const Login = ({ navigation, setIsLogged }) => {
 
     const username = email;
 
-    console.log('🔴 Despachando loginUsuario con:', { username, password });
-
     try {
       const result = await dispatch(loginUsuario({ username, password }));
-      console.log('🔴 Resultado del dispatch:', result);
-
 
       if (loginUsuario.fulfilled.match(result)) {
-        console.log('🟢 Login exitoso, navegando...');
-
       } else if (loginUsuario.rejected.match(result)) {
-        console.log('🔴 Login falló:', result.payload);
-
       }
     } catch (error) {
-      console.log('🔴 Error en dispatch:', error);
+      console.error(error);
     }
   };
 
@@ -145,11 +131,6 @@ const Login = ({ navigation, setIsLogged }) => {
               resizeMode="contain"
             />
             <Text style={styles.title}>Officereserve</Text>
-
-            <RestablecerMail
-              onBack={handleBackToLogin}
-              onSuccess={handleRecoverySuccess}
-            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

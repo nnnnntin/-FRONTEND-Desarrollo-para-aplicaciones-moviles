@@ -305,7 +305,7 @@ const Aplicacion = ({ setIsLogged, resetSession }) => {
       setIsLogged(false);
       dispatch(desloguear());
     } catch (error) {
-      console.error('Error al eliminar la sesión:', error);
+      console.error(error);
     }
   }
 
@@ -316,7 +316,7 @@ const Aplicacion = ({ setIsLogged, resetSession }) => {
       await SecureStore.deleteItemAsync('tipoUsuario');
       setIsLogged(false);
     } catch (error) {
-      console.error('Error al resetear sesión:', error);
+      console.error(error);
     }
   };
 

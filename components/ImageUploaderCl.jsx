@@ -49,14 +49,11 @@ const ImageUploaderCl = () => {
 
             if (data.secure_url) {
                 setMessage('Imagen subida correctamente: ' + data.secure_url);
-                console.log('URL de la imagen:', data.secure_url);
-                console.log('Public ID:', data.public_id);
             } else {
-                console.log('Error en respuesta:', data);
                 setMessage("Error inesperado al subir imagen");
             }
         } catch (error) {
-            console.error('Error en upload:', error);
+            console.error(error);
             setMessage('Error al subir imagen: ' + error.message)
         }
     }

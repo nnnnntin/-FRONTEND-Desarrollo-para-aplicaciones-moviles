@@ -54,7 +54,6 @@ const MiCuenta = ({ navigation }) => {
   const [editData, setEditData] = useState({ ...formData });
 
   useEffect(() => {
-    console.log('🔵 Usuario en Redux (auth):', usuario);
     if (usuario) {
 
       const data = {
@@ -76,7 +75,6 @@ const MiCuenta = ({ navigation }) => {
         confirmPassword: ''
       };
 
-      console.log('🔵 Datos formateados para el formulario:', data);
       setFormData(data);
       setEditData(data);
     }
@@ -139,8 +137,6 @@ const MiCuenta = ({ navigation }) => {
           updateData.password = editData.password;
         }
 
-        console.log('🔵 Actualizando datos del usuario:', updateData);
-
 
         const result = await dispatch(actualizarUsuario({
           usuarioId: usuario.id || usuario._id,
@@ -164,7 +160,7 @@ const MiCuenta = ({ navigation }) => {
         }
 
       } catch (error) {
-        console.error('🔴 Error al actualizar perfil:', error);
+        console.error(error);
         Alert.alert('Error', error.message || 'No se pudo actualizar el perfil');
       } finally {
         setIsLoading(false);
@@ -235,8 +231,7 @@ const MiCuenta = ({ navigation }) => {
         throw new Error('Error al subir imagen a Cloudinary');
       }
     } catch (error) {
-      console.error('Error uploading to Cloudinary:', error);
-      throw error;
+      console.error(error);
     }
   };
 
@@ -266,7 +261,7 @@ const MiCuenta = ({ navigation }) => {
         Alert.alert('Éxito', 'Foto actualizada correctamente');
       }
     } catch (error) {
-      console.error('Error al tomar foto:', error);
+      console.error(error);
       Alert.alert('Error', 'No se pudo actualizar la foto');
     } finally {
       setUploadingImage(false);
@@ -299,7 +294,7 @@ const MiCuenta = ({ navigation }) => {
         Alert.alert('Éxito', 'Foto actualizada correctamente');
       }
     } catch (error) {
-      console.error('Error al seleccionar foto:', error);
+      console.error(error);
       Alert.alert('Error', 'No se pudo actualizar la foto');
     } finally {
       setUploadingImage(false);
@@ -318,7 +313,7 @@ const MiCuenta = ({ navigation }) => {
         throw new Error('Error al actualizar imagen');
       }
     } catch (error) {
-      throw error;
+      console.error(error);
     }
   };
 

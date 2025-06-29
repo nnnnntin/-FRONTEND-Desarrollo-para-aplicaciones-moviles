@@ -18,17 +18,6 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
 
   const dispatch = useDispatch();
 
-
-  useEffect(() => {
-    console.log('🔍 Estado actual:', {
-      isLogged,
-      isLoggedIn,
-      tipoUsuario,
-      esAdmin,
-      hasUserData: !!usuario
-    });
-  }, [isLogged, isLoggedIn, tipoUsuario, esAdmin, usuario]);
-
   useEffect(() => {
     const verificarSesionGuardada = async () => {
       try {
@@ -51,7 +40,7 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
           setIsLogged(false);
         }
       } catch (error) {
-        console.error('Error al verificar sesión guardada:', error);
+        console.error(error);
         setIsLogged(false);
       } finally {
         setIsInitializing(false);
@@ -68,7 +57,6 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
 
   useEffect(() => {
     if (isLoggedIn && !isLogged) {
-      console.log('🔄 Sincronizando: Redux indica login exitoso, actualizando estado local');
       setIsLogged(true);
 
 
@@ -77,9 +65,8 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
           await SecureStore.setItemAsync('isLogged', 'true');
           await SecureStore.setItemAsync('usuario', JSON.stringify(usuario));
           await SecureStore.setItemAsync('tipoUsuario', tipoUsuario || '');
-          console.log('✅ Sesión guardada en SecureStore');
         } catch (error) {
-          console.error('Error al guardar sesión:', error);
+          console.error(error);
         }
       };
 
@@ -91,22 +78,13 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
 
   const resetSessionComplete = async () => {
     try {
-      console.log('🧹 Iniciando reset completo de sesión');
-
-
       dispatch(desloguear());
-
-
       await SecureStore.deleteItemAsync('isLogged');
       await SecureStore.deleteItemAsync('usuario');
       await SecureStore.deleteItemAsync('tipoUsuario');
-
-
       setIsLogged(false);
-
-      console.log('🧹 Sesión completamente reseteada');
     } catch (error) {
-      console.error('Error al resetear sesión completa:', error);
+      console.error(error);
     }
   };
 
@@ -130,16 +108,7 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
     );
   }
 
-
   const shouldShowApp = isLoggedIn && (isLogged || isLoggedIn);
-
-  console.log('🎯 Decisión de renderizado:', {
-    shouldShowApp,
-    isLoggedIn,
-    isLogged,
-    tipoUsuario,
-    esAdmin
-  });
 
   return (
     <View style={styles.container}>

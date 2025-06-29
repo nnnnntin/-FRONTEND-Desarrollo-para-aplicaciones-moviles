@@ -1,14 +1,10 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
-
 export const obtenerOficinas = createAsyncThunk(
   'espacios/obtenerOficinas',
   async ({ skip = 0, limit = 100 } = {}, { getState, rejectWithValue }) => {
     try {
       const { auth } = getState();
-
-      console.log('🏢 Obteniendo oficinas...');
-
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/oficinas?skip=${skip}&limit=${limit}`,
         {
@@ -22,31 +18,24 @@ export const obtenerOficinas = createAsyncThunk(
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('🔴 Error HTTP en obtenerOficinas:', response.status, data);
         return rejectWithValue(data.message || `Error HTTP ${response.status}: Error al obtener oficinas`);
       }
 
-      
       const oficinasArray = Array.isArray(data) ? data : (data.datos || data.data || []);
-
-      console.log('✅ Oficinas obtenidas:', oficinasArray.length);
 
       return { data: oficinasArray, tipo: 'oficina' };
     } catch (error) {
-      console.error('🔴 Error de red en obtenerOficinas:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión al obtener oficinas');
     }
   }
 );
-
 
 export const obtenerEspacios = createAsyncThunk(
   'espacios/obtenerEspacios',
   async ({ skip = 0, limit = 100 } = {}, { getState, rejectWithValue }) => {
     try {
       const { auth } = getState();
-
-      console.log('🏠 Obteniendo espacios...');
 
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/espacios?skip=${skip}&limit=${limit}`,
@@ -61,30 +50,24 @@ export const obtenerEspacios = createAsyncThunk(
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('🔴 Error HTTP en obtenerEspacios:', response.status, data);
         return rejectWithValue(data.message || `Error HTTP ${response.status}: Error al obtener espacios`);
       }
 
       const espaciosArray = Array.isArray(data) ? data : (data.datos || data.data || []);
 
-      console.log('✅ Espacios obtenidos:', espaciosArray.length);
-
       return { data: espaciosArray, tipo: 'espacio' };
     } catch (error) {
-      console.error('🔴 Error de red en obtenerEspacios:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión al obtener espacios');
     }
   }
 );
-
 
 export const obtenerEscritorios = createAsyncThunk(
   'espacios/obtenerEscritorios',
   async ({ skip = 0, limit = 100 } = {}, { getState, rejectWithValue }) => {
     try {
       const { auth } = getState();
-
-      console.log('🖥️ Obteniendo escritorios...');
 
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/escritorios-flexibles?skip=${skip}&limit=${limit}`,
@@ -99,30 +82,24 @@ export const obtenerEscritorios = createAsyncThunk(
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('🔴 Error HTTP en obtenerEscritorios:', response.status, data);
         return rejectWithValue(data.message || `Error HTTP ${response.status}: Error al obtener escritorios`);
       }
 
       const escritoriosArray = Array.isArray(data) ? data : (data.datos || data.data || []);
 
-      console.log('✅ Escritorios obtenidos:', escritoriosArray.length);
-
       return { data: escritoriosArray, tipo: 'escritorio' };
     } catch (error) {
-      console.error('🔴 Error de red en obtenerEscritorios:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión al obtener escritorios');
     }
   }
 );
-
 
 export const obtenerEdificios = createAsyncThunk(
   'espacios/obtenerEdificios',
   async ({ skip = 0, limit = 100 } = {}, { getState, rejectWithValue }) => {
     try {
       const { auth } = getState();
-
-      console.log('🏗️ Obteniendo edificios...');
 
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/edificios?skip=${skip}&limit=${limit}`,
@@ -137,17 +114,14 @@ export const obtenerEdificios = createAsyncThunk(
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('🔴 Error HTTP en obtenerEdificios:', response.status, data);
         return rejectWithValue(data.message || `Error HTTP ${response.status}: Error al obtener edificios`);
       }
 
       const edificiosArray = Array.isArray(data) ? data : (data.datos || data.data || []);
 
-      console.log('✅ Edificios obtenidos:', edificiosArray.length);
-
       return { data: edificiosArray, tipo: 'edificio' };
     } catch (error) {
-      console.error('🔴 Error de red en obtenerEdificios:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión al obtener edificios');
     }
   }
@@ -158,8 +132,6 @@ export const obtenerSalas = createAsyncThunk(
   async ({ skip = 0, limit = 100 } = {}, { getState, rejectWithValue }) => {
     try {
       const { auth } = getState();
-
-      console.log('🏛️ Obteniendo salas...');
 
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/salas-reunion?skip=${skip}&limit=${limit}`,
@@ -174,33 +146,115 @@ export const obtenerSalas = createAsyncThunk(
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('🔴 Error HTTP en obtenerSalas:', response.status, data);
         return rejectWithValue(data.message || `Error HTTP ${response.status}: Error al obtener salas`);
       }
 
       const salasArray = Array.isArray(data) ? data : (data.datos || data.data || []);
 
-      console.log('✅ Salas obtenidas:', salasArray.length);
-
       return { data: salasArray, tipo: 'sala' };
     } catch (error) {
-      console.error('🔴 Error de red en obtenerSalas:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión al obtener salas');
     }
   }
 );
 
+export const obtenerDetalleEspacio = createAsyncThunk(
+  'espacios/obtenerDetalleEspacio',
+  async ({ id, tipo }, { getState, rejectWithValue }) => {
+    try {
+      const { auth } = getState();
+
+
+      const endpoints = {
+        oficina: '/v1/oficinas',
+        espacio: '/v1/espacios',
+        escritorio: '/v1/escritorios-flexibles',
+        edificio: '/v1/edificios',
+        sala: '/v1/salas-reunion'
+      };
+
+      const endpoint = endpoints[tipo];
+      if (!endpoint) {
+        return rejectWithValue(`Tipo de espacio no válido: ${tipo}`);
+      }
+
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}${endpoint}/${id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${auth.token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return rejectWithValue(data.message || `Error HTTP ${response.status}: Error al obtener detalle del espacio`);
+      }
+
+      return { data, tipo, id };
+    } catch (error) {
+      console.error(error);
+      return rejectWithValue('Error de conexión al obtener el detalle del espacio');
+    }
+  }
+);
+
+export const actualizarEspacio = createAsyncThunk(
+  'espacios/actualizarEspacio',
+  async ({ id, tipo, datosActualizados }, { getState, rejectWithValue }) => {
+    try {
+      const { auth } = getState();
+
+      const endpoints = {
+        oficina: '/v1/oficinas',
+        espacio: '/v1/espacios',
+        escritorio: '/v1/escritorios-flexibles',
+        edificio: '/v1/edificios',
+        sala: '/v1/salas-reunion'
+      };
+
+      const endpoint = endpoints[tipo];
+      if (!endpoint) {
+        return rejectWithValue(`Tipo de espacio no válido: ${tipo}`);
+      }
+
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}${endpoint}/${id}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${auth.token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(datosActualizados)
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return rejectWithValue(data.message || `Error HTTP ${response.status}: Error al actualizar el espacio`);
+      }
+
+      return { data, tipo, id };
+    } catch (error) {
+      console.error(error);
+      return rejectWithValue('Error de conexión al actualizar el espacio');
+    }
+  }
+);
 
 export const cargarTodosLosEspacios = createAsyncThunk(
   'espacios/cargarTodos',
   async ({ filtroTipo = 'todos', limit = 100 } = {}, { dispatch, rejectWithValue }) => {
     try {
-      console.log('🚀 Iniciando cargarTodosLosEspacios con filtro:', filtroTipo);
-
       const promises = [];
 
       if (filtroTipo === 'todos') {
-        
         promises.push(
           dispatch(obtenerOficinas({ limit })),
           dispatch(obtenerEspacios({ limit })),
@@ -209,7 +263,6 @@ export const cargarTodosLosEspacios = createAsyncThunk(
           dispatch(obtenerSalas({ limit }))
         );
       } else {
-        
         switch (filtroTipo) {
           case 'oficina':
             promises.push(dispatch(obtenerOficinas({ limit })));
@@ -230,43 +283,29 @@ export const cargarTodosLosEspacios = createAsyncThunk(
       }
 
       const results = await Promise.allSettled(promises);
-      console.log('📊 Resultados de las promesas:', results);
-
       const successfulResults = [];
 
       results.forEach((result, index) => {
         if (result.status === 'fulfilled') {
           const action = result.value;
-          console.log(`✅ Resultado ${index}:`, action);
-
-          
           if (action.meta && action.meta.requestStatus === 'fulfilled' && action.payload) {
-            
             if (action.payload.data && action.payload.tipo) {
               successfulResults.push(action.payload);
-              console.log(`✅ Datos de ${action.payload.tipo} cargados:`, action.payload.data.length, 'elementos');
             } else {
-              console.warn(`⚠️ Payload inválido para resultado ${index}:`, action.payload);
             }
           } else if (action.meta && action.meta.requestStatus === 'rejected') {
-            console.error(`❌ Error en resultado ${index}:`, action.payload || action.error);
           }
         } else {
-          console.error(`❌ Promesa ${index} rechazada:`, result.reason);
         }
       });
 
-      console.log('🎯 Resultados exitosos finales:', successfulResults.length);
-
-      
       return successfulResults;
     } catch (error) {
-      console.error('🔴 Error en cargarTodosLosEspacios:', error);
+      console.error(error);
       return rejectWithValue('Error al cargar espacios');
     }
   }
 );
-
 
 export const cargarEspaciosCliente = createAsyncThunk(
   'espacios/cargarEspaciosCliente',
@@ -279,57 +318,46 @@ export const cargarEspaciosCliente = createAsyncThunk(
         return rejectWithValue('No se encontró ID del usuario');
       }
 
-      console.log('🔥 Cargando espacios para cliente con ID:', userId);
-
-      
       const result = await dispatch(cargarTodosLosEspacios());
 
       if (cargarTodosLosEspacios.fulfilled.match(result)) {
         const todosLosEspacios = result.payload;
 
-        
         if (!Array.isArray(todosLosEspacios)) {
-          console.log('⚠️ todosLosEspacios no es un array:', todosLosEspacios);
-          return []; 
+          return [];
         }
 
-        
         const espaciosCliente = [];
 
         todosLosEspacios.forEach(({ data, tipo } = {}) => {
-          
           if (!Array.isArray(data)) {
-            console.log(`⚠️ Data de ${tipo} no es un array:`, data);
             return;
           }
 
-          console.log(`🔍 Filtrando ${tipo}s para propietarioId: ${userId}`);
-
           const espaciosFiltrados = data.filter(espacio => {
-            
             let propietarioIdStr = null;
 
-            if (espacio.propietarioId) {
-              if (typeof espacio.propietarioId === 'object') {
-                
-                propietarioIdStr = espacio.propietarioId._id || espacio.propietarioId.$oid;
+            if (espacio.usuarioId) {
+              if (typeof espacio.usuarioId === 'object' && espacio.usuarioId !== null) {
+                propietarioIdStr = espacio.usuarioId._id ||
+                  espacio.usuarioId.$oid ||
+                  espacio.usuarioId.toString();
               } else {
-                
-                propietarioIdStr = espacio.propietarioId;
+                propietarioIdStr = espacio.usuarioId.toString();
+              }
+            }
+            else if (espacio.propietarioId) {
+              if (typeof espacio.propietarioId === 'object' && espacio.propietarioId !== null) {
+                propietarioIdStr = espacio.propietarioId._id ||
+                  espacio.propietarioId.$oid ||
+                  espacio.propietarioId.toString();
+              } else {
+                propietarioIdStr = espacio.propietarioId.toString();
               }
             }
 
-            
-            propietarioIdStr = propietarioIdStr?.toString();
             const userIdStr = userId?.toString();
-
             const esPropio = propietarioIdStr && userIdStr && propietarioIdStr === userIdStr;
-
-            if (esPropio) {
-              console.log(`✅ ${tipo} encontrado: ${espacio.nombre || espacio.titulo}`);
-              console.log(`   PropietarioId: ${propietarioIdStr}`);
-              console.log(`   UserId: ${userIdStr}`);
-            }
 
             return esPropio;
           });
@@ -338,49 +366,22 @@ export const cargarEspaciosCliente = createAsyncThunk(
             espaciosCliente.push({ data: espaciosFiltrados, tipo });
           }
         });
-
-        console.log('🎯 Espacios del cliente encontrados:', espaciosCliente.length);
-
-        
         return espaciosCliente;
       } else {
         throw new Error('Error al cargar espacios');
       }
     } catch (error) {
-      console.error('🔴 Error en cargarEspaciosCliente:', error);
+      console.error(error);
       return rejectWithValue('Error al cargar espacios del cliente');
     }
   }
 );
-
-const initialState = {
-  oficinas: [],
-  espacios: [],
-  escritorios: [],
-  edificios: [],
-  salas: [],
-  espaciosMapeados: [],
-  espaciosFiltrados: [], 
-  filtroTipo: 'todos',
-  textoBusqueda: '',
-  pagination: {
-    skip: 0,
-    limit: 100,
-    total: 0,
-  },
-  loading: false,
-  error: null,
-  refreshing: false,
-};
 
 export const crearPublicacion = createAsyncThunk(
   'espacios/crearPublicacion',
   async ({ payload, endpoint, tipo }, { getState, rejectWithValue }) => {
     try {
       const { auth } = getState();
-
-      console.log('📤 Creando publicación:', { endpoint, tipo, payload });
-
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/${endpoint}`,
         {
@@ -396,44 +397,49 @@ export const crearPublicacion = createAsyncThunk(
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('🔴 Error HTTP en crearPublicacion:', response.status, data);
         return rejectWithValue(data.message || `Error HTTP ${response.status}: Error al crear ${tipo}`);
       }
-
-      console.log('✅ Publicación creada exitosamente:', data);
-
       return { data, tipo, endpoint };
     } catch (error) {
-      console.error('🔴 Error de red en crearPublicacion:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión al crear la publicación');
     }
   }
 );
 
-
 const mapearEspacio = (espacio, tipo) => {
-  
   const servicios = [];
   if (espacio.amenidades) {
-    if (espacio.amenidades.wifi) servicios.push('wifi');
-    if (espacio.amenidades.cafe) servicios.push('cafe');
-    if (espacio.amenidades.seguridad) servicios.push('seguridad');
-    if (espacio.amenidades.parking) servicios.push('parking');
-    if (espacio.amenidades.impresora) servicios.push('impresora');
-    if (espacio.amenidades.proyector) servicios.push('proyector');
-    if (espacio.amenidades.pizarra) servicios.push('pizarra');
+    if (Array.isArray(espacio.amenidades)) {
+      espacio.amenidades.forEach(amenidad => {
+        if (typeof amenidad === 'string') {
+          servicios.push(amenidad);
+        } else if (typeof amenidad === 'object' && amenidad !== null) {
+          Object.keys(amenidad).forEach(key => {
+            if (amenidad[key] && typeof amenidad[key] === 'string') {
+              servicios.push(key);
+            }
+          });
+        }
+      });
+    } else if (typeof espacio.amenidades === 'object') {
+      if (espacio.amenidades.wifi) servicios.push('wifi');
+      if (espacio.amenidades.cafe) servicios.push('cafe');
+      if (espacio.amenidades.seguridad) servicios.push('seguridad');
+      if (espacio.amenidades.parking) servicios.push('parking');
+      if (espacio.amenidades.impresora) servicios.push('impresora');
+      if (espacio.amenidades.proyector) servicios.push('proyector');
+      if (espacio.amenidades.pizarra) servicios.push('pizarra');
+    }
+  }
+  if (tipo === 'sala' && Array.isArray(espacio.equipamiento)) {
+    espacio.equipamiento.forEach(item => {
+      if (item.tipo) servicios.push(item.tipo);
+    });
   }
 
-  
-  let direccion = '';
-  if (espacio.ubicacion) {
-    const { calle, ciudad, departamento, pais } = espacio.ubicacion.direccionCompleta || espacio.ubicacion;
-    direccion = [calle, ciudad, departamento, pais].filter(Boolean).join(', ');
-  }
-
-  
-  const getColorForType = (tipo) => {
-    switch (tipo) {
+  const getColorForType = t => {
+    switch (t) {
       case 'oficina': return '#4a90e2';
       case 'espacio': return '#9b59b6';
       case 'escritorio': return '#e67e22';
@@ -443,63 +449,139 @@ const mapearEspacio = (espacio, tipo) => {
     }
   };
 
-  
+  let nombre = '';
+  if (espacio.nombre && espacio.nombre.trim()) {
+    nombre = espacio.nombre.trim();
+  } else if (espacio.titulo && espacio.titulo.trim()) {
+    nombre = espacio.titulo.trim();
+  } else {
+    switch (tipo) {
+      case 'oficina':
+        nombre = espacio.codigo || `Oficina ${espacio.ubicacion?.numero || 'S/N'}`;
+        break;
+      case 'escritorio':
+        nombre = espacio.codigo || `Escritorio ${espacio.ubicacion?.numero || 'S/N'}`;
+        break;
+      case 'sala':
+        nombre = espacio.codigo || `Sala ${espacio.ubicacion?.numero || 'S/N'}`;
+        break;
+      case 'espacio':
+        nombre = `Espacio ${espacio.ubicacion?.sector || espacio.ubicacion?.numero || 'S/N'}`;
+        break;
+      case 'edificio':
+        nombre = `Edificio ${espacio.direccionCompleta?.calle || 'S/N'}`;
+        break;
+      default:
+        nombre = `${tipo} sin nombre`;
+    }
+  }
+
+  let direccion = '';
+  if (espacio.direccionCompleta) {
+    const { calle, numero: num, ciudad, departamento, pais, codigoPostal } = espacio.direccionCompleta;
+    direccion = [
+      calle + (num ? ' ' + num : ''),
+      ciudad,
+      departamento,
+      pais,
+      codigoPostal
+    ].filter(Boolean).join(', ');
+  } else if (espacio.ubicacion) {
+    const { piso, numero, zona, sector } = espacio.ubicacion;
+    const ubicacionParts = [];
+
+    if (piso) ubicacionParts.push(`Piso ${piso}`);
+    if (numero) ubicacionParts.push(`Número ${numero}`);
+    if (zona) ubicacionParts.push(`Zona ${zona}`);
+    if (sector) ubicacionParts.push(`Sector ${sector}`);
+
+    direccion = ubicacionParts.length > 0 ? ubicacionParts.join(', ') : 'Ubicación no especificada';
+  } else {
+    direccion = 'Ubicación no especificada';
+  }
+
   let propietarioId = null;
   let propietarioNombre = 'Propietario';
-
-  
   if (espacio.usuarioId) {
     if (typeof espacio.usuarioId === 'object') {
       propietarioId = espacio.usuarioId._id || espacio.usuarioId.$oid;
-      propietarioNombre = espacio.usuarioId.nombre || 'Propietario';
+      propietarioNombre = espacio.usuarioId.nombre || propietarioNombre;
     } else {
       propietarioId = espacio.usuarioId;
     }
   } else if (espacio.propietarioId) {
-    
     if (typeof espacio.propietarioId === 'object') {
       propietarioId = espacio.propietarioId._id || espacio.propietarioId.$oid;
-      propietarioNombre = espacio.propietarioId.nombre || 'Propietario';
+      propietarioNombre = espacio.propietarioId.nombre || propietarioNombre;
     } else {
       propietarioId = espacio.propietarioId;
     }
   }
 
+  let precio = '0';
+  if (espacio.precios) {
+    precio = espacio.precios.porHora ||
+      espacio.precios.porDia ||
+      espacio.precios.porMes ||
+      '0';
+  } else if (espacio.precio) {
+    precio = espacio.precio;
+  }
+
   return {
     id: espacio._id,
-    nombre: espacio.nombre || espacio.titulo || 'Sin nombre',
-    tipo: tipo,
-    servicios: servicios,
+    nombre,
+    tipo,
+    servicios,
     color: getColorForType(tipo),
-    propietario: propietarioNombre,
-    precio: espacio.precios?.porHora || espacio.precios?.porDia || espacio.precio || '0',
+    precio,
     capacidad: espacio.capacidad || espacio.capacidadMaxima || 1,
-    direccion: direccion || 'Ubicación no especificada',
+    direccion,
     disponible: espacio.estado === 'disponible' && espacio.activo !== false,
     descripcion: espacio.descripcion || '',
-    fotos: espacio.fotosPrincipales || espacio.fotos || [],
+    fotos: espacio.imagenes || espacio.fotosPrincipales || espacio.fotos || [],
+    propietario: propietarioNombre,
     datosCompletos: {
       ...espacio,
-      
-      propietarioId: propietarioId
+      propietarioId
     }
   };
 };
 
+const initialState = {
+  oficinas: [],
+  espacios: [],
+  escritorios: [],
+  edificios: [],
+  salas: [],
+  espaciosMapeados: [],
+  espaciosFiltrados: [],
+  filtroTipo: 'todos',
+  textoBusqueda: '',
+  pagination: {
+    skip: 0,
+    limit: 100,
+    total: 0,
+  },
+  loading: false,
+  error: null,
+  refreshing: false,
+  detalleActual: null,
+  loadingDetalle: false,
+  errorDetalle: null,
+};
 
 const espaciosSlice = createSlice({
   name: 'espacios',
   initialState,
   reducers: {
-    
     setFiltroTipo: (state, action) => {
       state.filtroTipo = action.payload;
     },
 
-    
     setTextoBusqueda: (state, action) => {
       state.textoBusqueda = action.payload;
-      
+
       state.espaciosFiltrados = (state.espaciosMapeados || []).filter(espacio =>
         espacio.nombre.toLowerCase().includes(action.payload.toLowerCase()) ||
         espacio.direccion.toLowerCase().includes(action.payload.toLowerCase()) ||
@@ -507,7 +589,6 @@ const espaciosSlice = createSlice({
       );
     },
 
-    
     limpiarEspacios: (state) => {
       state.oficinas = [];
       state.espacios = [];
@@ -518,20 +599,22 @@ const espaciosSlice = createSlice({
       state.espaciosFiltrados = [];
     },
 
-    
     setRefreshing: (state, action) => {
       state.refreshing = action.payload;
     },
 
-    
     clearError: (state) => {
       state.error = null;
+    },
+
+    limpiarDetalle: (state) => {
+      state.detalleActual = null;
+      state.errorDetalle = null;
     },
   },
 
   extraReducers: (builder) => {
     builder
-      
       .addCase(obtenerOficinas.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -546,7 +629,6 @@ const espaciosSlice = createSlice({
         state.oficinas = [];
       })
 
-      
       .addCase(obtenerEspacios.fulfilled, (state, action) => {
         state.espacios = Array.isArray(action.payload?.data) ? action.payload.data : [];
       })
@@ -554,7 +636,6 @@ const espaciosSlice = createSlice({
         state.espacios = [];
       })
 
-      
       .addCase(obtenerEscritorios.fulfilled, (state, action) => {
         state.escritorios = Array.isArray(action.payload?.data) ? action.payload.data : [];
       })
@@ -562,7 +643,6 @@ const espaciosSlice = createSlice({
         state.escritorios = [];
       })
 
-      
       .addCase(obtenerEdificios.fulfilled, (state, action) => {
         state.edificios = Array.isArray(action.payload?.data) ? action.payload.data : [];
       })
@@ -570,13 +650,86 @@ const espaciosSlice = createSlice({
         state.edificios = [];
       })
 
-      
       .addCase(obtenerSalas.fulfilled, (state, action) => {
         state.salas = Array.isArray(action.payload?.data) ? action.payload.data : [];
       })
       .addCase(obtenerSalas.rejected, (state) => {
         state.salas = [];
       })
+
+      .addCase(obtenerDetalleEspacio.pending, (state) => {
+        state.loadingDetalle = true;
+        state.errorDetalle = null;
+      })
+      .addCase(obtenerDetalleEspacio.fulfilled, (state, action) => {
+        state.loadingDetalle = false;
+        state.detalleActual = action.payload.data;
+      })
+      .addCase(obtenerDetalleEspacio.rejected, (state, action) => {
+        state.loadingDetalle = false;
+        state.errorDetalle = action.payload;
+        state.detalleActual = null;
+      })
+
+      .addCase(actualizarEspacio.pending, (state) => {
+        state.loadingDetalle = true;
+        state.errorDetalle = null;
+      })
+      .addCase(actualizarEspacio.fulfilled, (state, action) => {
+        state.loadingDetalle = false;
+        state.detalleActual = action.payload.data;
+
+        const { data, tipo } = action.payload;
+
+        switch (tipo) {
+          case 'oficina':
+            const oficinaIndex = state.oficinas.findIndex(o => o._id === data._id);
+            if (oficinaIndex !== -1) {
+              state.oficinas[oficinaIndex] = data;
+            }
+            break;
+          case 'espacio':
+            const espacioIndex = state.espacios.findIndex(e => e._id === data._id);
+            if (espacioIndex !== -1) {
+              state.espacios[espacioIndex] = data;
+            }
+            break;
+          case 'escritorio':
+            const escritorioIndex = state.escritorios.findIndex(e => e._id === data._id);
+            if (escritorioIndex !== -1) {
+              state.escritorios[escritorioIndex] = data;
+            }
+            break;
+          case 'edificio':
+            const edificioIndex = state.edificios.findIndex(e => e._id === data._id);
+            if (edificioIndex !== -1) {
+              state.edificios[edificioIndex] = data;
+            }
+            break;
+          case 'sala':
+            const salaIndex = state.salas.findIndex(s => s._id === data._id);
+            if (salaIndex !== -1) {
+              state.salas[salaIndex] = data;
+            }
+            break;
+        }
+
+        const espacioMapeadoIndex = state.espaciosMapeados.findIndex(e => e.id === data._id);
+        if (espacioMapeadoIndex !== -1) {
+          const espacioActualizado = mapearEspacio(data, tipo);
+          state.espaciosMapeados[espacioMapeadoIndex] = espacioActualizado;
+
+          const espacioFiltradoIndex = state.espaciosFiltrados.findIndex(e => e.id === data._id);
+          if (espacioFiltradoIndex !== -1) {
+            state.espaciosFiltrados[espacioFiltradoIndex] = espacioActualizado;
+          }
+        }
+      })
+      .addCase(actualizarEspacio.rejected, (state, action) => {
+        state.loadingDetalle = false;
+        state.errorDetalle = action.payload;
+      })
+
       .addCase(crearPublicacion.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -586,7 +739,6 @@ const espaciosSlice = createSlice({
 
         const { data, tipo } = action.payload;
 
-        
         switch (tipo) {
           case 'oficina':
             state.oficinas.unshift(data);
@@ -602,11 +754,9 @@ const espaciosSlice = createSlice({
             break;
         }
 
-        
         const nuevoEspacioMapeado = mapearEspacio(data, tipo);
         state.espaciosMapeados.unshift(nuevoEspacioMapeado);
 
-        
         const searchTerm = (state.textoBusqueda || '').toLowerCase();
         if (nuevoEspacioMapeado.nombre.toLowerCase().includes(searchTerm) ||
           nuevoEspacioMapeado.direccion.toLowerCase().includes(searchTerm) ||
@@ -619,7 +769,6 @@ const espaciosSlice = createSlice({
         state.error = action.payload;
       })
 
-      
       .addCase(cargarTodosLosEspacios.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -627,59 +776,43 @@ const espaciosSlice = createSlice({
       .addCase(cargarTodosLosEspacios.fulfilled, (state, action) => {
         state.loading = false;
 
-        console.log('🎯 Procesando cargarTodosLosEspacios.fulfilled:', action.payload);
 
-        
         const payload = action.payload || [];
         if (!Array.isArray(payload)) {
-          console.error('🔴 Payload no es un array:', payload);
           state.espaciosMapeados = [];
           state.espaciosFiltrados = [];
           return;
         }
 
-        
         const validResults = payload.filter(item => {
           const isValid = item &&
             typeof item === 'object' &&
             Array.isArray(item.data) &&
             typeof item.tipo === 'string';
 
-          if (!isValid) {
-            console.warn('🔴 Elemento inválido filtrado:', item);
-          }
-
           return isValid;
         });
 
-        console.log('✅ Elementos válidos después del filtrado:', validResults.length);
-
-        
         const espaciosMapeados = [];
         validResults.forEach(({ data, tipo }) => {
           if (Array.isArray(data) && data.length > 0) {
             try {
-              console.log(`📝 Mapeando ${data.length} elementos de tipo ${tipo}`);
               const espaciosDelTipo = data.map(espacio => {
                 try {
                   return mapearEspacio(espacio, tipo);
-                } catch (mapError) {
-                  console.error(`🔴 Error mapeando espacio individual de ${tipo}:`, mapError, espacio);
-                  return null;
+                } catch (error) {
+                  console.error(error);
                 }
-              }).filter(Boolean); 
+              }).filter(Boolean);
 
               espaciosMapeados.push(...espaciosDelTipo);
-              console.log(`✅ ${espaciosDelTipo.length} espacios de tipo ${tipo} mapeados correctamente`);
             } catch (error) {
-              console.error(`🔴 Error mapeando ${tipo}:`, error);
+              console.error(error);
             }
           } else {
-            console.log(`ℹ️ No hay datos para el tipo ${tipo} o data está vacío`);
           }
         });
 
-        console.log('🎯 Total de espacios mapeados:', espaciosMapeados.length);
 
         state.espaciosMapeados = espaciosMapeados;
         state.espaciosFiltrados = espaciosMapeados.filter(espacio => {
@@ -688,8 +821,6 @@ const espaciosSlice = createSlice({
             espacio.direccion.toLowerCase().includes(searchTerm) ||
             espacio.propietario.toLowerCase().includes(searchTerm);
         });
-
-        console.log('🎯 Espacios filtrados final:', state.espaciosFiltrados.length);
       })
       .addCase(cargarTodosLosEspacios.rejected, (state, action) => {
         state.loading = false;
@@ -698,7 +829,6 @@ const espaciosSlice = createSlice({
         state.espaciosFiltrados = [];
       })
 
-      
       .addCase(cargarEspaciosCliente.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -706,35 +836,28 @@ const espaciosSlice = createSlice({
       .addCase(cargarEspaciosCliente.fulfilled, (state, action) => {
         state.loading = false;
 
-        console.log('🎯 Procesando cargarEspaciosCliente.fulfilled:', action.payload);
-
-        
         const payload = action.payload || [];
         if (!Array.isArray(payload)) {
-          console.error('🔴 Payload de cliente no es un array:', payload);
           state.espaciosMapeados = [];
           state.espaciosFiltrados = [];
           return;
         }
 
-        
         const espaciosMapeados = [];
         payload.forEach(({ data, tipo } = {}) => {
-          
           if (Array.isArray(data) && data.length > 0) {
             try {
               const espaciosDelTipo = data.map(espacio => {
                 try {
                   return mapearEspacio(espacio, tipo);
-                } catch (mapError) {
-                  console.error(`🔴 Error mapeando espacio individual del cliente de ${tipo}:`, mapError, espacio);
-                  return null;
+                } catch (error) {
+                  console.error(error);
                 }
-              }).filter(Boolean); 
+              }).filter(Boolean);
 
               espaciosMapeados.push(...espaciosDelTipo);
             } catch (error) {
-              console.error(`🔴 Error mapeando ${tipo} del cliente:`, error);
+              console.error(error);
             }
           }
         });
@@ -761,7 +884,8 @@ export const {
   setTextoBusqueda,
   limpiarEspacios,
   setRefreshing,
-  clearError
+  clearError,
+  limpiarDetalle
 } = espaciosSlice.actions;
 
 export default espaciosSlice.reducer;

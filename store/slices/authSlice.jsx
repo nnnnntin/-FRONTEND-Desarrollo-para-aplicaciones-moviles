@@ -1,15 +1,10 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
-
-
-
+// Thunks existentes...
 export const loginUsuario = createAsyncThunk(
   'auth/login',
   async ({ username, password }, { rejectWithValue }) => {
     try {
-      console.log('🔵 Enviando solicitud de login:', { username, password });
-      console.log('🌐 Fetch login a:', `${process.env.EXPO_PUBLIC_API_URL}/v1/auth/login`);
-
       const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/v1/auth/login`, {
         method: 'POST',
         headers: {
@@ -19,21 +14,18 @@ export const loginUsuario = createAsyncThunk(
       });
 
       const data = await response.json();
-      console.log('🔵 Respuesta del servidor:', data);
 
       if (!response.ok) {
-        console.log('🔴 Error en respuesta:', data);
         return rejectWithValue(data.message || 'Error en el login');
       }
 
       return data;
     } catch (error) {
-      console.log('🔴 Error de conexión:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
 );
-
 
 export const signupUsuario = createAsyncThunk(
   'auth/signup',
@@ -55,11 +47,11 @@ export const signupUsuario = createAsyncThunk(
 
       return data;
     } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
 );
-
 
 const initialState = {
   isLoggedIn: false,
@@ -69,58 +61,83 @@ const initialState = {
   esAdmin: false,
   permisos: [],
 
-
   loading: false,
   error: null,
-
 
   notificacionesActivas: true,
   idiomaPreferido: 'es',
 };
 
-
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-
+    // Acción para loguearse
     loguear: (state, action) => {
       state.isLoggedIn = true;
       state.usuario = action.payload.usuario;
       state.token = action.payload.token;
-      state.tipoUsuario = action.payload.tipoUsuario;
+      state.tipoUsuario = action.payload.tipoUsuario || action.payload.usuario?.tipoUsuario;
 
-      if (action.payload.tipoUsuario === 'administrador') {
+      if (state.tipoUsuario === 'administrador') {
         state.esAdmin = true;
         state.permisos = ['all'];
       }
     },
 
-
+    // Acción para desloguearse
     desloguear: (state) => {
       return {
         ...initialState,
-
         notificacionesActivas: state.notificacionesActivas,
         idiomaPreferido: state.idiomaPreferido,
       };
     },
 
+    // Actualizar solo el usuario sin afectar token
+    actualizarUsuario: (state, action) => {
+      if (state.isLoggedIn) {
+        const usuarioActualizado = action.payload;
+        state.usuario = usuarioActualizado;
+        state.tipoUsuario = usuarioActualizado.tipoUsuario;
+        
+        // Actualizar permisos si cambió el tipo de usuario
+        if (usuarioActualizado.tipoUsuario === 'administrador') {
+          state.esAdmin = true;
+          state.permisos = ['all'];
+        } else {
+          state.esAdmin = false;
+          state.permisos = [];
+        }
+        
+        console.log('🟢 [Auth] Usuario actualizado en estado:', {
+          id: usuarioActualizado._id || usuarioActualizado.id,
+          username: usuarioActualizado.username,
+          tipoUsuario: usuarioActualizado.tipoUsuario,
+          membresia: usuarioActualizado.membresia ? {
+            tipoMembresiaId: usuarioActualizado.membresia.tipoMembresiaId,
+            renovacionAutomatica: usuarioActualizado.membresia.renovacionAutomatica
+          } : null
+        });
+      }
+    },
 
+    // Actualizar token
     actualizarToken: (state, action) => {
       state.token = action.payload;
     },
 
-
+    // Toggle notificaciones
     toggleNotificaciones: (state) => {
       state.notificacionesActivas = !state.notificacionesActivas;
     },
 
+    // Cambiar idioma
     cambiarIdioma: (state, action) => {
       state.idiomaPreferido = action.payload;
     },
 
-
+    // Estados de carga y error
     setLoading: (state, action) => {
       state.loading = action.payload;
     },
@@ -136,22 +153,18 @@ const authSlice = createSlice({
 
   extraReducers: (builder) => {
     builder
-
+      // loginUsuario
       .addCase(loginUsuario.pending, (state) => {
-        console.log('🟡 Login pending...');
         state.loading = true;
         state.error = null;
       })
       .addCase(loginUsuario.fulfilled, (state, action) => {
-        console.log('🟢 Login fulfilled con payload:', action.payload);
-
         state.loading = false;
         state.isLoggedIn = true;
 
         const { usuario, token } = action.payload;
 
         if (!usuario) {
-          console.error('🔴 Usuario no encontrado en la respuesta');
           state.error = 'Error: datos de usuario no encontrados';
           state.isLoggedIn = false;
           return;
@@ -165,25 +178,21 @@ const authSlice = createSlice({
           state.esAdmin = true;
           state.permisos = ['all'];
         }
-
-        console.log('🟢 Login exitoso para:', state.tipoUsuario);
       })
       .addCase(loginUsuario.rejected, (state, action) => {
-        console.log('🔴 Login rejected:', action.payload);
         state.loading = false;
         state.error = action.payload;
         state.isLoggedIn = false;
       })
 
-
+      // signupUsuario
       .addCase(signupUsuario.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(signupUsuario.fulfilled, (state, action) => {
         state.loading = false;
-
-
+        // El signup no loguea automáticamente al usuario
       })
       .addCase(signupUsuario.rejected, (state, action) => {
         state.loading = false;
@@ -195,6 +204,7 @@ const authSlice = createSlice({
 export const {
   loguear,
   desloguear,
+  actualizarUsuario,
   actualizarToken,
   toggleNotificaciones,
   cambiarIdioma,

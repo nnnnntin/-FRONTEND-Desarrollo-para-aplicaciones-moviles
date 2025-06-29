@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Modal,
   RefreshControl,
   SafeAreaView,
@@ -34,95 +35,158 @@ const Reservas = ({ navigation }) => {
   const [enviandoReseña, setEnviandoReseña] = useState(false);
 
   useEffect(() => {
-
-
-
-
-
-
     if (usuario?.id || usuario?._id) {
       const userId = usuario.id || usuario._id;
-      console.log('🔍 Obteniendo reservas para usuario:', userId);
       dispatch(obtenerReservasPorUsuario(userId));
     }
   }, [usuario, dispatch]);
 
-  const formatearFecha = fecha =>
-    fecha.toLocaleDateString('es-ES', {
+  const formatearFecha = fecha => {
+    if (!fecha) return 'Fecha no disponible';
+    const fechaObj = new Date(fecha);
+    if (isNaN(fechaObj.getTime())) return 'Fecha no disponible';
+
+    return fechaObj.toLocaleDateString('es-ES', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
     });
+  };
 
+  const formatearHorario = (horaInicio, horaFin) => {
+    if (!horaInicio || !horaFin) return '';
+    return `${horaInicio} - ${horaFin}`;
+  };
 
+  const calcularDuracion = (horaInicio, horaFin) => {
+    if (!horaInicio || !horaFin) return '';
 
-  const mapearReserva = reservaBackend => {
-    console.log('Mapeando reserva:', reservaBackend);
+    try {
+      const inicio = horaInicio.split(':');
+      const fin = horaFin.split(':');
+      const horaInicioNum = parseInt(inicio[0]);
+      const horaFinNum = parseInt(fin[0]);
+      const minutoInicioNum = parseInt(inicio[1] || 0);
+      const minutoFinNum = parseInt(fin[1] || 0);
 
-    let fechaReserva = 'Fecha no disponible';
-    let fechaReservaRaw = new Date();
+      const totalMinutosInicio = horaInicioNum * 60 + minutoInicioNum;
+      const totalMinutosFin = horaFinNum * 60 + minutoFinNum;
+      const duracionMinutos = totalMinutosFin - totalMinutosInicio;
 
+      if (duracionMinutos <= 0) return '';
 
-    const fuente = reservaBackend.fechaInicio || reservaBackend.fecha || reservaBackend.fechaReserva;
-    if (fuente) {
-      fechaReservaRaw = new Date(fuente);
-      fechaReserva = formatearFecha(fechaReservaRaw);
+      const horas = Math.floor(duracionMinutos / 60);
+      const minutos = duracionMinutos % 60;
+
+      if (horas > 0 && minutos > 0) {
+        return `${horas}h ${minutos}m`;
+      } else if (horas > 0) {
+        return `${horas} hora${horas !== 1 ? 's' : ''}`;
+      } else {
+        return `${minutos} minutos`;
+      }
+    } catch (error) {
+      console.error(error);
     }
+  };
 
+  const obtenerNombreEspacio = (entidadReservada) => {
+    if (!entidadReservada) return 'Espacio no especificado';
 
-    let nombreEspacio = 'Espacio no especificado';
-    let espacioInfo = {};
+    const { tipo, nombre, id } = entidadReservada;
 
-    if (reservaBackend.entidadReservada) {
-      const entidad = reservaBackend.entidadReservada;
-      espacioInfo = {
-        id: entidad.id,
-        tipo: entidad.tipo || 'oficina'
-      };
+    if (nombre) return nombre;
 
+    const idCorto = id ? id.slice(-4) : 'XXXX';
 
-      switch (entidad.tipo) {
-        case 'oficina':
-          nombreEspacio = `Oficina ${entidad.id.slice(-4)}`;
-          break;
-        case 'sala':
-          nombreEspacio = `Sala de reuniones ${entidad.id.slice(-4)}`;
-          break;
-        case 'escritorio':
-          nombreEspacio = `Escritorio ${entidad.id.slice(-4)}`;
-          break;
-        default:
-          nombreEspacio = `${entidad.tipo} ${entidad.id.slice(-4)}`;
+    switch (tipo?.toLowerCase()) {
+      case 'oficina':
+        return `Oficina ${idCorto}`;
+      case 'sala':
+      case 'sala_reuniones':
+        return `Sala de reuniones ${idCorto}`;
+      case 'escritorio':
+        return `Escritorio ${idCorto}`;
+      case 'sala_conferencias':
+        return `Sala de conferencias ${idCorto}`;
+      case 'coworking':
+        return `Espacio coworking ${idCorto}`;
+      default:
+        return `${tipo || 'Espacio'} ${idCorto}`;
+    }
+  };
+
+  const obtenerImagenEspacio = (entidadReservada) => {
+    if (!entidadReservada) return null;
+
+    const imageArrays = ['fotos', 'imagenes', 'fotosPrincipales'];
+
+    for (const arrayName of imageArrays) {
+      if (Array.isArray(entidadReservada[arrayName]) && entidadReservada[arrayName].length > 0) {
+        const imagen = entidadReservada[arrayName][0];
+        if (typeof imagen === 'string' && imagen.trim()) {
+          return imagen.trim();
+        }
+        if (typeof imagen === 'object' && imagen !== null) {
+          if (imagen.url && typeof imagen.url === 'string' && imagen.url.trim()) {
+            return imagen.url.trim();
+          }
+          if (imagen.uri && typeof imagen.uri === 'string' && imagen.uri.trim()) {
+            return imagen.uri.trim();
+          }
+        }
       }
     }
 
+    const imageProperties = ['imagen', 'foto', 'picture', 'thumbnail'];
+
+    for (const propName of imageProperties) {
+      if (entidadReservada[propName]) {
+        const imagen = entidadReservada[propName];
+        if (typeof imagen === 'string' && imagen.trim()) {
+          return imagen.trim();
+        }
+        if (typeof imagen === 'object' && imagen !== null) {
+          if (imagen.url && typeof imagen.url === 'string' && imagen.url.trim()) {
+            return imagen.url.trim();
+          }
+          if (imagen.uri && typeof imagen.uri === 'string' && imagen.uri.trim()) {
+            return imagen.uri.trim();
+          }
+        }
+      }
+    }
+
+    return null;
+  };
+
+  const mapearReserva = reservaBackend => {
+    const fuente = reservaBackend.fechaInicio || reservaBackend.fecha || reservaBackend.fechaReserva;
+    const fechaReserva = formatearFecha(fuente);
+    const fechaReservaRaw = fuente ? new Date(fuente) : new Date();
+
+    const nombreEspacio = obtenerNombreEspacio(reservaBackend.entidadReservada);
+    const tipoEspacio = reservaBackend.entidadReservada?.tipo || 'oficina';
+    const ubicacionEspacio = reservaBackend.entidadReservada?.ubicacion ||
+      reservaBackend.ubicacion ||
+      'Ubicación no especificada';
+
+    const imagenEspacio = obtenerImagenEspacio(reservaBackend.entidadReservada);
+
+    const horario = formatearHorario(reservaBackend.horaInicio, reservaBackend.horaFin);
+    const duracion = calcularDuracion(reservaBackend.horaInicio, reservaBackend.horaFin);
 
     const estado = reservaBackend.estado || 'pendiente';
-
-
     const yaReseñada = reservaBackend.reseña ||
       reservaBackend.calificacion ||
       reservaBackend.yaReseñada ||
       false;
-
     const puedeReseñar = ['completada', 'finalizada'].includes(estado) && !yaReseñada;
 
-
-    let duracion = '';
-    if (reservaBackend.horaInicio && reservaBackend.horaFin) {
-      const inicio = reservaBackend.horaInicio.split(':');
-      const fin = reservaBackend.horaFin.split(':');
-      const horaInicio = parseInt(inicio[0]);
-      const horaFin = parseInt(fin[0]);
-      const horas = horaFin - horaInicio;
-      duracion = `${horas} hora${horas !== 1 ? 's' : ''}`;
-    }
-
-
-    let horario = '';
-    if (reservaBackend.horaInicio && reservaBackend.horaFin) {
-      horario = `${reservaBackend.horaInicio} - ${reservaBackend.horaFin}`;
-    }
+    const precio = reservaBackend.precioTotal ||
+      reservaBackend.montoTotal ||
+      reservaBackend.precio ||
+      0;
 
     const reservaMapeada = {
       id: reservaBackend._id || reservaBackend.id,
@@ -131,35 +195,53 @@ const Reservas = ({ navigation }) => {
       duracion,
       horario,
       oficina: {
-        id: espacioInfo.id || '',
+        id: reservaBackend.entidadReservada?.id || '',
         nombre: nombreEspacio,
-        tipo: espacioInfo.tipo || 'oficina',
-        ubicacion: espacioInfo.ubicacion || '',
-        imagen: espacioInfo.fotos?.[0] || null
+        tipo: tipoEspacio,
+        ubicacion: ubicacionEspacio,
+        imagen: imagenEspacio,
+        capacidad: reservaBackend.entidadReservada?.capacidad || reservaBackend.cantidadPersonas || 1
       },
       estado,
       puedeReseñar,
       yaReseñada,
-      precio: reservaBackend.precioTotal || reservaBackend.montoTotal || reservaBackend.precio || 0,
+      precio,
       metodoPago: reservaBackend.metodoPago || '',
-      notas: reservaBackend.notas || reservaBackend.observaciones || reservaBackend.proposito || '',
+      notas: reservaBackend.notas ||
+        reservaBackend.observaciones ||
+        reservaBackend.proposito ||
+        '',
       cantidadPersonas: reservaBackend.cantidadPersonas || 1,
       tipoReserva: reservaBackend.tipoReserva || 'dia',
       descuento: reservaBackend.descuento || null,
+      codigoReserva: reservaBackend.codigoReserva ||
+        reservaBackend.numeroReserva ||
+        `RES-${(reservaBackend._id || reservaBackend.id || '').slice(-6).toUpperCase()}`,
+      fechaCreacion: reservaBackend.fechaCreacion || reservaBackend.createdAt,
+      fechaActualizacion: reservaBackend.fechaActualizacion || reservaBackend.updatedAt,
       datosCompletos: reservaBackend
     };
 
-    console.log('Reserva mapeada exitosamente:', reservaMapeada);
     return reservaMapeada;
   };
 
   const reservas = useMemo(() => {
+    if (!Array.isArray(reservasRaw)) {
+      return [];
+    }
+
     return reservasRaw
       .map(mapearReserva)
       .sort((a, b) => b.fechaReservaRaw - a.fechaReservaRaw);
   }, [reservasRaw]);
 
-  const esFechaProxima = fecha => fecha >= new Date();
+  const esFechaProxima = fecha => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const fechaReserva = new Date(fecha);
+    fechaReserva.setHours(0, 0, 0, 0);
+    return fechaReserva >= hoy;
+  };
 
   const getReservasFiltradas = () => {
     if (filtroActivo === 'proximas') {
@@ -177,9 +259,14 @@ const Reservas = ({ navigation }) => {
     return reservas;
   };
 
-  const handleVolver = () => navigation.goBack();
-  const handleReservaPress = reserva =>
-    navigation.navigate('DetalleReserva', { reserva, reservaCompleta: reserva.datosCompletos });
+  const handleVolver = () => navigation.popToTop();
+
+  const handleReservaPress = reserva => {
+    navigation.navigate('DetalleReserva', {
+      reserva,
+      reservaCompleta: reserva.datosCompletos
+    });
+  };
 
   const handleReseñar = reserva => {
     setReservaSeleccionada(reserva);
@@ -192,53 +279,69 @@ const Reservas = ({ navigation }) => {
     if (calificacion === 0) {
       return Alert.alert('Error', 'Por favor selecciona una calificación');
     }
+
     try {
       setEnviandoReseña(true);
-
       await new Promise(res => setTimeout(res, 1000));
+
       Alert.alert('Reseña enviada', 'Gracias por tu opinión', [
-        { text: 'OK', onPress: () => setModalReseña(false) }
+        {
+          text: 'OK', onPress: () => {
+            setModalReseña(false);
+            const userId = usuario?.id || usuario?._id;
+            if (userId) {
+              dispatch(obtenerReservasPorUsuario(userId));
+            }
+          }
+        }
       ]);
-    } catch {
+    } catch (error) {
+      console.error(error);
       Alert.alert('Error', 'No se pudo enviar la reseña');
     } finally {
       setEnviandoReseña(false);
     }
   };
 
-  const handleCancelarReserva = reserva => {
-    Alert.alert(
-      'Cancelar reserva',
-      '¿Estás seguro de que quieres cancelar esta reserva?',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Sí, cancelar',
-          style: 'destructive',
-          onPress: () =>
-            dispatch(cancelarReserva({ reservaId: reserva.id, motivo: 'Cancelado por el usuario' }))
-        }
-      ]
-    );
-  };
-
   const handleFiltroChange = filtro => setFiltroActivo(filtro);
 
   const getEstadoBadge = estado => {
-    switch (estado) {
-      case 'pendiente': return { backgroundColor: '#f39c12', text: 'Pendiente' };
-      case 'confirmada': case 'aprobada': return { backgroundColor: '#3498db', text: 'Confirmada' };
-      case 'finalizada': case 'completada': return { backgroundColor: '#27ae60', text: 'Finalizada' };
-      case 'cancelada': return { backgroundColor: '#e74c3c', text: 'Cancelada' };
-      case 'rechazada': return { backgroundColor: '#95a5a6', text: 'Rechazada' };
-      default: return { backgroundColor: '#95a5a6', text: estado };
+    switch (estado?.toLowerCase()) {
+      case 'pendiente':
+        return { backgroundColor: '#f39c12', text: 'Pendiente' };
+      case 'confirmada':
+      case 'aprobada':
+        return { backgroundColor: '#3498db', text: 'Confirmada' };
+      case 'finalizada':
+      case 'completada':
+        return { backgroundColor: '#27ae60', text: 'Finalizada' };
+      case 'cancelada':
+        return { backgroundColor: '#e74c3c', text: 'Cancelada' };
+      case 'rechazada':
+        return { backgroundColor: '#95a5a6', text: 'Rechazada' };
+      default:
+        return { backgroundColor: '#95a5a6', text: estado || 'Sin estado' };
+    }
+  };
+
+  const getIconoTipoEspacio = (tipo) => {
+    switch (tipo?.toLowerCase()) {
+      case 'sala':
+      case 'sala_reuniones':
+      case 'sala_conferencias':
+        return 'people';
+      case 'escritorio':
+        return 'desktop';
+      case 'coworking':
+        return 'laptop';
+      default:
+        return 'business';
     }
   };
 
   const ReservaItem = ({ reserva }) => {
     const estadoInfo = getEstadoBadge(reserva.estado);
-    const puedeCancel =
-      ['pendiente', 'confirmada', 'aprobada'].includes(reserva.estado) &&
+    const puedeCancel = ['pendiente', 'confirmada', 'aprobada'].includes(reserva.estado) &&
       esFechaProxima(reserva.fechaReservaRaw);
 
     return (
@@ -248,19 +351,21 @@ const Reservas = ({ navigation }) => {
         activeOpacity={0.7}
       >
         <View style={styles.imagenContainer}>
-          <View style={styles.imagenPlaceholder}>
-            <Ionicons
-              name={
-                reserva.oficina.tipo === 'sala'
-                  ? 'people'
-                  : reserva.oficina.tipo === 'escritorio'
-                    ? 'desktop'
-                    : 'business'
-              }
-              size={24}
-              color="#4a90e2"
+          {reserva.oficina.imagen ? (
+            <Image
+              source={{ uri: reserva.oficina.imagen }}
+              style={styles.imagenReserva}
+              resizeMode="cover"
             />
-          </View>
+          ) : (
+            <View style={styles.imagenPlaceholder}>
+              <Ionicons
+                name={getIconoTipoEspacio(reserva.oficina.tipo)}
+                size={24}
+                color="#4a90e2"
+              />
+            </View>
+          )}
         </View>
 
         <View style={styles.reservaInfo}>
@@ -276,7 +381,15 @@ const Reservas = ({ navigation }) => {
 
           <Text style={styles.nombreOficina}>{reserva.oficina.nombre}</Text>
 
-          {reserva.precio > 0 && <Text style={styles.precio}>${reserva.precio}</Text>}
+          {reserva.horario && (
+            <Text style={styles.horarioText}>🕒 {reserva.horario}</Text>
+          )}
+
+          {reserva.precio > 0 && (
+            <Text style={styles.precio}>
+              ${reserva.precio.toLocaleString('es-UY')}
+            </Text>
+          )}
 
           <View style={styles.accionesContainer}>
             {reserva.puedeReseñar && !reserva.yaReseñada && (
@@ -291,23 +404,12 @@ const Reservas = ({ navigation }) => {
                 <Text style={styles.reseñarText}>Dejar reseña</Text>
               </TouchableOpacity>
             )}
+
             {reserva.yaReseñada && (
               <View style={styles.yaReseñadaBadge}>
                 <Ionicons name="checkmark-circle" size={16} color="#27ae60" />
                 <Text style={styles.yaReseñadaText}>Ya reseñaste</Text>
               </View>
-            )}
-            {puedeCancel && (
-              <TouchableOpacity
-                style={styles.cancelarButton}
-                onPress={e => {
-                  e.stopPropagation();
-                  handleCancelarReserva(reserva);
-                }}
-              >
-                <Ionicons name="close-circle-outline" size={16} color="#e74c3c" />
-                <Text style={styles.cancelarText}>Cancelar</Text>
-              </TouchableOpacity>
             )}
           </View>
         </View>
@@ -316,6 +418,14 @@ const Reservas = ({ navigation }) => {
   };
 
   const reservasFiltradas = getReservasFiltradas();
+  const proximasCount = reservas.filter(r =>
+    esFechaProxima(r.fechaReservaRaw) &&
+    !['finalizada', 'completada', 'cancelada'].includes(r.estado)
+  ).length;
+  const pasadasCount = reservas.filter(r =>
+    !esFechaProxima(r.fechaReservaRaw) ||
+    ['finalizada', 'completada', 'cancelada'].includes(r.estado)
+  ).length;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -357,7 +467,7 @@ const Reservas = ({ navigation }) => {
             onPress={() => handleFiltroChange('proximas')}
           >
             <Text style={[styles.tabText, filtroActivo === 'proximas' && styles.tabTextActive]}>
-              Próximas
+              Próximas ({proximasCount})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -365,12 +475,12 @@ const Reservas = ({ navigation }) => {
             onPress={() => handleFiltroChange('pasadas')}
           >
             <Text style={[styles.tabText, filtroActivo === 'pasadas' && styles.tabTextActive]}>
-              Pasadas
+              Pasadas ({pasadasCount})
             </Text>
           </TouchableOpacity>
         </View>
 
-        {loading ? (
+        {loading && reservas.length === 0 ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#4a90e2" />
             <Text style={styles.loadingText}>Cargando reservas...</Text>
@@ -422,6 +532,10 @@ const Reservas = ({ navigation }) => {
 
             <Text style={styles.modalSubtitle}>
               {reservaSeleccionada?.oficina.nombre}
+            </Text>
+
+            <Text style={styles.modalFecha}>
+              Reserva del {reservaSeleccionada?.fechaReserva}
             </Text>
 
             <View style={styles.starsContainer}>
@@ -637,7 +751,45 @@ const styles = StyleSheet.create({
     shadowRadius: 4
   },
   enviarButtonDisabled: { backgroundColor: '#bdc3c7' },
-  enviarButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  enviarButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  horarioText: {
+    fontSize: 13,
+    color: '#7f8c8d',
+    marginBottom: 4,
+    fontStyle: 'italic',
+  },
+  imagenReserva: {
+    width: 60,
+    height: 45,
+    borderRadius: 8,
+  },
+  modalFecha: {
+    fontSize: 14,
+    color: '#95a5a6',
+    marginBottom: 15,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  starsContainer: {
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  starsLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  stars: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  star: {
+    marginHorizontal: 2,
+  },
+
 });
 
 export default Reservas;

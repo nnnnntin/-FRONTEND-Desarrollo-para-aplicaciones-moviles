@@ -11,7 +11,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 
 import { useDispatch, useSelector } from 'react-redux';
@@ -31,28 +31,23 @@ const Registro = ({ navigation }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [tipoUsuario, setTipoUsuario] = useState('usuario');
 
-  
   const [telefono, setTelefono] = useState('');
   const [documentoIdentidad, setDocumentoIdentidad] = useState('');
   const [profileImage, setProfileImage] = useState(null);
 
-  
   const [calle, setCalle] = useState('');
   const [ciudad, setCiudad] = useState('Montevideo');
   const [codigoPostal, setCodigoPostal] = useState('');
   const [pais, setPais] = useState('Uruguay');
 
-  
   const [nombreEmpresa, setNombreEmpresa] = useState('');
   const [tipoServicio, setTipoServicio] = useState('');
-  const [tipoEmpresa, setTipoEmpresa] = useState('inmobiliaria'); 
-  const [tipoProveedor, setTipoProveedor] = useState('empresa'); 
+  const [tipoEmpresa, setTipoEmpresa] = useState('inmobiliaria');
+  const [tipoProveedor, setTipoProveedor] = useState('empresa');
   const [identificacionFiscal, setIdentificacionFiscal] = useState('');
 
-  
   const [uploadingImage, setUploadingImage] = useState(false);
 
-  
   const dispatch = useDispatch();
   const { loading: isRegistering, error } = useSelector(state => state.auth);
   const { loadingEmpresa, loadingProveedor } = useSelector(state => state.usuario);
@@ -123,8 +118,6 @@ const Registro = ({ navigation }) => {
 
   const crearEmpresaInmobiliariaAutomatica = async (usuarioId) => {
     try {
-      console.log('🏢 Creando empresa inmobiliaria para usuario:', usuarioId);
-
       const datosEmpresa = {
         nombre: nombreEmpresa.trim(),
         tipo: tipoEmpresa,
@@ -152,22 +145,17 @@ const Registro = ({ navigation }) => {
       }));
 
       if (crearEmpresaInmobiliaria.fulfilled.match(result)) {
-        console.log('✅ Empresa inmobiliaria creada exitosamente');
         return result.payload;
       } else {
-        console.log('⚠️ Error al crear empresa inmobiliaria:', result.payload);
         throw new Error(result.payload || 'Error al crear empresa inmobiliaria');
       }
     } catch (error) {
-      console.error('🔴 Error en crearEmpresaInmobiliariaAutomatica:', error);
-      throw error;
+      console.error(error);
     }
   };
 
   const crearProveedorAutomatico = async (usuarioId) => {
     try {
-      console.log('🔧 Creando proveedor para usuario:', usuarioId);
-
       const datosProveedor = {
         nombre: tipoServicio.trim(),
         tipo: tipoProveedor,
@@ -194,15 +182,12 @@ const Registro = ({ navigation }) => {
       }));
 
       if (crearProveedor.fulfilled.match(result)) {
-        console.log('✅ Proveedor creado exitosamente');
         return result.payload;
       } else {
-        console.log('⚠️ Error al crear proveedor:', result.payload);
         throw new Error(result.payload || 'Error al crear proveedor');
       }
     } catch (error) {
-      console.error('🔴 Error en crearProveedorAutomatico:', error);
-      throw error;
+      console.error(error);
     }
   };
 
@@ -217,32 +202,20 @@ const Registro = ({ navigation }) => {
 
     try {
       dispatch(clearError());
-
-      console.log('🔍 [Frontend] Estado de profileImage:', {
-        profileImage,
-        hasValue: !!profileImage,
-        type: typeof profileImage,
-        length: profileImage?.length,
-        isCloudinaryUrl: profileImage?.includes('cloudinary.com')
-      });
-
-      
       const registrationData = {
         tipoUsuario,
         username: username.trim(),
         email: email.trim().toLowerCase(),
         password,
-        
-        nombre: nombre.trim() || username.trim(), 
-        apellidos: apellidos.trim() || '', 
 
-        
+        nombre: nombre.trim() || username.trim(),
+        apellidos: apellidos.trim() || '',
+
         datosPersonales: {
           telefono: telefono.trim() || undefined,
           documentoIdentidad: documentoIdentidad.trim() || undefined,
         },
 
-        
         direccion: {
           calle: calle.trim() || undefined,
           ciudad: ciudad.trim() || 'Montevideo',
@@ -250,10 +223,8 @@ const Registro = ({ navigation }) => {
           pais: pais.trim() || 'Uruguay',
         },
 
-        
         imagen: profileImage && typeof profileImage === 'string' && profileImage.trim() ? profileImage.trim() : undefined,
 
-        
         preferencias: {
           idiomaPreferido: 'es',
           monedaPreferida: 'UYU',
@@ -265,7 +236,6 @@ const Registro = ({ navigation }) => {
         },
       };
 
-      
       if (tipoUsuario === 'cliente' && nombreEmpresa.trim()) {
         registrationData.datosEmpresa = {
           nombreEmpresa: nombreEmpresa.trim()
@@ -278,14 +248,13 @@ const Registro = ({ navigation }) => {
         };
       }
 
-      
       if (registrationData.datosPersonales) {
         Object.keys(registrationData.datosPersonales).forEach(key => {
           if (registrationData.datosPersonales[key] === undefined) {
             delete registrationData.datosPersonales[key];
           }
         });
-        
+
         if (Object.keys(registrationData.datosPersonales).length === 0) {
           delete registrationData.datosPersonales;
         }
@@ -297,38 +266,31 @@ const Registro = ({ navigation }) => {
             delete registrationData.direccion[key];
           }
         });
-        
+
         if (Object.keys(registrationData.direccion).length === 0) {
           delete registrationData.direccion;
         }
       }
 
-      console.log('🔵 [Frontend] Despachando signupUsuario con:', registrationData);
-
       const result = await dispatch(signupUsuario(registrationData));
 
       if (signupUsuario.fulfilled.match(result)) {
-        console.log('🟢 [Frontend] Registro exitoso:', result.payload);
-
         const usuarioId = result.payload?.userId;
         let empresa = null;
         let proveedor = null;
 
         if (usuarioId) {
-          
           try {
             if (tipoUsuario === 'cliente') {
               empresa = await crearEmpresaInmobiliariaAutomatica(usuarioId);
             } else if (tipoUsuario === 'proveedor') {
               proveedor = await crearProveedorAutomatico(usuarioId);
             }
-          } catch (empresaProveedorError) {
-            console.log('⚠️ Usuario creado pero error al crear empresa/proveedor:', empresaProveedorError);
-            
+          } catch (error) {
+            console.error(error);
           }
         }
 
-        
         const mensajeEmpresa = empresa ? `\n\n🏢 Empresa "${empresa.nombre}" creada` : '';
         const mensajeProveedor = proveedor ? `\n\n🔧 Proveedor "${proveedor.nombre}" creado` : '';
         const mensajeFoto = profileImage ? '\n\n✅ Foto de perfil guardada' : '\n\n⚠️ Sin foto de perfil';
@@ -347,17 +309,15 @@ const Registro = ({ navigation }) => {
         );
 
       } else if (signupUsuario.rejected.match(result)) {
-        console.log('🔴 [Frontend] Error en registro:', result.payload);
         Alert.alert('Error', result.payload || 'Error en el registro');
       }
 
     } catch (error) {
-      console.log('🔴 [Frontend] Error de conexión:', error);
+      console.error(error);
       Alert.alert('Error', 'Error de conexión. Por favor intenta nuevamente.');
     }
   };
 
-  
   const actualizarDatosAdicionales = async (usuarioId) => {
     try {
       const updateData = {
@@ -415,8 +375,6 @@ const Registro = ({ navigation }) => {
         }
       });
 
-      console.log('🔄 [Frontend] Actualizando perfil con datos adicionales...');
-
       const updateResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/v1/usuarios/${usuarioId}`, {
         method: 'PUT',
         headers: {
@@ -425,18 +383,11 @@ const Registro = ({ navigation }) => {
         body: JSON.stringify(updateData),
       });
 
-      if (updateResponse.ok) {
-        console.log('🟢 [Frontend] Perfil actualizado con datos adicionales');
-      } else {
-        console.log('🟡 [Frontend] Usuario creado pero no se pudieron agregar datos adicionales');
-      }
-
-    } catch (updateError) {
-      console.log('🟡 [Frontend] Usuario creado pero error al actualizar perfil:', updateError);
+    } catch (error) {
+      console.error(error);
     }
   };
 
-  
   const requestCameraPermission = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
@@ -488,8 +439,7 @@ const Registro = ({ navigation }) => {
         throw new Error('Error al subir imagen a Cloudinary');
       }
     } catch (error) {
-      console.error('Error uploading to Cloudinary:', error);
-      throw error;
+      console.error(error);
     }
   };
 
@@ -513,6 +463,7 @@ const Registro = ({ navigation }) => {
         Alert.alert('Éxito', 'Foto subida correctamente');
       }
     } catch (error) {
+      console.error(error);
       Alert.alert('Error', 'No se pudo tomar la foto');
     } finally {
       setUploadingImage(false);
@@ -539,6 +490,7 @@ const Registro = ({ navigation }) => {
         Alert.alert('Éxito', 'Foto subida correctamente');
       }
     } catch (error) {
+      console.error(error);
       Alert.alert('Error', 'No se pudo seleccionar la foto');
     } finally {
       setUploadingImage(false);
@@ -597,21 +549,6 @@ const Registro = ({ navigation }) => {
             </View>
           )}
 
-          <TouchableOpacity onPress={showImageOptions} style={styles.photoContainer} disabled={uploadingImage || isLoading}>
-            {uploadingImage ? (
-              <View style={styles.photoPlaceholder}>
-                <Text style={styles.uploadingText}>Subiendo...</Text>
-              </View>
-            ) : profileImage ? (
-              <Image source={{ uri: profileImage }} style={styles.profileImage} />
-            ) : (
-              <View style={styles.photoPlaceholder}>
-                <Ionicons name="camera" size={40} color="#7f8c8d" />
-                <Text style={styles.photoText}>Agregar foto</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
           <View style={styles.tipoUsuarioContainer}>
             <Text style={styles.label}>Registrarse como:</Text>
             <View style={styles.tipoUsuarioButtons}>
@@ -665,6 +602,8 @@ const Registro = ({ navigation }) => {
             </View>
           </View>
 
+          <Text style={styles.sectionTitle}>Información Personal</Text>
+
           <Text style={styles.label}>Nombre de usuario *</Text>
           <TextInput
             style={[styles.fullInput, isLoading && styles.inputDisabled]}
@@ -706,6 +645,28 @@ const Registro = ({ navigation }) => {
               />
             </View>
           </View>
+
+          <Text style={styles.sectionTitle}>Foto de Perfil (opcional)</Text>
+          <TouchableOpacity
+            onPress={showImageOptions}
+            style={styles.photoContainer}
+            disabled={uploadingImage || isLoading}
+          >
+            {uploadingImage ? (
+              <View style={styles.photoPlaceholder}>
+                <Text style={styles.uploadingText}>Subiendo...</Text>
+              </View>
+            ) : profileImage ? (
+              <Image source={{ uri: profileImage }} style={styles.profileImage} />
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <Ionicons name="camera" size={40} color="#7f8c8d" />
+                <Text style={styles.photoText}>Agregar foto</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <Text style={styles.sectionTitle}>Información de Contacto</Text>
 
           <View style={styles.rowContainer}>
             <View style={styles.halfInputContainer}>
@@ -797,53 +758,17 @@ const Registro = ({ navigation }) => {
                 editable={!isLoading}
               />
 
-              <View style={styles.rowContainer}>
-                <View style={styles.halfInputContainer}>
-                  <Text style={styles.label}>Tipo de empresa</Text>
-                  <View style={styles.pickerContainer}>
-                    <TouchableOpacity
-                      style={[styles.pickerButton, tipoEmpresa === 'inmobiliaria' && styles.pickerButtonActive]}
-                      onPress={() => setTipoEmpresa('inmobiliaria')}
-                      disabled={isLoading}
-                    >
-                      <Text style={[styles.pickerText, tipoEmpresa === 'inmobiliaria' && styles.pickerTextActive]}>
-                        Inmobiliaria
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.pickerButton, tipoEmpresa === 'propietario_directo' && styles.pickerButtonActive]}
-                      onPress={() => setTipoEmpresa('propietario_directo')}
-                      disabled={isLoading}
-                    >
-                      <Text style={[styles.pickerText, tipoEmpresa === 'propietario_directo' && styles.pickerTextActive]}>
-                        Propietario
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.pickerButton, tipoEmpresa === 'administrador_edificio' && styles.pickerButtonActive]}
-                      onPress={() => setTipoEmpresa('administrador_edificio')}
-                      disabled={isLoading}
-                    >
-                      <Text style={[styles.pickerText, tipoEmpresa === 'administrador_edificio' && styles.pickerTextActive]}>
-                        Administrador
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-                <View style={styles.halfInputContainer}>
-                  <Text style={styles.label}>ID Fiscal *</Text>
-                  <TextInput
-                    style={[styles.input, isLoading && styles.inputDisabled]}
-                    placeholder="RUT o identificación fiscal"
-                    placeholderTextColor="#999"
-                    value={identificacionFiscal}
-                    onChangeText={setIdentificacionFiscal}
-                    returnKeyType="next"
-                    blurOnSubmit={false}
-                    editable={!isLoading}
-                  />
-                </View>
-              </View>
+              <Text style={styles.label}>ID Fiscal *</Text>
+              <TextInput
+                style={[styles.input, isLoading && styles.inputDisabled]}
+                placeholder="RUT o identificación fiscal"
+                placeholderTextColor="#999"
+                value={identificacionFiscal}
+                onChangeText={setIdentificacionFiscal}
+                returnKeyType="next"
+                blurOnSubmit={false}
+                editable={!isLoading}
+              />
             </>
           )}
 
@@ -863,53 +788,17 @@ const Registro = ({ navigation }) => {
                 editable={!isLoading}
               />
 
-              <View style={styles.rowContainer}>
-                <View style={styles.halfInputContainer}>
-                  <Text style={styles.label}>Tipo de proveedor</Text>
-                  <View style={styles.pickerContainer}>
-                    <TouchableOpacity
-                      style={[styles.pickerButton, tipoProveedor === 'empresa' && styles.pickerButtonActive]}
-                      onPress={() => setTipoProveedor('empresa')}
-                      disabled={isLoading}
-                    >
-                      <Text style={[styles.pickerText, tipoProveedor === 'empresa' && styles.pickerTextActive]}>
-                        Empresa
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.pickerButton, tipoProveedor === 'autonomo' && styles.pickerButtonActive]}
-                      onPress={() => setTipoProveedor('autonomo')}
-                      disabled={isLoading}
-                    >
-                      <Text style={[styles.pickerText, tipoProveedor === 'autonomo' && styles.pickerTextActive]}>
-                        Autónomo
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.pickerButton, tipoProveedor === 'interno' && styles.pickerButtonActive]}
-                      onPress={() => setTipoProveedor('interno')}
-                      disabled={isLoading}
-                    >
-                      <Text style={[styles.pickerText, tipoProveedor === 'interno' && styles.pickerTextActive]}>
-                        Interno
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-                <View style={styles.halfInputContainer}>
-                  <Text style={styles.label}>ID Fiscal *</Text>
-                  <TextInput
-                    style={[styles.input, isLoading && styles.inputDisabled]}
-                    placeholder="RUT o identificación fiscal"
-                    placeholderTextColor="#999"
-                    value={identificacionFiscal}
-                    onChangeText={setIdentificacionFiscal}
-                    returnKeyType="next"
-                    blurOnSubmit={false}
-                    editable={!isLoading}
-                  />
-                </View>
-              </View>
+              <Text style={styles.label}>ID Fiscal *</Text>
+              <TextInput
+                style={[styles.input, isLoading && styles.inputDisabled]}
+                placeholder="RUT o identificación fiscal"
+                placeholderTextColor="#999"
+                value={identificacionFiscal}
+                onChangeText={setIdentificacionFiscal}
+                returnKeyType="next"
+                blurOnSubmit={false}
+                editable={!isLoading}
+              />
             </>
           )}
 

@@ -16,11 +16,13 @@ import {
   View
 } from 'react-native';
 import MapView, { Circle, Marker } from 'react-native-maps';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { cargarEspaciosCliente, cargarTodosLosEspacios } from '../store/slices/espaciosSlice';
 
 const { width, height } = Dimensions.get('window');
 
 const Mapa = ({ navigation }) => {
+  const dispatch = useDispatch();
   const [ubicacion, setUbicacion] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedEspacio, setSelectedEspacio] = useState(null);
@@ -35,7 +37,13 @@ const Mapa = ({ navigation }) => {
     longitudeDelta: 0.0421,
   });
 
-  const { tipoUsuario, oficinasPropias } = useSelector(state => state.usuario);
+  // Redux state
+  const { tipoUsuario, usuario } = useSelector(state => state.auth || {});
+  const { 
+    espaciosMapeados = [], 
+    loading: loadingEspacios,
+    error: errorEspacios 
+  } = useSelector(state => state.espacios || {});
 
   const calcularDistancia = (lat1, lon1, lat2, lon2) => {
     const R = 6371;
@@ -50,126 +58,7 @@ const Mapa = ({ navigation }) => {
     return distancia;
   };
 
-  const espaciosDisponibles = [
-    {
-      id: 1,
-      nombre: "Oficina Panorámica 'Skyview'",
-      tipo: 'oficina',
-      coordenada: {
-        latitude: -34.9050,
-        longitude: -56.1600
-      },
-      precio: '1200',
-      capacidad: 8,
-      direccion: 'Montevideo, Ciudad Vieja',
-      servicios: ['wifi', 'cafe', 'seguridad'],
-      propietario: 'Cliente Demo',
-      disponible: true
-    },
-    {
-      id: 2,
-      nombre: "Oficina 'El mirador'",
-      tipo: 'oficina',
-      coordenada: {
-        latitude: -34.9100,
-        longitude: -56.1550
-      },
-      precio: '1500',
-      capacidad: 12,
-      direccion: 'Montevideo, Pocitos',
-      servicios: ['wifi', 'cafe', 'parking'],
-      propietario: 'Cliente Demo',
-      disponible: true
-    },
-    {
-      id: 3,
-      nombre: "Oficina 'Centro'",
-      tipo: 'oficina',
-      coordenada: {
-        latitude: -34.9080,
-        longitude: -56.1620
-      },
-      precio: '900',
-      capacidad: 6,
-      direccion: 'Montevideo, Centro',
-      servicios: ['wifi', 'seguridad'],
-      propietario: 'Otro Cliente',
-      disponible: true
-    },
-    {
-      id: 4,
-      nombre: "Espacio Coworking",
-      tipo: 'espacio',
-      coordenada: {
-        latitude: -34.9000,
-        longitude: -56.1700
-      },
-      precio: '50',
-      capacidad: 1,
-      direccion: 'Montevideo, Cordón',
-      servicios: ['wifi', 'cafe', 'impresora'],
-      propietario: 'Spaces Inc',
-      disponible: true
-    },
-    {
-      id: 5,
-      nombre: "Sala de Reuniones Premium",
-      tipo: 'sala',
-      coordenada: {
-        latitude: -34.8950,
-        longitude: -56.1750
-      },
-      precio: '200',
-      capacidad: 20,
-      direccion: 'Montevideo, Carrasco',
-      servicios: ['wifi', 'proyector', 'pizarra'],
-      propietario: 'Business Center',
-      disponible: true
-    },
-    {
-      id: 6,
-      nombre: "Oficina Lejana",
-      tipo: 'oficina',
-      coordenada: {
-        latitude: -34.8500,
-        longitude: -56.0500
-      },
-      precio: '800',
-      capacidad: 4,
-      direccion: 'Montevideo, Malvín',
-      servicios: ['wifi'],
-      propietario: 'Cliente Demo',
-      disponible: true
-    }
-  ];
-
-  const serviciosParaProveedores = [
-    {
-      id: 101,
-      tipo: 'servicio',
-      nombre: 'Necesita limpieza',
-      descripcion: 'Oficina requiere servicio de limpieza',
-      coordenada: {
-        latitude: -34.9020,
-        longitude: -56.1650
-      },
-      espacio: 'Oficina Centro',
-      urgente: true
-    },
-    {
-      id: 102,
-      tipo: 'servicio',
-      nombre: 'Mantenimiento AC',
-      descripcion: 'Requiere mantenimiento de aire acondicionado',
-      coordenada: {
-        latitude: -34.9070,
-        longitude: -56.1580
-      },
-      espacio: 'Sala de Reuniones',
-      urgente: false
-    }
-  ];
-
+  // Cargar ubicación al montar el componente
   useEffect(() => {
     const obtenerUbicacion = async () => {
       try {
@@ -192,11 +81,12 @@ const Mapa = ({ navigation }) => {
           longitudeDelta: 0.0421,
         });
 
+        // Observar cambios de ubicación
         await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
-            timeInterval: 3000,
-            distanceInterval: 1,
+            timeInterval: 10000, // Cada 10 segundos
+            distanceInterval: 100, // Cada 100 metros
           },
           (nuevaUbicacion) => {
             setUbicacion({
@@ -207,7 +97,8 @@ const Mapa = ({ navigation }) => {
         );
 
       } catch (error) {
-        console.error('Error al obtener ubicación:', error);
+        console.error('Error obteniendo ubicación:', error);
+        // Ubicación por defecto (Montevideo)
         setUbicacion({
           latitude: -34.9011,
           longitude: -56.1645,
@@ -220,6 +111,30 @@ const Mapa = ({ navigation }) => {
     obtenerUbicacion();
   }, []);
 
+  // Cargar espacios del backend
+  useEffect(() => {
+    const cargarEspacios = async () => {
+      try {
+        if (tipoUsuario === 'cliente') {
+          await dispatch(cargarEspaciosCliente());
+        } else {
+          await dispatch(cargarTodosLosEspacios({ filtroTipo: filtroActivo }));
+        }
+      } catch (error) {
+        console.error('Error cargando espacios:', error);
+      }
+    };
+
+    cargarEspacios();
+  }, [dispatch, tipoUsuario, filtroActivo]);
+
+  // Mostrar errores si los hay
+  useEffect(() => {
+    if (errorEspacios) {
+      Alert.alert('Error', errorEspacios);
+    }
+  }, [errorEspacios]);
+
   const handleGoBack = () => {
     navigation.goBack();
   };
@@ -231,7 +146,8 @@ const Mapa = ({ navigation }) => {
       case 'oficina': return '#4a90e2';
       case 'espacio': return '#9b59b6';
       case 'sala': return '#f39c12';
-      case 'servicio': return 'red';
+      case 'escritorio': return '#e67e22';
+      case 'edificio': return '#27ae60';
       default: return '#95a5a6';
     }
   };
@@ -248,23 +164,16 @@ const Mapa = ({ navigation }) => {
 
   const handleReservar = () => {
     setModalVisible(false);
-    if (selectedEspacio.tipo === 'servicio') {
-      Alert.alert(
-        'Ofrecer servicio',
-        '¿Deseas ofrecer tu servicio para esta solicitud?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Ofrecer',
-            onPress: () => {
-              Alert.alert('Éxito', 'Tu oferta ha sido enviada');
-            }
-          }
-        ]
-      );
-    } else {
-      navigation.navigate('DetalleOficina', { espacio: selectedEspacio });
-    }
+    navigation.navigate('DetalleOficina', { 
+      oficina: {
+        id: selectedEspacio.id,
+        nombre: selectedEspacio.nombre,
+        tipo: selectedEspacio.tipo,
+        direccion: selectedEspacio.direccion,
+        datosCompletos: selectedEspacio.datosCompletos
+      },
+      espacio: selectedEspacio.datosCompletos
+    });
   };
 
   const renderServiceIcon = (service) => {
@@ -280,19 +189,86 @@ const Mapa = ({ navigation }) => {
     }
   };
 
-  const getMarcadores = () => {
-    let espacios = [];
-
-    if (tipoUsuario === 'usuario') {
-      espacios = filtroActivo === 'todos' ? espaciosDisponibles : espaciosDisponibles.filter(e => e.tipo === filtroActivo);
-    } else if (tipoUsuario === 'cliente') {
-      espacios = espaciosDisponibles.filter(e => oficinasPropias.includes(e.id));
-    } else if (tipoUsuario === 'proveedor') {
-      espacios = serviciosParaProveedores;
+  // Obtener coordenadas del espacio desde el backend
+  const obtenerCoordenadas = (espacio) => {
+    // Primero verificar en datosCompletos.ubicacion.coordenadas
+    if (espacio.datosCompletos?.ubicacion?.coordenadas) {
+      const coords = espacio.datosCompletos.ubicacion.coordenadas;
+      if (coords.lat && coords.lng) {
+        return {
+          latitude: coords.lat,
+          longitude: coords.lng
+        };
+      }
     }
 
-    if (ubicacion && tipoUsuario === 'usuario') {
-      espacios = espacios.filter(espacio => {
+    // Verificar en datosCompletos.coordenadas (alternativa)
+    if (espacio.datosCompletos?.coordenadas) {
+      const coords = espacio.datosCompletos.coordenadas;
+      if (coords.lat && coords.lng) {
+        return {
+          latitude: coords.lat,
+          longitude: coords.lng
+        };
+      }
+      if (coords.latitude && coords.longitude) {
+        return {
+          latitude: coords.latitude,
+          longitude: coords.longitude
+        };
+      }
+    }
+
+    // Si no hay coordenadas, retornar null
+    return null;
+  };
+
+  const getMarcadores = () => {
+    if (!Array.isArray(espaciosMapeados)) {
+      return [];
+    }
+
+    let espaciosFiltrados = espaciosMapeados;
+
+    // Filtrar por tipo si no es 'todos'
+    if (filtroActivo !== 'todos') {
+      espaciosFiltrados = espaciosMapeados.filter(espacio => espacio.tipo === filtroActivo);
+    }
+
+    // Para clientes, filtrar solo sus espacios
+    if (tipoUsuario === 'cliente') {
+      const userId = usuario?.id || usuario?._id;
+      if (userId) {
+        espaciosFiltrados = espaciosFiltrados.filter(espacio => {
+          const propietarioId = espacio.datosCompletos?.propietarioId || 
+                               espacio.datosCompletos?.usuarioId;
+          
+          if (typeof propietarioId === 'object') {
+            return propietarioId._id === userId || propietarioId.$oid === userId;
+          }
+          
+          return propietarioId?.toString() === userId?.toString();
+        });
+      }
+    }
+
+    // Filtrar espacios que tengan coordenadas válidas
+    const espaciosConCoordenadas = espaciosFiltrados
+      .map(espacio => {
+        const coordenadas = obtenerCoordenadas(espacio);
+        if (coordenadas) {
+          return {
+            ...espacio,
+            coordenada: coordenadas
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    // Filtrar por distancia si hay ubicación del usuario
+    if (ubicacion && (tipoUsuario === 'usuario' || tipoUsuario === 'proveedor')) {
+      return espaciosConCoordenadas.filter(espacio => {
         const distancia = calcularDistancia(
           ubicacion.latitude,
           ubicacion.longitude,
@@ -303,7 +279,28 @@ const Mapa = ({ navigation }) => {
       });
     }
 
-    return espacios;
+    return espaciosConCoordenadas;
+  };
+
+  const getHeaderTitle = () => {
+    switch (tipoUsuario) {
+      case 'usuario':
+        return 'Espacios cercanos';
+      case 'cliente':
+        return 'Mis espacios';
+      case 'proveedor':
+        return 'Espacios disponibles';
+      default:
+        return 'Mapa de espacios';
+    }
+  };
+
+  const getInfoText = () => {
+    const count = marcadores.length;
+    const tipo = tipoUsuario === 'proveedor' ? 'espacios disponibles' : 'espacios';
+    const distancia = (tipoUsuario === 'usuario' || tipoUsuario === 'proveedor') ? ` en ${radioKm} km` : '';
+    
+    return `${count} ${tipo}${distancia}`;
   };
 
   const marcadores = getMarcadores();
@@ -312,7 +309,9 @@ const Mapa = ({ navigation }) => {
     { id: 'todos', nombre: 'Todos', icono: 'apps' },
     { id: 'oficina', nombre: 'Oficinas', icono: 'business' },
     { id: 'espacio', nombre: 'Espacios', icono: 'square' },
-    { id: 'sala', nombre: 'Salas', icono: 'people' }
+    { id: 'sala', nombre: 'Salas', icono: 'people' },
+    { id: 'escritorio', nombre: 'Escritorios', icono: 'desktop' },
+    { id: 'edificio', nombre: 'Edificios', icono: 'business-outline' }
   ];
 
   const radiosDisponibles = [1, 2, 5, 10, 15, 25];
@@ -336,12 +335,28 @@ const Mapa = ({ navigation }) => {
     }
   };
 
-  if (loading) {
+  const esEspacioPropio = (espacio) => {
+    if (tipoUsuario !== 'cliente') return false;
+    
+    const userId = usuario?.id || usuario?._id;
+    const propietarioId = espacio.datosCompletos?.propietarioId || 
+                         espacio.datosCompletos?.usuarioId;
+    
+    if (typeof propietarioId === 'object') {
+      return propietarioId._id === userId || propietarioId.$oid === userId;
+    }
+    
+    return propietarioId?.toString() === userId?.toString();
+  };
+
+  if (loading || loadingEspacios) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.cargando}>
           <ActivityIndicator size="large" color="#4a90e2" />
-          <Text style={styles.cargandoText}>Cargando mapa...</Text>
+          <Text style={styles.cargandoText}>
+            {loading ? 'Obteniendo ubicación...' : 'Cargando espacios...'}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -360,8 +375,7 @@ const Mapa = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#2c3e50" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {tipoUsuario === 'usuario' ? 'Espacios cercanos' :
-            tipoUsuario === 'cliente' ? 'Mis espacios' : 'Servicios solicitados'}
+          {getHeaderTitle()}
         </Text>
         <TouchableOpacity
           style={styles.locationButton}
@@ -379,7 +393,7 @@ const Mapa = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {tipoUsuario === 'usuario' && (
+      {(tipoUsuario === 'usuario' || tipoUsuario === 'proveedor') && (
         <>
           <ScrollView
             horizontal
@@ -451,7 +465,7 @@ const Mapa = ({ navigation }) => {
           />
         )}
 
-        {ubicacion && mostrarCirculo && tipoUsuario === 'usuario' && (
+        {ubicacion && mostrarCirculo && (tipoUsuario === 'usuario' || tipoUsuario === 'proveedor') && (
           <Circle
             center={ubicacion}
             radius={radioKm * 1000}
@@ -467,19 +481,13 @@ const Mapa = ({ navigation }) => {
             coordinate={espacio.coordenada}
             title={espacio.nombre}
             description="Toca para ver detalles"
-            pinColor={getMarkerColor(
-              espacio.tipo,
-              oficinasPropias.includes(espacio.id)
-            )}
+            pinColor={getMarkerColor(espacio.tipo, esEspacioPropio(espacio))}
             onCalloutPress={() => handleMarkerPress(espacio)}
           >
             <View style={[
               styles.markerContainer,
               {
-                backgroundColor: getMarkerColor(
-                  espacio.tipo,
-                  oficinasPropias.includes(espacio.id)
-                )
+                backgroundColor: getMarkerColor(espacio.tipo, esEspacioPropio(espacio))
               }
             ]}>
               <Ionicons
@@ -487,7 +495,8 @@ const Mapa = ({ navigation }) => {
                   espacio.tipo === 'oficina' ? 'business' :
                     espacio.tipo === 'espacio' ? 'square' :
                       espacio.tipo === 'sala' ? 'people' :
-                        espacio.tipo === 'servicio' ? 'construct' : 'location'
+                        espacio.tipo === 'escritorio' ? 'desktop' :
+                          espacio.tipo === 'edificio' ? 'business-outline' : 'location'
                 }
                 size={20}
                 color="#fff"
@@ -500,8 +509,7 @@ const Mapa = ({ navigation }) => {
       <View style={styles.informacion}>
         <Text style={styles.infoTexto}>
           <Ionicons name="location" size={14} color="#4a90e2" />
-          {marcadores.length} {tipoUsuario === 'proveedor' ? 'servicios disponibles' : 'espacios'}
-          {tipoUsuario === 'usuario' && ` en ${radioKm} km`}
+          {getInfoText()}
         </Text>
       </View>
 
@@ -523,7 +531,7 @@ const Mapa = ({ navigation }) => {
             {selectedEspacio && (
               <>
                 <Text style={styles.modalTitle}>{selectedEspacio.nombre}</Text>
-                <Text style={styles.modalDireccion}>{selectedEspacio.direccion || selectedEspacio.espacio}</Text>
+                <Text style={styles.modalDireccion}>{selectedEspacio.direccion}</Text>
 
                 {ubicacion && selectedEspacio.coordenada && (
                   <View style={styles.distanciaContainer}>
@@ -539,94 +547,72 @@ const Mapa = ({ navigation }) => {
                   </View>
                 )}
 
-                {selectedEspacio.tipo !== 'servicio' ? (
-                  <>
-                    <View style={styles.modalInfo}>
-                      <View style={styles.infoItem}>
-                        <Ionicons name="people" size={20} color="#7f8c8d" />
-                        <Text style={styles.infoText}>{selectedEspacio.capacidad} personas</Text>
-                      </View>
-                      <View style={styles.infoItem}>
-                        <Ionicons name="pricetag" size={20} color="#27ae60" />
-                        <Text style={styles.infoText}>${selectedEspacio.precio}/día</Text>
-                      </View>
+                <View style={styles.modalInfo}>
+                  <View style={styles.infoItem}>
+                    <Ionicons name="people" size={20} color="#7f8c8d" />
+                    <Text style={styles.infoText}>{selectedEspacio.capacidad} personas</Text>
+                  </View>
+                  <View style={styles.infoItem}>
+                    <Ionicons name="pricetag" size={20} color="#27ae60" />
+                    <Text style={styles.infoText}>${selectedEspacio.precio}/día</Text>
+                  </View>
+                </View>
+
+                {Array.isArray(selectedEspacio.servicios) && selectedEspacio.servicios.length > 0 && (
+                  <View style={styles.serviciosContainer}>
+                    <Text style={styles.serviciosTitle}>Servicios incluidos:</Text>
+                    <View style={styles.serviciosGrid}>
+                      {selectedEspacio.servicios.map((servicio, index) => (
+                        <View key={index} style={styles.servicioChip}>
+                          {renderServiceIcon(servicio)}
+                          <Text style={styles.servicioText}>{servicio}</Text>
+                        </View>
+                      ))}
                     </View>
+                  </View>
+                )}
 
-                    <View style={styles.serviciosContainer}>
-                      <Text style={styles.serviciosTitle}>Servicios incluidos:</Text>
-                      <View style={styles.serviciosGrid}>
-                        {selectedEspacio.servicios?.map((servicio, index) => (
-                          <View key={index} style={styles.servicioChip}>
-                            {renderServiceIcon(servicio)}
-                            <Text style={styles.servicioText}>{servicio}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
+                <TouchableOpacity
+                  style={styles.direccionesButton}
+                  onPress={() => abrirEnGoogleMaps(
+                    selectedEspacio.coordenada.latitude,
+                    selectedEspacio.coordenada.longitude,
+                    selectedEspacio.nombre
+                  )}
+                >
+                  <Ionicons name="navigate" size={20} color="#4a90e2" />
+                  <Text style={styles.direccionesText}>Ver direcciones en Google Maps</Text>
+                </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={styles.direccionesButton}
-                      onPress={() => abrirEnGoogleMaps(
-                        selectedEspacio.coordenada.latitude,
-                        selectedEspacio.coordenada.longitude,
-                        selectedEspacio.nombre
-                      )}
-                    >
-                      <Ionicons name="navigate" size={20} color="#4a90e2" />
-                      <Text style={styles.direccionesText}>Ver direcciones en Google Maps</Text>
-                    </TouchableOpacity>
-
-                    {oficinasPropias.includes(selectedEspacio.id) ? (
-                      <TouchableOpacity
-                        style={[styles.modalButton, styles.verDetallesButton]}
-                        onPress={() => {
-                          setModalVisible(false);
-                          navigation.navigate('DetalleOficina', {
-                            oficina: selectedEspacio,
-                            esPropia: true
-                          });
-                        }}
-                      >
-                        <Text style={styles.verDetallesButtonText}>Ver detalles</Text>
-                      </TouchableOpacity>
-                    ) : (
-                      <TouchableOpacity
-                        style={styles.modalButton}
-                        onPress={handleReservar}
-                      >
-                        <Text style={styles.modalButtonText}>Reservar ahora</Text>
-                      </TouchableOpacity>
-                    )}
-                  </>
+                {esEspacioPropio(selectedEspacio) ? (
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.verDetallesButton]}
+                    onPress={() => {
+                      setModalVisible(false);
+                      navigation.navigate('DetalleOficina', {
+                        oficina: {
+                          id: selectedEspacio.id,
+                          nombre: selectedEspacio.nombre,
+                          tipo: selectedEspacio.tipo,
+                          direccion: selectedEspacio.direccion,
+                          datosCompletos: selectedEspacio.datosCompletos
+                        },
+                        espacio: selectedEspacio.datosCompletos,
+                        esPropia: true
+                      });
+                    }}
+                  >
+                    <Text style={styles.verDetallesButtonText}>Gestionar espacio</Text>
+                  </TouchableOpacity>
                 ) : (
-                  <>
-                    <Text style={styles.servicioDescripcion}>
-                      {selectedEspacio.descripcion}
+                  <TouchableOpacity
+                    style={styles.modalButton}
+                    onPress={handleReservar}
+                  >
+                    <Text style={styles.modalButtonText}>
+                      {tipoUsuario === 'proveedor' ? 'Ofrecer servicios' : 'Reservar ahora'}
                     </Text>
-                    {selectedEspacio.urgente && (
-                      <View style={styles.urgenteBadge}>
-                        <Ionicons name="warning" size={16} color="#e74c3c" />
-                        <Text style={styles.urgenteText}>Urgente</Text>
-                      </View>
-                    )}
-                    <TouchableOpacity
-                      style={styles.direccionesButton}
-                      onPress={() => abrirEnGoogleMaps(
-                        selectedEspacio.coordenada.latitude,
-                        selectedEspacio.coordenada.longitude,
-                        selectedEspacio.nombre
-                      )}
-                    >
-                      <Ionicons name="navigate" size={20} color="#4a90e2" />
-                      <Text style={styles.direccionesText}>Ver direcciones en Google Maps</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.modalButton}
-                      onPress={handleReservar}
-                    >
-                      <Text style={styles.modalButtonText}>Ofrecer servicio</Text>
-                    </TouchableOpacity>
-                  </>
+                  </TouchableOpacity>
                 )}
               </>
             )}
@@ -935,30 +921,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-    fontFamily: 'System',
-  },
-  servicioDescripcion: {
-    fontSize: 16,
-    color: '#5a6c7d',
-    marginBottom: 15,
-    lineHeight: 22,
-    fontFamily: 'System',
-  },
-  urgenteBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fee',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    alignSelf: 'flex-start',
-    gap: 6,
-    marginBottom: 15,
-  },
-  urgenteText: {
-    fontSize: 14,
-    color: '#e74c3c',
-    fontWeight: '600',
     fontFamily: 'System',
   },
 });

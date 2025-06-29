@@ -48,17 +48,14 @@ const Notificaciones = ({ navigation }) => {
 
   const cargarNotificaciones = async () => {
     if (!usuario || !token) {
-      console.warn('🟡 No hay usuario logueado o token disponible');
       return;
     }
 
     const usuarioId = usuario._id || usuario.id;
     if (!usuarioId) {
-      console.warn('🟡 No se pudo obtener el ID del usuario');
       return;
     }
 
-    console.log('🔵 Cargando notificaciones para usuario:', usuarioId);
     dispatch(cargarNotificacionesUsuario(usuarioId, token, {
       limit: 50,
       leidas: false
@@ -68,15 +65,14 @@ const Notificaciones = ({ navigation }) => {
   const manejarMarcarComoLeida = (notificacion) => {
     if (notificacion.leida) return;
 
-    console.log('🔵 Marcando notificación como leída:', notificacion.id);
     dispatch(marcarNotificacionComoLeida(notificacion.id, token));
   };
 
   const manejarEliminarNotificacion = async (notificacionId) => {
     try {
-      console.log('🔵 Eliminando notificación:', notificacionId);
       await dispatch(eliminarNotificacionPorId(notificacionId, token));
     } catch (error) {
+      console.error(error);
       Alert.alert('Error', 'No se pudo eliminar la notificación');
     }
   };
@@ -87,13 +83,12 @@ const Notificaciones = ({ navigation }) => {
     try {
       const usuarioId = usuario._id || usuario.id;
       if (!usuarioId) {
-        console.warn('🟡 No se pudo obtener el ID del usuario');
         return;
       }
 
-      console.log('🔵 Marcando todas las notificaciones como leídas');
       await dispatch(marcarTodasNotificacionesComoLeidas(usuarioId, token));
     } catch (error) {
+      console.error(error);
       Alert.alert('Error', 'No se pudieron marcar todas como leídas');
     }
   };

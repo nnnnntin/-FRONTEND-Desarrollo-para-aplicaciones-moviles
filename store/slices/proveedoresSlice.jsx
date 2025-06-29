@@ -49,8 +49,8 @@ export const obtenerProveedores = createAsyncThunk(
       const lista = data.proveedores ?? data;
       const total = data.total ?? lista.length;
       return { lista, skip, limit, total };
-    } catch (e) {
-      console.error('Error en obtenerProveedores:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -77,8 +77,8 @@ export const crearProveedor = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al crear proveedor');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en crearProveedor:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -103,8 +103,8 @@ export const obtenerProveedorPorId = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al obtener proveedor');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en obtenerProveedorPorId:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -134,8 +134,8 @@ export const actualizarProveedor = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al actualizar proveedor');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en actualizarProveedor:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -161,8 +161,8 @@ export const eliminarProveedor = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al eliminar proveedor');
       }
       return id;
-    } catch (e) {
-      console.error('Error en eliminarProveedor:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -188,8 +188,8 @@ export const obtenerProveedoresPorTipo = createAsyncThunk(
       }
       const lista = await response.json();
       return { tipo, lista };
-    } catch (e) {
-      console.error('Error en obtenerProveedoresPorTipo:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -214,8 +214,8 @@ export const obtenerProveedoresVerificados = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al obtener verificados');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en obtenerProveedoresVerificados:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -242,8 +242,8 @@ export const activarProveedor = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al activar proveedor');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en activarProveedor:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -270,8 +270,8 @@ export const verificarProveedor = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al verificar proveedor');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en verificarProveedor:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -301,8 +301,8 @@ export const actualizarCalificacionProveedor = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al actualizar calificación');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en actualizarCalificacionProveedor:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -332,8 +332,8 @@ export const actualizarContactoProveedor = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al actualizar contacto');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en actualizarContactoProveedor:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -363,8 +363,8 @@ export const actualizarMetodoPagoProveedor = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al actualizar método de pago');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en actualizarMetodoPagoProveedor:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -392,8 +392,8 @@ export const obtenerProveedoresPorCalificacion = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al obtener por calificación');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en obtenerProveedoresPorCalificacion:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -421,8 +421,8 @@ export const obtenerRankingProveedores = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al obtener ranking');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en obtenerRankingProveedores:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -466,8 +466,8 @@ export const filtrarProveedores = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al filtrar proveedores');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en filtrarProveedores:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -500,8 +500,8 @@ export const obtenerServiciosAdicionales = createAsyncThunk(
       const lista = data.servicios ?? data;
       const total = data.total ?? lista.length;
       return { lista, skip, limit, total };
-    } catch (e) {
-      console.error('Error en obtenerServiciosAdicionales:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -528,8 +528,8 @@ export const crearServicioAdicional = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al crear servicio adicional');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en crearServicioAdicional:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -559,8 +559,8 @@ export const actualizarServicioAdicional = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al actualizar servicio adicional');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en actualizarServicioAdicional:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -586,8 +586,8 @@ export const eliminarServicioAdicional = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al eliminar servicio adicional');
       }
       return id;
-    } catch (e) {
-      console.error('Error en eliminarServicioAdicional:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -612,8 +612,8 @@ export const obtenerServiciosPorTipo = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al obtener servicios por tipo');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en obtenerServiciosPorTipo:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -638,8 +638,8 @@ export const obtenerServiciosPorProveedor = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al obtener servicios del proveedor');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en obtenerServiciosPorProveedor:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -665,8 +665,8 @@ export const obtenerServiciosPorEspacio = createAsyncThunk(
       }
       const lista = await response.json();
       return { espacioId, lista };
-    } catch (e) {
-      console.error('Error en obtenerServiciosPorEspacio:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -694,8 +694,8 @@ export const obtenerServiciosPorPrecio = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al obtener servicios por precio');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en obtenerServiciosPorPrecio:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -720,8 +720,8 @@ export const obtenerServiciosPorUnidadPrecio = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al obtener servicios por unidad de precio');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en obtenerServiciosPorUnidadPrecio:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -746,8 +746,8 @@ export const obtenerServiciosDisponibles = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al obtener servicios disponibles');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en obtenerServiciosDisponibles:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -777,8 +777,8 @@ export const toggleServicioAdicional = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al cambiar estado');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en toggleServicioAdicional:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -808,8 +808,8 @@ export const asignarEspacioAServicio = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al asignar espacio');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en asignarEspacioAServicio:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -838,8 +838,8 @@ export const eliminarEspacioDeServicio = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al eliminar espacio');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en eliminarEspacioDeServicio:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -864,8 +864,8 @@ export const obtenerServiciosParaAprobacion = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al obtener para aprobación');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en obtenerServiciosParaAprobacion:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -915,8 +915,8 @@ export const filtrarServiciosAdicionales = createAsyncThunk(
         return rejectWithValue(err.message || 'Error al filtrar servicios adicionales');
       }
       return await response.json();
-    } catch (e) {
-      console.error('Error en filtrarServiciosAdicionales:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -937,8 +937,8 @@ export const crearSolicitudServicio = createAsyncThunk(
         fechaSolicitud: new Date().toISOString()
       };
       return solicitud;
-    } catch (e) {
-      console.error('Error en crearSolicitudServicio:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error al crear solicitud');
     }
   }
@@ -958,8 +958,8 @@ export const responderSolicitudServicio = createAsyncThunk(
         mensajeRespuesta: mensaje
       };
       return solicitudActualizada;
-    } catch (e) {
-      console.error('Error en responderSolicitudServicio:', e);
+    } catch (error) {
+      console.error(error);
       return rejectWithValue('Error al responder solicitud');
     }
   }

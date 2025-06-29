@@ -122,7 +122,7 @@ const SolicitudesServicios = ({ navigation }) => {
         Alert.alert('Error', 'No se pudo enviar la respuesta');
       }
     } catch (error) {
-      console.error('Error enviando respuesta:', error);
+      console.error(error);
       Alert.alert('Error', 'Ocurrió un error al enviar la respuesta');
     }
   };
