@@ -344,7 +344,7 @@ const Transacciones = ({ navigation, route }) => {
       });
       await Print.printAsync({ uri });
     } catch (error) {
-      console.error('Error imprimiendo:', error);
+      console.error(error);
       const msg = error?.message ?? '';
       if (msg.includes('Printing did not complete')) {
         return;
@@ -391,7 +391,7 @@ const Transacciones = ({ navigation, route }) => {
       }
 
     } catch (error) {
-      console.error('Error compartiendo:', error);
+      console.error(error);
       const msg = error?.message || '';
       if (msg.toLowerCase().includes('cancel') || msg.includes('CANCELLED')) {
         return;
@@ -522,7 +522,6 @@ const Transacciones = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Sección de Pago */}
         {transaccion?.pago && (
           <View style={styles.pagoContainer}>
             <Text style={styles.sectionTitle}>Detalles del Pago</Text>
@@ -590,85 +589,8 @@ const Transacciones = ({ navigation, route }) => {
                 </View>
               )}
             </View>
-
-            <TouchableOpacity
-              style={styles.botonVerDetalle}
-              onPress={handleVerPago}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="eye-outline" size={16} color="#27ae60" />
-              <Text style={styles.textoBotonVerDetalle}>Ver detalles del pago</Text>
-            </TouchableOpacity>
           </View>
         )}
-
-        {/* Sección de Factura */}
-        {transaccion?.factura && (
-          <View style={styles.facturaContainer}>
-            <Text style={styles.sectionTitle}>Información de Facturación</Text>
-
-            <View style={styles.facturaHighlight}>
-              <View style={styles.facturaItem}>
-                <View style={styles.facturaIcono}>
-                  <Ionicons name="document-outline" size={20} color="#f39c12" />
-                </View>
-                <View style={styles.facturaInfo}>
-                  <Text style={styles.facturaLabel}>Número de Factura</Text>
-                  <Text style={styles.facturaValor}>
-                    {transaccion.factura.numeroFactura}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.facturaItem}>
-                <View style={styles.facturaIcono}>
-                  <Ionicons name="calendar-outline" size={20} color="#f39c12" />
-                </View>
-                <View style={styles.facturaInfo}>
-                  <Text style={styles.facturaLabel}>Fecha de Emisión</Text>
-                  <Text style={styles.facturaValor}>
-                    {new Date(transaccion.factura.fechaEmision).toLocaleDateString('es-ES')}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.facturaItem}>
-                <View style={styles.facturaIcono}>
-                  <Ionicons name="cash-outline" size={20} color="#f39c12" />
-                </View>
-                <View style={styles.facturaInfo}>
-                  <Text style={styles.facturaLabel}>Total</Text>
-                  <Text style={styles.facturaValor}>
-                    ${transaccion.factura.total}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.facturaItem}>
-                <View style={styles.facturaIcono}>
-                  <Ionicons name="checkmark-circle-outline" size={20} color="#f39c12" />
-                </View>
-                <View style={styles.facturaInfo}>
-                  <Text style={styles.facturaLabel}>Estado</Text>
-                  <Text style={styles.facturaValor}>
-                    {transaccion.factura.estado || 'Pagada'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.botonVerDetalle}
-              onPress={handleVerFactura}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="document-text-outline" size={16} color="#f39c12" />
-              <Text style={styles.textoBotonVerDetalle}>Ver factura completa</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Sección de Reserva */}
         {transaccion?.reserva && (
           <View style={styles.reservaContainer}>
             <Text style={styles.sectionTitle}>Detalles de la reserva</Text>
@@ -762,15 +684,6 @@ const Transacciones = ({ navigation, route }) => {
                 ))}
               </View>
             )}
-
-            <TouchableOpacity
-              style={styles.botonVerDetalle}
-              onPress={handleVerReserva}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="calendar-outline" size={16} color="#4a90e2" />
-              <Text style={styles.textoBotonVerDetalle}>Ver detalles de la reserva</Text>
-            </TouchableOpacity>
           </View>
         )}
 

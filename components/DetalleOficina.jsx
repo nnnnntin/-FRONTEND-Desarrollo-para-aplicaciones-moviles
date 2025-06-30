@@ -175,7 +175,6 @@ const FormularioEdicionCompleta = ({
 
   return (
     <ScrollView style={styles.editSection} showsVerticalScrollIndicator={false}>
-      {/* Selector de tipo de espacio mejorado */}
       <View style={styles.editField}>
         <Text style={styles.sectionTitleEdit}>Tipo de espacio</Text>
         <View style={styles.tiposGridContainer}>
@@ -208,7 +207,6 @@ const FormularioEdicionCompleta = ({
         </View>
       </View>
 
-      {/* Subtipos si están disponibles */}
       {tipoActual?.subtipos.length > 0 && (
         <View style={styles.editField}>
           <Text style={styles.editLabel}>Tipo específico de {tipoActual.nombre.toLowerCase()} *</Text>
@@ -291,7 +289,6 @@ const FormularioEdicionCompleta = ({
         )}
       </View>
 
-      {/* Sección de ubicación mejorada */}
       <View style={styles.editField}>
         <Text style={styles.sectionTitleEdit}>📍 Ubicación</Text>
 
@@ -1160,6 +1157,12 @@ const DetalleOficina = ({ navigation, route }) => {
       espacioTipo: oficina.tipo,
       espacioNombre: oficina.nombre,
 
+      clienteId: datosEspacio?.propietarioId?.toString() ||
+        datosEspacio?.usuarioId?.toString() ||
+        datosEspacio?.clienteId?.toString() ||
+        oficina.propietarioId?.toString() ||
+        oficina.usuarioId?.toString(),
+
       fecha: fechaInput,
       horaInicio: horaInicioInput,
       horaFin: horaFinInput,
@@ -1185,6 +1188,7 @@ const DetalleOficina = ({ navigation, route }) => {
       if (!datos.espacioId) errores.push('ID del espacio es requerido');
       if (!datos.espacioTipo) errores.push('Tipo del espacio es requerido');
       if (!datos.espacioNombre) errores.push('Nombre del espacio es requerido');
+      if (!datos.clienteId) errores.push('ID del propietario del espacio es requerido');
       if (!datos.fecha) errores.push('Fecha es requerida');
       if (!datos.horaInicio) errores.push('Hora de inicio es requerida');
       if (!datos.horaFin) errores.push('Hora de fin es requerida');
@@ -1291,8 +1295,6 @@ const DetalleOficina = ({ navigation, route }) => {
 
       estado: espacioActual?.estado || 'disponible'
     };
-
-    console.log('EditData inicializado:', editDataInitial); // Para debug
 
     setEditData(editDataInitial);
     setEditingImages(espacioActual?.imagenes || []);

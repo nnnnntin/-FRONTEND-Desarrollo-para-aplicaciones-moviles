@@ -26,7 +26,6 @@ export const crearReserva = createAsyncThunk(
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error(error);
       return rejectWithValue('Error de conexión al crear la reserva');
     }
   }
@@ -91,6 +90,72 @@ export const obtenerReservasPorUsuario = createAsyncThunk(
       }
     } catch (error) {
       console.error(error);
+      return rejectWithValue('Error de conexión');
+    }
+  }
+);
+
+export const obtenerReservasPorCliente = createAsyncThunk(
+  'reservas/obtenerPorCliente',
+  async (clienteId, { getState, rejectWithValue }) => {
+    try {
+      const { auth } = getState();
+
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/v1/reservas/cliente/${clienteId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${auth.token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return rejectWithValue(errorData.message || 'Error al obtener reservas por cliente');
+      }
+
+      const data = await response.json();
+
+      return data;
+    } catch (error) {
+      return rejectWithValue('Error de conexión');
+    }
+  }
+);
+
+export const obtenerEstadisticasGananciasCliente = createAsyncThunk(
+  'reservas/obtenerEstadisticasGanancias',
+  async ({ clienteId, fechaInicio, fechaFin }, { getState, rejectWithValue }) => {
+    try {
+      const { auth } = getState();
+      let url = `${process.env.EXPO_PUBLIC_API_URL}/v1/reservas/cliente/${clienteId}/estadisticas`;
+      
+      const params = new URLSearchParams();
+      if (fechaInicio) params.append('fechaInicio', fechaInicio);
+      if (fechaFin) params.append('fechaFin', fechaFin);
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return rejectWithValue(errorData.message || 'Error al obtener estadísticas');
+      }
+
+      const data = await response.json();
+
+      return data;
+    } catch (error) {
       return rejectWithValue('Error de conexión');
     }
   }
@@ -260,8 +325,17 @@ export const confirmarReserva = createAsyncThunk(
 const initialState = {
   reservas: [],
   reservaSeleccionada: null,
-
   ultimaReservaCreada: null,
+
+  reservasCliente: [],
+  clienteSeleccionado: null,
+  resumenCliente: null,
+  loadingReservasCliente: false,
+  errorReservasCliente: null,
+
+  estadisticasCliente: null,
+  loadingEstadisticas: false,
+  errorEstadisticas: null,
 
   pagination: {
     skip: 0,
@@ -290,6 +364,8 @@ const reservasSlice = createSlice({
       state.error = null;
       state.errorDetalle = null;
       state.errorCrearReserva = null;
+      state.errorReservasCliente = null; 
+      state.errorEstadisticas = null;
     },
 
     clearReservas: (state) => {
@@ -299,12 +375,28 @@ const reservasSlice = createSlice({
       state.error = null;
     },
 
+    clearReservasCliente: (state) => {
+      state.reservasCliente = [];
+      state.clienteSeleccionado = null;
+      state.resumenCliente = null;
+      state.errorReservasCliente = null;
+    },
+
+    clearEstadisticasCliente: (state) => {
+      state.estadisticasCliente = null;
+      state.errorEstadisticas = null;
+    },
+
     clearUltimaReservaCreada: (state) => {
       state.ultimaReservaCreada = null;
     },
 
     seleccionarReserva: (state, action) => {
       state.reservaSeleccionada = action.payload;
+    },
+
+    seleccionarCliente: (state, action) => {
+      state.clienteSeleccionado = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -346,6 +438,35 @@ const reservasSlice = createSlice({
         state.reservas = [];
       })
 
+      .addCase(obtenerReservasPorCliente.pending, (state) => {
+        state.loadingReservasCliente = true;
+        state.errorReservasCliente = null;
+      })
+      .addCase(obtenerReservasPorCliente.fulfilled, (state, action) => {
+        state.loadingReservasCliente = false;
+        state.reservasCliente = action.payload.reservas || [];
+        state.clienteSeleccionado = action.payload.cliente || null;
+        state.resumenCliente = action.payload.resumen || null;
+      })
+      .addCase(obtenerReservasPorCliente.rejected, (state, action) => {
+        state.loadingReservasCliente = false;
+        state.errorReservasCliente = action.payload;
+        state.reservasCliente = [];
+      })
+
+      .addCase(obtenerEstadisticasGananciasCliente.pending, (state) => {
+        state.loadingEstadisticas = true;
+        state.errorEstadisticas = null;
+      })
+      .addCase(obtenerEstadisticasGananciasCliente.fulfilled, (state, action) => {
+        state.loadingEstadisticas = false;
+        state.estadisticasCliente = action.payload;
+      })
+      .addCase(obtenerEstadisticasGananciasCliente.rejected, (state, action) => {
+        state.loadingEstadisticas = false;
+        state.errorEstadisticas = action.payload;
+      })
+
       .addCase(obtenerReservaPorId.pending, (state) => {
         state.loadingDetalle = true;
         state.errorDetalle = null;
@@ -368,10 +489,23 @@ const reservasSlice = createSlice({
         state.creandoReserva = false;
         state.errorCrearReserva = null;
 
-        state.ultimaReservaCreada = action.payload;
+        const reservaCreada = action.payload.reserva || action.payload;
+        state.ultimaReservaCreada = reservaCreada;
 
-        state.reservas.unshift(action.payload);
+        state.reservas.unshift(reservaCreada);
 
+        if (state.clienteSeleccionado && 
+            reservaCreada.clienteId === state.clienteSeleccionado.id) {
+          state.reservasCliente.unshift(reservaCreada);
+          
+          if (state.resumenCliente) {
+            state.resumenCliente.totalReservas += 1;
+            if (reservaCreada.estado === 'confirmada') {
+              state.resumenCliente.reservasConfirmadas += 1;
+              state.resumenCliente.ingresosTotales += (reservaCreada.precioFinalPagado || 0);
+            }
+          }
+        }
       })
       .addCase(crearReserva.rejected, (state, action) => {
         state.creandoReserva = false;
@@ -386,18 +520,28 @@ const reservasSlice = createSlice({
       .addCase(actualizarReserva.fulfilled, (state, action) => {
         state.loading = false;
 
+        const reservaActualizada = action.payload;
+        const reservaId = reservaActualizada._id || reservaActualizada.id;
+
         const idx = state.reservas.findIndex(r =>
-          (r._id || r.id) === (action.payload._id || action.payload.id)
+          (r._id || r.id) === reservaId
         );
 
         if (idx !== -1) {
-          state.reservas[idx] = action.payload;
+          state.reservas[idx] = reservaActualizada;
+        }
+
+        const idxCliente = state.reservasCliente.findIndex(r =>
+          (r._id || r.id) === reservaId
+        );
+
+        if (idxCliente !== -1) {
+          state.reservasCliente[idxCliente] = reservaActualizada;
         }
 
         if (state.reservaSeleccionada &&
-          (state.reservaSeleccionada._id || state.reservaSeleccionada.id) ===
-          (action.payload._id || action.payload.id)) {
-          state.reservaSeleccionada = action.payload;
+          (state.reservaSeleccionada._id || state.reservaSeleccionada.id) === reservaId) {
+          state.reservaSeleccionada = reservaActualizada;
         }
       })
       .addCase(actualizarReserva.rejected, (state, action) => {
@@ -412,15 +556,20 @@ const reservasSlice = createSlice({
       .addCase(eliminarReserva.fulfilled, (state, action) => {
         state.loading = false;
 
+        const reservaId = action.payload;
+
         state.reservas = state.reservas.filter(r =>
-          (r._id || r.id) !== action.payload
+          (r._id || r.id) !== reservaId
+        );
+
+        state.reservasCliente = state.reservasCliente.filter(r =>
+          (r._id || r.id) !== reservaId
         );
 
         if (state.reservaSeleccionada &&
-          (state.reservaSeleccionada._id || state.reservaSeleccionada.id) === action.payload) {
+          (state.reservaSeleccionada._id || state.reservaSeleccionada.id) === reservaId) {
           state.reservaSeleccionada = null;
         }
-
       })
       .addCase(eliminarReserva.rejected, (state, action) => {
         state.loading = false;
@@ -449,6 +598,19 @@ const reservasSlice = createSlice({
           };
         }
 
+        const idxCliente = state.reservasCliente.findIndex(r =>
+          (r._id || r.id) === reservaId
+        );
+
+        if (idxCliente !== -1) {
+          state.reservasCliente[idxCliente] = {
+            ...state.reservasCliente[idxCliente],
+            estado: 'cancelada',
+            fechaCancelacion: action.payload.fecha,
+            motivoCancelacion: action.payload.motivo
+          };
+        }
+
         if (state.reservaSeleccionada &&
           (state.reservaSeleccionada._id || state.reservaSeleccionada.id) === reservaId) {
           state.reservaSeleccionada = {
@@ -471,18 +633,28 @@ const reservasSlice = createSlice({
       .addCase(confirmarReserva.fulfilled, (state, action) => {
         state.loading = false;
 
+        const reservaConfirmada = action.payload;
+        const reservaId = reservaConfirmada._id || reservaConfirmada.id;
+
         const idx = state.reservas.findIndex(r =>
-          (r._id || r.id) === (action.payload._id || action.payload.id)
+          (r._id || r.id) === reservaId
         );
 
         if (idx !== -1) {
-          state.reservas[idx] = action.payload;
+          state.reservas[idx] = reservaConfirmada;
+        }
+
+        const idxCliente = state.reservasCliente.findIndex(r =>
+          (r._id || r.id) === reservaId
+        );
+
+        if (idxCliente !== -1) {
+          state.reservasCliente[idxCliente] = reservaConfirmada;
         }
 
         if (state.reservaSeleccionada &&
-          (state.reservaSeleccionada._id || state.reservaSeleccionada.id) ===
-          (action.payload._id || action.payload.id)) {
-          state.reservaSeleccionada = action.payload;
+          (state.reservaSeleccionada._id || state.reservaSeleccionada.id) === reservaId) {
+          state.reservaSeleccionada = reservaConfirmada;
         }
       })
       .addCase(confirmarReserva.rejected, (state, action) => {
@@ -496,8 +668,11 @@ export const {
   setPaginacion,
   clearError,
   clearReservas,
+  clearReservasCliente, 
+  clearEstadisticasCliente, 
   clearUltimaReservaCreada,
-  seleccionarReserva
+  seleccionarReserva,
+  seleccionarCliente
 } = reservasSlice.actions;
 
 export const selectReservas = (state) => state.reservas.reservas;
@@ -507,6 +682,16 @@ export const selectLoadingReservas = (state) => state.reservas.loading;
 export const selectCreandoReserva = (state) => state.reservas.creandoReserva;
 export const selectErrorReservas = (state) => state.reservas.error;
 export const selectErrorCrearReserva = (state) => state.reservas.errorCrearReserva;
+
+export const selectReservasCliente = (state) => state.reservas.reservasCliente;
+export const selectClienteSeleccionado = (state) => state.reservas.clienteSeleccionado;
+export const selectResumenCliente = (state) => state.reservas.resumenCliente;
+export const selectLoadingReservasCliente = (state) => state.reservas.loadingReservasCliente;
+export const selectErrorReservasCliente = (state) => state.reservas.errorReservasCliente;
+
+export const selectEstadisticasCliente = (state) => state.reservas.estadisticasCliente;
+export const selectLoadingEstadisticas = (state) => state.reservas.loadingEstadisticas;
+export const selectErrorEstadisticas = (state) => state.reservas.errorEstadisticas;
 
 export const selectReservasPorEstado = (estado) => (state) =>
   state.reservas.reservas.filter(reserva => reserva.estado === estado);
@@ -525,6 +710,37 @@ export const selectReservasPasadas = (state) => {
     const fechaReserva = new Date(reserva.fechaInicio || reserva.fecha);
     return fechaReserva < ahora;
   });
+};
+
+export const selectReservasClientePorEstado = (estado) => (state) =>
+  state.reservas.reservasCliente.filter(reserva => reserva.estado === estado);
+
+export const selectGananciasClienteTotal = (state) => {
+  return state.reservas.reservasCliente
+    .filter(r => ['confirmada', 'completada'].includes(r.estado))
+    .reduce((total, r) => total + (r.precioFinalPagado || 0), 0);
+};
+
+export const selectReservasClientePorMes = (state) => {
+  const reservasPorMes = {};
+  state.reservas.reservasCliente.forEach(reserva => {
+    const fecha = new Date(reserva.fechaInicio);
+    const mesAno = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
+    
+    if (!reservasPorMes[mesAno]) {
+      reservasPorMes[mesAno] = {
+        cantidad: 0,
+        ingresos: 0
+      };
+    }
+    
+    reservasPorMes[mesAno].cantidad += 1;
+    if (['confirmada', 'completada'].includes(reserva.estado)) {
+      reservasPorMes[mesAno].ingresos += (reserva.precioFinalPagado || 0);
+    }
+  });
+  
+  return reservasPorMes;
 };
 
 export default reservasSlice.reducer;

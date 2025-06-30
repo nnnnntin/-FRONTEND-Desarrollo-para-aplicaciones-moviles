@@ -23,45 +23,65 @@ import {
 
 const ServiciosProveedor = ({ navigation }) => {
   const dispatch = useDispatch();
-  const { datosUsuario } = useSelector(state => state.usuario);
-  const { serviciosProveedor, loading } = useSelector(state => state.proveedores);
+  
+  const { usuario } = useSelector(state => state.auth);
+  const { serviciosProveedor, loading, error } = useSelector(state => state.proveedores);
 
   const [tabActiva, setTabActiva] = useState('activos');
   const [modalVisible, setModalVisible] = useState(false);
   const [servicioSeleccionado, setServicioSeleccionado] = useState(null);
   const [modoEdicion, setModoEdicion] = useState(false);
   const [formData, setFormData] = useState({});
+  const [loadingLocal, setLoadingLocal] = useState(false);
 
   const categorias = {
-    'limpieza': { color: '#3498db', icono: 'sparkles' },
-    'tecnologia': { color: '#9b59b6', icono: 'laptop' },
-    'seguridad': { color: '#e67e22', icono: 'shield-checkmark' },
     'catering': { color: '#e74c3c', icono: 'restaurant' },
-    'mantenimiento': { color: '#95a5a6', icono: 'construct' },
-    'eventos': { color: '#f39c12', icono: 'calendar' }
+    'limpieza': { color: '#3498db', icono: 'sparkles' },
+    'recepcion': { color: '#9b59b6', icono: 'people' },
+    'parking': { color: '#2ecc71', icono: 'car' },
+    'impresion': { color: '#f39c12', icono: 'print' },
+    'otro': { color: '#95a5a6', icono: 'ellipse' }
   };
 
   useEffect(() => {
-    if (datosUsuario?._id) {
+    if (usuario?.id) {
       cargarServicios();
     }
-  }, [datosUsuario]);
+  }, [usuario?.id]);
 
   const cargarServicios = async () => {
-    try {
-      await dispatch(obtenerServiciosPorProveedor(datosUsuario._id));
-    } catch (error) {
-      console.error(error);
+    if (!usuario?.id) {
+      return;
     }
+
+    try {
+      setLoadingLocal(true);
+      
+      const result = await dispatch(obtenerServiciosPorProveedor(usuario.id));
+      
+      if (obtenerServiciosPorProveedor.rejected.match(result)) {
+        Alert.alert('Error', result.payload || 'Error al cargar servicios');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Error de conexión al cargar servicios');
+    } finally {
+      setLoadingLocal(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    await cargarServicios();
   };
 
   const handleEditarServicio = (servicio) => {
     setServicioSeleccionado(servicio);
     setFormData({
-      nombre: servicio.nombre,
-      descripcion: servicio.descripcion,
-      precio: servicio.precio?.toString(),
-      duracionEstimada: servicio.duracionEstimada
+      nombre: servicio.nombre || '',
+      descripcion: servicio.descripcion || '',
+      precio: servicio.precio?.toString() || '',
+      unidadPrecio: servicio.unidadPrecio || 'por_uso',
+      tiempoAnticipacion: servicio.tiempoAnticipacion?.toString() || '',
+      requiereAprobacion: servicio.requiereAprobacion || false
     });
     setModoEdicion(true);
     setModalVisible(true);
@@ -75,13 +95,17 @@ const ServiciosProveedor = ({ navigation }) => {
 
   const handleToggleEstado = async (servicioId, estadoActual) => {
     try {
-      const nuevoEstado = estadoActual === 'activo' ? false : true;
-      const result = await dispatch(toggleServicioAdicional(servicioId, nuevoEstado));
+      const nuevoEstado = !estadoActual;
+      const result = await dispatch(toggleServicioAdicional({ 
+        id: servicioId, 
+        activo: nuevoEstado 
+      }));
 
-      if (result.success) {
+      if (toggleServicioAdicional.fulfilled.match(result)) {
         await cargarServicios();
+        Alert.alert('Éxito', `Servicio ${nuevoEstado ? 'activado' : 'pausado'} correctamente`);
       } else {
-        Alert.alert('Error', 'No se pudo cambiar el estado del servicio');
+        Alert.alert('Error', result.payload || 'No se pudo cambiar el estado del servicio');
       }
     } catch (error) {
       console.error(error);
@@ -101,10 +125,12 @@ const ServiciosProveedor = ({ navigation }) => {
           onPress: async () => {
             try {
               const result = await dispatch(eliminarServicioAdicional(servicioId));
-              if (result.success) {
+              
+              if (eliminarServicioAdicional.fulfilled.match(result)) {
                 await cargarServicios();
+                Alert.alert('Éxito', 'Servicio eliminado correctamente');
               } else {
-                Alert.alert('Error', 'No se pudo eliminar el servicio');
+                Alert.alert('Error', result.payload || 'No se pudo eliminar el servicio');
               }
             } catch (error) {
               console.error(error);
@@ -122,22 +148,33 @@ const ServiciosProveedor = ({ navigation }) => {
       return;
     }
 
+    const precio = parseFloat(formData.precio);
+    if (isNaN(precio) || precio < 0) {
+      Alert.alert('Error', 'El precio debe ser un número válido mayor o igual a 0');
+      return;
+    }
+
     try {
       const servicioActualizado = {
-        nombre: formData.nombre,
-        descripcion: formData.descripcion,
-        precio: parseFloat(formData.precio),
-        duracionEstimada: formData.duracionEstimada
+        nombre: formData.nombre.trim(),
+        descripcion: formData.descripcion?.trim() || '',
+        precio: precio,
+        unidadPrecio: formData.unidadPrecio,
+        tiempoAnticipacion: formData.tiempoAnticipacion ? parseInt(formData.tiempoAnticipacion) : 0,
+        requiereAprobacion: formData.requiereAprobacion
       };
 
-      const result = await dispatch(actualizarServicioAdicional(servicioSeleccionado._id, servicioActualizado));
+      const result = await dispatch(actualizarServicioAdicional({
+        id: servicioSeleccionado._id,
+        datos: servicioActualizado
+      }));
 
-      if (result.success) {
+      if (actualizarServicioAdicional.fulfilled.match(result)) {
         setModalVisible(false);
         await cargarServicios();
         Alert.alert('Éxito', 'Servicio actualizado correctamente');
       } else {
-        Alert.alert('Error', result.error || 'No se pudo actualizar el servicio');
+        Alert.alert('Error', result.payload || 'No se pudo actualizar el servicio');
       }
     } catch (error) {
       console.error(error);
@@ -146,13 +183,17 @@ const ServiciosProveedor = ({ navigation }) => {
   };
 
   const getServiciosFiltrados = () => {
-    if (!serviciosProveedor) return [];
+    if (!serviciosProveedor || !Array.isArray(serviciosProveedor)) {
+      return [];
+    }
 
     switch (tabActiva) {
       case 'activos':
-        return serviciosProveedor.filter(s => s.activo === true);
+        const activos = serviciosProveedor.filter(s => s.activo === true);
+        return activos;
       case 'pausados':
-        return serviciosProveedor.filter(s => s.activo === false);
+        const pausados = serviciosProveedor.filter(s => s.activo === false);
+        return pausados;
       case 'todos':
       default:
         return serviciosProveedor;
@@ -160,7 +201,9 @@ const ServiciosProveedor = ({ navigation }) => {
   };
 
   const getEstadisticas = () => {
-    if (!serviciosProveedor) return { activos: 0, pausados: 0, totalTrabajos: 0, totalSolicitudes: 0 };
+    if (!serviciosProveedor || !Array.isArray(serviciosProveedor)) {
+      return { activos: 0, pausados: 0, totalTrabajos: 0, totalSolicitudes: 0 };
+    }
 
     const activos = serviciosProveedor.filter(s => s.activo === true).length;
     const pausados = serviciosProveedor.filter(s => s.activo === false).length;
@@ -172,6 +215,7 @@ const ServiciosProveedor = ({ navigation }) => {
 
   const estadisticas = getEstadisticas();
   const serviciosFiltrados = getServiciosFiltrados();
+  const isLoading = loading || loadingLocal;
 
   const renderServicio = ({ item: servicio }) => {
     const categoria = categorias[servicio.tipo] || { color: '#7f8c8d', icono: 'ellipse' };
@@ -235,12 +279,22 @@ const ServiciosProveedor = ({ navigation }) => {
         <View style={styles.servicioDetalles}>
           <View style={styles.detalleItem}>
             <Ionicons name="pricetag" size={16} color="#27ae60" />
-            <Text style={styles.detalleText}>${servicio.precio}</Text>
+            <Text style={styles.detalleText}>
+              ${servicio.precio} {servicio.unidadPrecio && `(${servicio.unidadPrecio.replace('_', ' ')})`}
+            </Text>
           </View>
-          <View style={styles.detalleItem}>
-            <Ionicons name="clock" size={16} color="#7f8c8d" />
-            <Text style={styles.detalleText}>{servicio.duracionEstimada}</Text>
-          </View>
+          {servicio.tiempoAnticipacion && (
+            <View style={styles.detalleItem}>
+              <Ionicons name="clock" size={16} color="#7f8c8d" />
+              <Text style={styles.detalleText}>{servicio.tiempoAnticipacion}h anticipación</Text>
+            </View>
+          )}
+          {servicio.requiereAprobacion && (
+            <View style={styles.detalleItem}>
+              <Ionicons name="checkmark-circle" size={16} color="#e67e22" />
+              <Text style={styles.detalleText}>Requiere aprobación</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.servicioActions}>
@@ -262,7 +316,7 @@ const ServiciosProveedor = ({ navigation }) => {
 
           <TouchableOpacity
             style={[styles.actionButton, styles.toggleButton]}
-            onPress={() => handleToggleEstado(servicio._id, servicio.activo ? 'activo' : 'pausado')}
+            onPress={() => handleToggleEstado(servicio._id, servicio.activo)}
           >
             <Ionicons
               name={servicio.activo ? 'pause' : 'play'}
@@ -289,6 +343,12 @@ const ServiciosProveedor = ({ navigation }) => {
     );
   };
 
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Error', error);
+    }
+  }, [error]);
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
@@ -308,8 +368,13 @@ const ServiciosProveedor = ({ navigation }) => {
           <Ionicons name="person" size={24} color="#fff" />
         </View>
         <View style={styles.proveedorDetails}>
-          <Text style={styles.proveedorNombre}>{datosUsuario?.nombre || 'Tu nombre'}</Text>
+          <Text style={styles.proveedorNombre}>
+            {usuario?.username || 'Tu nombre'}
+          </Text>
           <Text style={styles.proveedorTipo}>Proveedor de servicios</Text>
+          <Text style={styles.proveedorId}>
+            ID: {usuario?.id}
+          </Text>
         </View>
       </View>
 
@@ -357,7 +422,7 @@ const ServiciosProveedor = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {loading ? (
+      {isLoading ? (
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Cargando servicios...</Text>
         </View>
@@ -391,8 +456,8 @@ const ServiciosProveedor = ({ navigation }) => {
           style={styles.lista}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listaContent}
-          refreshing={loading}
-          onRefresh={cargarServicios}
+          refreshing={isLoading}
+          onRefresh={onRefresh}
         />
       )}
 
@@ -427,6 +492,7 @@ const ServiciosProveedor = ({ navigation }) => {
                           style={styles.input}
                           value={formData.nombre}
                           onChangeText={(text) => setFormData({ ...formData, nombre: text })}
+                          placeholder="Ej: Limpieza de oficinas"
                         />
                       </View>
 
@@ -438,6 +504,7 @@ const ServiciosProveedor = ({ navigation }) => {
                           onChangeText={(text) => setFormData({ ...formData, descripcion: text })}
                           multiline
                           numberOfLines={4}
+                          placeholder="Describe tu servicio en detalle..."
                         />
                       </View>
 
@@ -449,17 +516,57 @@ const ServiciosProveedor = ({ navigation }) => {
                             value={formData.precio}
                             onChangeText={(text) => setFormData({ ...formData, precio: text })}
                             keyboardType="numeric"
+                            placeholder="0.00"
                           />
                         </View>
 
                         <View style={[styles.inputGroup, { flex: 1, marginLeft: 10 }]}>
-                          <Text style={styles.inputLabel}>Duración</Text>
+                          <Text style={styles.inputLabel}>Tiempo anticipación (horas)</Text>
                           <TextInput
                             style={styles.input}
-                            value={formData.duracionEstimada}
-                            onChangeText={(text) => setFormData({ ...formData, duracionEstimada: text })}
+                            value={formData.tiempoAnticipacion}
+                            onChangeText={(text) => setFormData({ ...formData, tiempoAnticipacion: text })}
+                            keyboardType="numeric"
+                            placeholder="24"
                           />
                         </View>
+                      </View>
+
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>Unidad de precio</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.unidadContainer}>
+                          {['por_uso', 'por_hora', 'por_persona', 'por_dia'].map((unidad) => (
+                            <TouchableOpacity
+                              key={unidad}
+                              style={[
+                                styles.unidadButton,
+                                formData.unidadPrecio === unidad && styles.unidadButtonActive
+                              ]}
+                              onPress={() => setFormData({ ...formData, unidadPrecio: unidad })}
+                            >
+                              <Text style={[
+                                styles.unidadButtonText,
+                                formData.unidadPrecio === unidad && styles.unidadButtonTextActive
+                              ]}>
+                                {unidad.replace('_', ' ')}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+
+                      <View style={styles.checkboxContainer}>
+                        <TouchableOpacity
+                          style={styles.checkbox}
+                          onPress={() => setFormData({ ...formData, requiereAprobacion: !formData.requiereAprobacion })}
+                        >
+                          <Ionicons
+                            name={formData.requiereAprobacion ? 'checkbox' : 'square-outline'}
+                            size={24}
+                            color={formData.requiereAprobacion ? '#27ae60' : '#7f8c8d'}
+                          />
+                          <Text style={styles.checkboxText}>Requiere aprobación previa</Text>
+                        </TouchableOpacity>
                       </View>
                     </>
                   ) : (
@@ -476,7 +583,9 @@ const ServiciosProveedor = ({ navigation }) => {
                         </View>
                         <View style={styles.servicioModalPrecio}>
                           <Text style={styles.precioText}>${servicioSeleccionado.precio}</Text>
-                          <Text style={styles.duracionText}>{servicioSeleccionado.duracionEstimada}</Text>
+                          <Text style={styles.duracionText}>
+                            {servicioSeleccionado.unidadPrecio?.replace('_', ' ') || 'por uso'}
+                          </Text>
                         </View>
                       </View>
 
@@ -500,17 +609,24 @@ const ServiciosProveedor = ({ navigation }) => {
                         </View>
                       </View>
 
-                      {servicioSeleccionado.certificaciones && servicioSeleccionado.certificaciones.length > 0 && (
-                        <View style={styles.certificacionesModal}>
-                          <Text style={styles.certificacionesTitle}>Certificaciones</Text>
-                          {servicioSeleccionado.certificaciones.map((cert, index) => (
-                            <View key={index} style={styles.certificacionItem}>
-                              <Ionicons name="checkmark-circle" size={16} color="#27ae60" />
-                              <Text style={styles.certificacionText}>{cert}</Text>
-                            </View>
-                          ))}
-                        </View>
-                      )}
+                      <View style={styles.detallesAdicionales}>
+                        {servicioSeleccionado.tiempoAnticipacion && (
+                          <View style={styles.detalleAdicional}>
+                            <Ionicons name="clock" size={16} color="#7f8c8d" />
+                            <Text style={styles.detalleAdicionalText}>
+                              Requiere {servicioSeleccionado.tiempoAnticipacion} horas de anticipación
+                            </Text>
+                          </View>
+                        )}
+                        {servicioSeleccionado.requiereAprobacion && (
+                          <View style={styles.detalleAdicional}>
+                            <Ionicons name="checkmark-circle" size={16} color="#e67e22" />
+                            <Text style={styles.detalleAdicionalText}>
+                              Requiere aprobación previa
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                     </>
                   )}
                 </>
@@ -587,9 +703,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginHorizontal: 10,
   },
-  addButton: {
-    padding: 5,
-  },
   proveedorInfo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -618,6 +731,11 @@ const styles = StyleSheet.create({
   proveedorTipo: {
     fontSize: 14,
     color: '#7f8c8d',
+    marginTop: 2,
+  },
+  proveedorId: {
+    fontSize: 12,
+    color: '#95a5a6',
     marginTop: 2,
   },
   estadisticasContainer: {
@@ -910,6 +1028,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
+  unidadContainer: {
+    flexDirection: 'row',
+    marginTop: 5,
+  },
+  unidadButton: {
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+  },
+  unidadButtonActive: {
+    backgroundColor: '#4a90e2',
+    borderColor: '#4a90e2',
+  },
+  unidadButtonText: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    fontWeight: '600',
+  },
+  unidadButtonTextActive: {
+    color: '#fff',
+  },
+  checkboxContainer: {
+    marginBottom: 20,
+  },
+  checkbox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  checkboxText: {
+    fontSize: 14,
+    color: '#2c3e50',
+  },
   servicioModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -985,22 +1140,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#7f8c8d',
   },
-  certificacionesModal: {
+  detallesAdicionales: {
     marginBottom: 20,
   },
-  certificacionesTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    marginBottom: 12,
-  },
-  certificacionItem: {
+  detalleAdicional: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginBottom: 8,
   },
-  certificacionText: {
+  detalleAdicionalText: {
     fontSize: 14,
     color: '#2c3e50',
   },

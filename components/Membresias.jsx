@@ -66,7 +66,6 @@ const Membresias = ({ navigation }) => {
   }, [errorMembresiasActivas, errorSuscripcion, dispatch]);
 
   const cargarDatos = () => {
-    console.log('🔵 [Membresias] Cargando datos...');
     dispatch(obtenerMembresiasActivas());
     dispatch(obtenerPromocionesActivas());
   };
@@ -250,13 +249,9 @@ const Membresias = ({ navigation }) => {
         reembolsoParcial: false
       };
 
-      console.log('🔵 [Membresias] Enviando datos de cancelación:', cancelacionData);
-
       const result = await dispatch(cancelarMembresia(cancelacionData));
 
       if (cancelarMembresia.fulfilled.match(result)) {
-        console.log('🟢 [Membresias] Cancelación exitosa:', result.payload);
-
         const usuarioActualizado = result.payload.usuario;
         dispatch(loguear({
           usuario: usuarioActualizado,
@@ -270,11 +265,10 @@ const Membresias = ({ navigation }) => {
         );
         setSelectedPlan(null);
       } else {
-        console.error('🔴 [Membresias] Error en cancelación:', result.payload);
         throw new Error(result.payload || 'Error al cancelar membresía');
       }
     } catch (error) {
-      console.error('🔴 [Membresias] Error en cancelarMembresiaBackend:', error);
+      console.error(error);
       Alert.alert('Error', error.message || 'No se pudo cancelar la membresía');
     } finally {
       setIsUpdating(false);
@@ -284,49 +278,19 @@ const Membresias = ({ navigation }) => {
 const actualizarMembresia = async (plan) => {
   try {
     setIsUpdating(true);
-    
-    console.log('🔵 [Frontend] Iniciando suscripción a plan:', {
-      planNombre: plan.nombre,
-      planId: plan.id || plan._id,
-      planTipo: plan.tipo,
-      usuario: usuario?.username || usuario?.email,
-      usuarioId: usuario?._id || usuario?.id
-    });
 
     const membresiaId = plan.id || plan._id;
     if (!membresiaId || membresiaId.includes('fallback')) {
       throw new Error('ID de membresía inválido. Por favor, recarga la página e intenta nuevamente.');
     }
 
-    console.log('🔍 [Frontend] Validando usuario:', {
-      usuario: !!usuario,
-      usuarioKeys: usuario ? Object.keys(usuario) : [],
-      _id: usuario?._id,
-      id: usuario?.id,
-      username: usuario?.username,
-      email: usuario?.email
-    });
-
     const usuarioId = usuario?._id || usuario?.id;
     if (!usuario || !usuarioId) {
-      console.error('🔴 [Frontend] Usuario inválido:', {
-        usuario: !!usuario,
-        usuarioData: usuario,
-        _id: usuario?._id,
-        id: usuario?.id
-      });
       throw new Error('Usuario no válido. Por favor, inicia sesión nuevamente.');
     }
 
     const fechaInicio = new Date();
     const duracion = plan.datosCompletos?.duracion || plan.duracion || 30;
-
-    console.log('🔵 [Frontend] Detalles de la suscripción:', {
-      membresiaId,
-      usuarioId,
-      duracion,
-      fechaInicio: fechaInicio.toISOString()
-    });
 
     const suscripcionData = {
       usuarioId: usuarioId, 
@@ -336,13 +300,9 @@ const actualizarMembresia = async (plan) => {
       renovacionAutomatica: true, 
     };
 
-    console.log('🔵 [Frontend] Datos enviados al backend:', suscripcionData);
-
     const result = await dispatch(suscribirMembresia(suscripcionData));
 
     if (suscribirMembresia.fulfilled.match(result)) {
-      console.log('🟢 [Frontend] Respuesta exitosa del backend:', result.payload);
-
       const { usuario: usuarioActualizado, suscripcion } = result.payload;
 
       if (!usuarioActualizado) {
@@ -352,14 +312,6 @@ const actualizarMembresia = async (plan) => {
       if (!usuarioActualizado.membresia || !usuarioActualizado.membresia.tipoMembresiaId) {
         throw new Error('La membresía no se asignó correctamente al usuario');
       }
-
-      console.log('🟢 [Frontend] Membresía asignada exitosamente:', {
-        usuarioId: usuarioActualizado._id,
-        membresiaId: usuarioActualizado.membresia.tipoMembresiaId,
-        fechaInicio: usuarioActualizado.membresia.fechaInicio,
-        fechaVencimiento: usuarioActualizado.membresia.fechaVencimiento,
-        renovacionAutomatica: usuarioActualizado.membresia.renovacionAutomatica
-      });
 
       dispatch(loguear({
         usuario: usuarioActualizado,
@@ -384,10 +336,7 @@ const actualizarMembresia = async (plan) => {
         `• Renovación automática: ${usuarioActualizado.membresia.renovacionAutomatica ? 'Sí' : 'No'}`,
         [
           {
-            text: 'Perfecto',
-            onPress: () => {
-              console.log('🟢 [Frontend] Suscripción completada exitosamente');
-            }
+            text: 'Perfecto'
           }
         ]
       );
@@ -395,8 +344,6 @@ const actualizarMembresia = async (plan) => {
       return true;
 
     } else {
-      console.error('🔴 [Frontend] Error en la respuesta del backend:', result.payload);
-
       let errorMessage = 'Error al procesar la suscripción';
 
       if (typeof result.payload === 'string') {
@@ -411,13 +358,6 @@ const actualizarMembresia = async (plan) => {
     }
 
   } catch (error) {
-    console.error('🔴 [Frontend] Error completo en actualizarMembresia:', {
-      message: error.message,
-      stack: error.stack,
-      planId: plan.id || plan._id,
-      usuarioId: usuario?._id || usuario?.id
-    });
-
     Alert.alert(
       'Error en la suscripción',
       error.message || 'No se pudo procesar la suscripción. Por favor, intenta nuevamente.',

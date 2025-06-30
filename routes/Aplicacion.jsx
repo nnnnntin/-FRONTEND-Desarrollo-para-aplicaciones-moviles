@@ -27,7 +27,6 @@ import Reservas from '../components/Reservas';
 import ServiciosEspacio from '../components/ServiciosEspacio';
 import ServiciosOfrecidos from '../components/ServiciosOfrecidos';
 import ServiciosProveedor from '../components/ServiciosProveedor';
-import SolicitudesServicio from '../components/SolicitudesServicio';
 import Transacciones from '../components/Transacciones';
 
 import ComisionesAdmin from '../components/ComisionesAdmin';
@@ -236,10 +235,6 @@ const InicioStack = ({ setIsLogged, resetSession }) => {
           <Stack.Screen
             name="CrearServicio"
             component={CrearServicio}
-          />
-          <Stack.Screen
-            name="SolicitudesServicio"
-            component={SolicitudesServicio}
           />
           <Stack.Screen
             name="GananciasProveedor"
@@ -499,14 +494,6 @@ const Aplicacion = ({ setIsLogged, resetSession }) => {
             component={CrearServicio}
             options={{
               title: 'Crear servicio',
-              headerShown: false
-            }}
-          />
-          <Drawer.Screen
-            name='SolicitudesServicio'
-            component={SolicitudesServicio}
-            options={{
-              title: 'Solicitudes',
               headerShown: false
             }}
           />

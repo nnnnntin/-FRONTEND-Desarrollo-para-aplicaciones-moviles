@@ -511,7 +511,21 @@ export const crearServicioAdicional = createAsyncThunk(
   'serviciosAdicionales/crear',
   async (datos, { getState, rejectWithValue }) => {
     try {
-      const token = getState().auth.token;
+      const state = getState();
+      const token = state.auth.token;
+      const usuario = state.auth.usuario;
+      
+      const proveedorId = usuario._id || usuario.id;
+      
+      if (usuario.tipoUsuario !== 'proveedor') {
+        return rejectWithValue('El usuario debe ser de tipo proveedor para crear servicios');
+      }
+      
+      const datosConProveedor = {
+        ...datos,
+        proveedorId: proveedorId
+      };
+      
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/servicios-adicionales`,
         {
@@ -520,13 +534,15 @@ export const crearServicioAdicional = createAsyncThunk(
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(datos)
+          body: JSON.stringify(datosConProveedor)
         }
       );
+      
       if (!response.ok) {
         const err = await response.json();
         return rejectWithValue(err.message || 'Error al crear servicio adicional');
       }
+      
       return await response.json();
     } catch (error) {
       console.error(error);

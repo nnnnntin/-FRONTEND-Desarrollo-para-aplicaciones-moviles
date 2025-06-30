@@ -17,7 +17,6 @@ import ReportesAdmin from '../components/ReportesAdmin';
 import Reservas from '../components/Reservas';
 import ServiciosOfrecidos from '../components/ServiciosOfrecidos';
 import ServiciosProveedor from '../components/ServiciosProveedor';
-import SolicitudesServicio from '../components/SolicitudesServicio';
 import Transacciones from '../components/Transacciones';
 import TransaccionesAdmin from '../components/TransaccionesAdmin';
 
@@ -160,11 +159,6 @@ const ProveedorServiciosStack = () => (
       name="ServiciosProveedor"
       component={ServiciosProveedor}
       options={{ title: 'Mis Servicios' }}
-    />
-    <Stack.Screen
-      name="SolicitudesServicio"
-      component={SolicitudesServicio}
-      options={{ title: 'Solicitudes' }}
     />
     <Stack.Screen
       name="GananciasProveedor"

@@ -155,7 +155,7 @@ export const cargarNotificacionesUsuario = (usuarioId, token, options = {}) => {
       return notificacionesProcesadas;
 
     } catch (error) {
-      console.error('Error cargando notificaciones:', error);
+      console.error(error);
       if (!options.silencioso) {
         dispatch(setError(error.message || 'Error al cargar notificaciones'));
       }
@@ -210,7 +210,7 @@ export const marcarNotificacionComoLeida = (notificacionId, token) => {
         dispatch(marcarComoLeida(notificacionId));
       }
     } catch (error) {
-      console.error('Error marcando notificación como leída:', error);
+      console.error(error);
       dispatch(marcarComoLeida(notificacionId));
     }
   };
@@ -236,7 +236,7 @@ export const marcarTodasNotificacionesComoLeidas = (usuarioId, token) => {
         throw new Error('No se pudieron marcar todas como leídas');
       }
     } catch (error) {
-      console.error('Error marcando todas como leídas:', error);
+      console.error(error);
       dispatch(setError('No se pudieron marcar todas como leídas'));
       throw error;
     }
@@ -263,7 +263,7 @@ export const eliminarNotificacionPorId = (notificacionId, token) => {
         throw new Error('No se pudo eliminar la notificación');
       }
     } catch (error) {
-      console.error('Error eliminando notificación:', error);
+      console.error(error);
       dispatch(setError('No se pudo eliminar la notificación'));
       throw error;
     }

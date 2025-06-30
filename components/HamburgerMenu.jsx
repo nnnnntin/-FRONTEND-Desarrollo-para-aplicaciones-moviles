@@ -181,12 +181,6 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
           icon: 'construct-outline',
           onPress: () => handleNavigation('ServiciosProveedor')
         },
-        {
-          id: 5,
-          title: 'Solicitudes',
-          icon: 'briefcase-outline',
-          onPress: () => handleNavigation('SolicitudesServicio')
-        },
       ];
     }
 

@@ -13,17 +13,25 @@ import {
   View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { obtenerReservas } from '../store/slices/reservasSlice';
+import {
+  obtenerEstadisticasGananciasCliente,
+  obtenerReservasPorCliente
+} from '../store/slices/reservasSlice';
 
 const GestionGanancias = ({ navigation }) => {
   const dispatch = useDispatch();
   
-  // ⭐ CORREGIDO: Usar el slice de auth donde está el usuario logueado ⭐
   const { usuario: datosUsuario } = useSelector(state => state.auth);
-  const { reservas, loading } = useSelector(state => state.reservas);
   
-  // ⭐ DEBUG: Verificar que el componente se monte ⭐
-  console.log('🚀 GestionGanancias se está montando');
+  const { 
+    reservasCliente, 
+    resumenCliente,
+    estadisticasCliente,
+    loadingReservasCliente, 
+    loadingEstadisticas,
+    errorReservasCliente,
+    errorEstadisticas
+  } = useSelector(state => state.reservas);
   
   const [modalVisible, setModalVisible] = useState(false);
   const [cuentaBancaria, setCuentaBancaria] = useState({
@@ -34,133 +42,18 @@ const GestionGanancias = ({ navigation }) => {
   });
   const [cuentaGuardada, setCuentaGuardada] = useState(null);
 
-  // ⭐ DEBUG: Verificar datos del usuario y estado ⭐
-  console.log('👤 Datos del usuario (auth.usuario):', datosUsuario);
-  console.log('📊 Estado de reservas:', { reservas, loading });
-  console.log('🔍 Estado completo auth:', useSelector(state => state.auth));
-
-  // ⭐ MOVER EL SELECTOR FUERA DEL useEffect ⭐
   const authToken = useSelector(state => state.auth.token);
 
-  // ⭐ NUEVA FUNCIÓN: Obtener reservas específicamente para ganancias ⭐
-  const obtenerReservasParaGanancias = async () => {
-    console.log('💰 Obteniendo reservas específicamente para ganancias...');
-    
-    try {
-      const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/v1/reservas?limit=100&populate=true`,
-        {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (!response.ok) {
-        console.log('❌ Error en response de reservas para ganancias:', response.status);
-        return [];
-      }
-
-      const data = await response.json();
-      console.log('📥 Datos crudos del servidor:', data);
-      
-      return Array.isArray(data) ? data : (data.reservas || data.data || []);
-    } catch (error) {
-      console.log('❌ Error al obtener reservas para ganancias:', error);
-      return [];
-    }
-  };
-
-  // Obtener reservas al cargar el componente
   useEffect(() => {
-    console.log('📡 Ejecutando dispatch de obtenerReservas');
-    console.log('🔑 Token disponible:', !!authToken);
-    console.log('🌐 API URL:', process.env.EXPO_PUBLIC_API_URL);
-    
-    // ⭐ USAR AMBOS MÉTODOS PARA COMPARAR ⭐
-    dispatch(obtenerReservas({ skip: 0, limit: 100 }))
-      .then((result) => {
-        console.log('📥 Resultado del dispatch obtenerReservas:', result);
-      })
-      .catch((error) => {
-        console.log('❌ Error en dispatch obtenerReservas:', error);
-      });
-
-    // ⭐ TAMBIÉN PROBAR LA NUEVA FUNCIÓN ⭐
-    obtenerReservasParaGanancias().then((reservasDirectas) => {
-      console.log('💰 Reservas obtenidas directamente:', reservasDirectas);
-      if (reservasDirectas.length > 0) {
-        console.log('🎯 Primera reserva directa:', reservasDirectas[0]);
-        
-        // Verificar si tienen entidad reservada
-        reservasDirectas.forEach((reserva, index) => {
-          console.log(`--- Reserva directa ${index + 1} ---`);
-          console.log('ID:', reserva._id);
-          console.log('Estado:', reserva.estado);
-          console.log('Precio:', reserva.precioTotal);
-          console.log('Entidad reservada completa:', reserva.entidadReservada);
-          
-          if (reserva.entidadReservada && reserva.entidadReservada.usuarioId) {
-            console.log('✅ Tiene entidad con usuarioId:', reserva.entidadReservada.usuarioId);
-          } else {
-            console.log('❌ No tiene entidad reservada o usuarioId');
-          }
-        });
-      }
-    });
-  }, [dispatch, authToken]);
-
-  // ⭐ DEBUG: Monitorear cambios en reservas ⭐
-  useEffect(() => {
-    console.log('🔄 UseEffect de reservas ejecutándose');
-    console.log('📈 Reservas actuales:', reservas);
-    console.log('📈 Cantidad de reservas:', reservas?.length || 0);
-    console.log('⏳ Loading:', loading);
-    
-    if (reservas && Array.isArray(reservas)) {
-      console.log('✅ Reservas es un array válido');
-      if (reservas.length > 0) {
-        console.log('🎯 Tenemos reservas, procesando...');
-        
-        reservas.forEach((reserva, index) => {
-          console.log(`--- Reserva ${index + 1} ---`);
-          console.log('ID:', reserva._id);
-          console.log('Estado:', reserva.estado);
-          console.log('Precio total:', reserva.precioTotal);
-          console.log('Estructura completa:', reserva);
-          
-          // Verificar entidad reservada
-          const entidad = reserva.entidadReservada || reserva.oficina || reserva.espacio || reserva.escritorio || reserva.sala;
-          if (entidad) {
-            console.log('🏢 Entidad encontrada:', entidad);
-          } else {
-            console.log('❌ No se encontró entidad en esta reserva');
-          }
-        });
-      } else {
-        console.log('📭 El array de reservas está vacío');
-      }
-    } else {
-      console.log('❌ Reservas no es un array válido:', typeof reservas);
-    }
-  }, [reservas, loading]);
-
-  // Calcular ganancias basadas en las reservas de las entidades del usuario
-  const calcularGanancias = () => {
-    console.log('💰 Calculando ganancias...');
-    console.log('📊 Datos para cálculo:', { reservas, datosUsuario });
-    
-    // ⭐ CORREGIDO: Verificar tanto _id como id ⭐
     const usuarioId = datosUsuario?._id || datosUsuario?.id;
-    
-    if (!reservas || !usuarioId) {
-      console.log('❌ Faltan datos para calcular ganancias');
-      console.log('  - reservas:', !!reservas);
-      console.log('  - datosUsuario:', !!datosUsuario);
-      console.log('  - datosUsuario._id:', !!datosUsuario?._id);
-      console.log('  - datosUsuario.id:', !!datosUsuario?.id);
-      console.log('  - usuarioId final:', usuarioId);
+  
+    dispatch(obtenerEstadisticasGananciasCliente({ 
+      clienteId: usuarioId 
+    }))
+  }, [dispatch, datosUsuario, authToken]);
+
+  const calcularGanancias = () => {    
+    if (!reservasCliente || reservasCliente.length === 0) {
       return {
         disponible: 0,
         pendiente: 0,
@@ -169,114 +62,27 @@ const GestionGanancias = ({ navigation }) => {
       };
     }
 
-    console.log('=== DEBUG CALCULAR GANANCIAS ===');
-    console.log('Usuario logueado ID:', usuarioId);
-    console.log('Total reservas:', reservas.length);
-
-    // Filtrar reservas donde la entidad pertenece al usuario logueado
-    const reservasDelUsuario = reservas.filter(reserva => {
-      console.log('\n--- Procesando reserva ---');
-      console.log('Reserva ID:', reserva._id);
-      console.log('Precio total:', reserva.precioTotal);
-      console.log('Estado:', reserva.estado);
-      
-      // La entidad puede estar en entidadReservada o directamente en otros campos
-      const entidad = reserva.entidadReservada || reserva.oficina || reserva.espacio || reserva.escritorio || reserva.sala;
-      
-      if (!entidad) {
-        console.log('❌ No se encontró entidad en la reserva');
-        return false;
-      }
-      
-      console.log('Entidad encontrada:', {
-        id: entidad._id || entidad.id,
-        nombre: entidad.nombre,
-        tipo: entidad.tipo,
-        usuarioId: entidad.usuarioId
-      });
-      
-      // Buscar el propietario en diferentes posibles campos
-      const propietarioId = entidad.usuarioId || 
-                           entidad.propietarioId || 
-                           entidad.ownerId ||
-                           entidad.creadorId;
-      
-      if (!propietarioId) {
-        console.log('❌ No se encontró propietarioId en la entidad');
-        return false;
-      }
-      
-      // Obtener el ID del propietario (puede ser objeto o string)
-      let entidadUserId;
-      if (typeof propietarioId === 'string') {
-        entidadUserId = propietarioId;
-      } else if (propietarioId._id) {
-        entidadUserId = propietarioId._id;
-      } else if (propietarioId.id) {
-        entidadUserId = propietarioId.id;
-      } else {
-        entidadUserId = propietarioId.toString();
-      }
-      
-      // ID del usuario logueado
-      let usuarioLogueadoId;
-      if (typeof usuarioId === 'string') {
-        usuarioLogueadoId = usuarioId;
-      } else if (usuarioId) {
-        usuarioLogueadoId = usuarioId.toString();
-      }
-      
-      console.log('Comparando IDs:');
-      console.log('  Entidad User ID:', entidadUserId);
-      console.log('  Usuario Logueado ID:', usuarioLogueadoId);
-      
-      if (!entidadUserId || !usuarioLogueadoId) {
-        console.log('❌ Falta algún ID para comparar');
-        return false;
-      }
-      
-      // Convertir ambos a string para comparación segura
-      const esDelUsuario = entidadUserId.toString() === usuarioLogueadoId.toString();
-      console.log('¿Es del usuario?:', esDelUsuario);
-      
-      return esDelUsuario;
-    });
-
-    console.log('\n=== RESULTADO FILTRADO ===');
-    console.log('Reservas del usuario:', reservasDelUsuario.length);
-    reservasDelUsuario.forEach(r => {
-      console.log(`- Reserva ${r._id}: $${r.precioTotal} (${r.estado})`);
-    });
-
     let disponible = 0;
     let pendiente = 0;
     let total = 0;
 
     const ahora = new Date();
     const hace30Dias = new Date(ahora.getTime() - (30 * 24 * 60 * 60 * 1000));
-
-    reservasDelUsuario.forEach(reserva => {
-      const precioTotal = Number(reserva.precioTotal) || 0;
+    
+    reservasCliente.forEach((reserva, index) => {
+      const precioFinal = Number(reserva.precioFinalPagado) || 0;
       const fechaReserva = new Date(reserva.fechaInicio || reserva.fecha || reserva.createdAt);
-      
-      total += precioTotal;
 
-      // Si la reserva fue completada hace más de 30 días, está disponible para transferir
+      total += precioFinal;
+
       if (reserva.estado === 'completada' && fechaReserva < hace30Dias) {
-        disponible += precioTotal;
+        disponible += precioFinal;
       }
-      // Si está confirmada pero no completada o es reciente, está pendiente
       else if (reserva.estado === 'confirmada' || reserva.estado === 'completada') {
-        pendiente += precioTotal;
+        pendiente += precioFinal;
       }
     });
 
-    console.log('\n=== TOTALES CALCULADOS ===');
-    console.log('Disponible:', disponible);
-    console.log('Pendiente:', pendiente);
-    console.log('Total:', total);
-
-    // Calcular próximo pago (primer día del próximo mes)
     const proximoPago = new Date();
     proximoPago.setMonth(proximoPago.getMonth() + 1);
     proximoPago.setDate(1);
@@ -289,74 +95,43 @@ const GestionGanancias = ({ navigation }) => {
     };
   };
   
-  // Generar historial de reservas para mostrar
   const generarHistorialReservas = () => {
-    const usuarioId = datosUsuario?._id || datosUsuario?.id;
-    if (!reservas || !usuarioId) return [];
+    if (!reservasCliente || reservasCliente.length === 0) {
+      return [];
+    }
 
-    const reservasDelUsuario = reservas
-      .filter(reserva => {
-        // La entidad puede estar en entidadReservada o directamente en otros campos
-        const entidad = reserva.entidadReservada || reserva.oficina || reserva.espacio || reserva.escritorio || reserva.sala;
-        
-        if (!entidad) return false;
-        
-        // Buscar el propietario en diferentes posibles campos
-        const propietarioId = entidad.usuarioId || 
-                             entidad.propietarioId || 
-                             entidad.ownerId ||
-                             entidad.creadorId;
-        
-        // Obtener el ID del propietario (puede ser objeto o string)
-        const entidadUserId = propietarioId?._id || 
-                             propietarioId?.id || 
-                             propietarioId;
-        
-        // ID del usuario logueado
-        const usuarioLogueadoId = usuarioId;
-        
-        if (!entidadUserId || !usuarioLogueadoId) return false;
-        
-        return entidadUserId === usuarioLogueadoId ||
-               entidadUserId?.toString() === usuarioLogueadoId?.toString();
-      })
-      .filter(reserva => reserva.estado === 'completada' || reserva.estado === 'confirmada')
+    return reservasCliente
+      .filter(reserva => ['completada', 'confirmada'].includes(reserva.estado))
       .sort((a, b) => new Date(b.fechaInicio || b.fecha || b.createdAt) - 
                      new Date(a.fechaInicio || a.fecha || a.createdAt))
-      .slice(0, 10); // Mostrar solo las últimas 10
-
-    return reservasDelUsuario.map(reserva => {
-      const entidad = reserva.entidadReservada || reserva.oficina || reserva.espacio || reserva.escritorio || reserva.sala;
-      
-      // Determinar el nombre y tipo de la entidad
-      const nombreEntidad = entidad?.nombre || entidad?.titulo || entidad?.name || 'Entidad';
-      const tipoEntidad = reserva.tipo || 
-                         entidad?.tipo || 
-                         (reserva.entidadReservada ? 'espacio' : 'oficina');
-      
-      // Mapear tipos para mostrar nombres más amigables
-      const tiposMapeados = {
-        'oficina': 'Oficina',
-        'espacio': 'Espacio',
-        'escritorio': 'Escritorio',
-        'escritorio_flexible': 'Escritorio',
-        'sala': 'Sala',
-        'sala_reunion': 'Sala de Reunión',
-        'edificio': 'Edificio'
-      };
-      
-      const tipoDisplay = tiposMapeados[tipoEntidad] || 'Espacio';
-      
-      return {
-        id: reserva._id,
-        fecha: new Date(reserva.fechaInicio || reserva.fecha || reserva.createdAt).toLocaleDateString('es-UY'),
-        monto: reserva.precioTotal || 0,
-        estado: reserva.estado,
-        descripcion: `Reserva de ${tipoDisplay}: ${nombreEntidad}`,
-        codigo: reserva.codigo || reserva._id?.slice(-6) || 'N/A',
-        tipoEntidad: tipoDisplay
-      };
-    });
+      .slice(0, 10) 
+      .map(reserva => {
+        const entidad = reserva.entidadReservada || {};
+        const nombreEntidad = entidad.nombre || entidad.titulo || entidad.name || 'Entidad';
+        const tipoEntidad = entidad.tipo || 'espacio';
+        
+        const tiposMapeados = {
+          'oficina': 'Oficina',
+          'espacio': 'Espacio',
+          'escritorio': 'Escritorio',
+          'escritorio_flexible': 'Escritorio',
+          'sala': 'Sala',
+          'sala_reunion': 'Sala de Reunión',
+          'edificio': 'Edificio'
+        };
+        
+        const tipoDisplay = tiposMapeados[tipoEntidad] || 'Espacio';
+        
+        return {
+          id: reserva._id,
+          fecha: new Date(reserva.fechaInicio || reserva.fecha || reserva.createdAt).toLocaleDateString('es-UY'),
+          monto: reserva.precioFinalPagado || 0,
+          estado: reserva.estado,
+          descripcion: `Reserva de ${tipoDisplay}`,
+          codigo: reserva.codigo || reserva._id?.slice(-6) || 'N/A',
+          tipoEntidad: tipoDisplay
+        };
+      });
   };
 
   const ganancias = calcularGanancias();
@@ -421,8 +196,7 @@ const GestionGanancias = ({ navigation }) => {
     }
   };
 
-  if (loading) {
-    console.log('⏳ Mostrando pantalla de carga');
+  if (loadingReservasCliente || loadingEstadisticas) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
@@ -439,9 +213,6 @@ const GestionGanancias = ({ navigation }) => {
       </SafeAreaView>
     );
   }
-
-  console.log('🎨 Renderizando componente principal');
-  console.log('💰 Ganancias calculadas:', ganancias);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -460,20 +231,6 @@ const GestionGanancias = ({ navigation }) => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* ⭐ AGREGAR CARD DE DEBUG TEMPORAL ⭐ */}
-        <View style={[styles.resumenContainer, { backgroundColor: '#e74c3c', marginBottom: 10 }]}>
-          <Text style={[styles.gananciaLabel, { fontSize: 14 }]}>DEBUG INFO</Text>
-          <Text style={[styles.gananciaLabel, { fontSize: 12 }]}>
-            Usuario: {datosUsuario?.username || 'No logueado'}
-          </Text>
-          <Text style={[styles.gananciaLabel, { fontSize: 12 }]}>
-            ID: {datosUsuario?.id || datosUsuario?._id || 'Sin ID'}
-          </Text>
-          <Text style={[styles.gananciaLabel, { fontSize: 12 }]}>
-            Reservas: {reservas?.length || 0}
-          </Text>
-        </View>
-
         <View style={styles.resumenContainer}>
           <View style={styles.gananciaPrincipal}>
             <Text style={styles.gananciaLabel}>Disponible para transferir</Text>
@@ -751,102 +508,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginVertical: 20,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#2c3e50',
     fontFamily: 'System',
-  },
-  editButton: {
-    padding: 5,
-  },
-  cuentaCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  bancoIcon: {
-    marginRight: 15,
-  },
-  cuentaInfo: {
-    flex: 1,
-  },
-  bancoNombre: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2c3e50',
-    fontFamily: 'System',
-  },
-  cuentaDetalle: {
-    fontSize: 14,
-    color: '#7f8c8d',
-    marginTop: 2,
-    fontFamily: 'System',
-  },
-  cuentaTitular: {
-    fontSize: 14,
-    color: '#5a6c7d',
-    marginTop: 2,
-    fontFamily: 'System',
-  },
-  agregarCuentaButton: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#e1e5e9',
-    borderStyle: 'dashed',
-  },
-  agregarCuentaText: {
-    fontSize: 16,
-    color: '#4a90e2',
-    marginLeft: 10,
-    fontWeight: '600',
-    fontFamily: 'System',
-  },
-  transferirButton: {
-    backgroundColor: '#27ae60',
-    marginHorizontal: 20,
-    marginVertical: 10,
-    paddingVertical: 16,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  transferirButtonDisabled: {
-    backgroundColor: '#95a5a6',
-    elevation: 0,
-  },
-  transferirIcon: {
-    marginRight: 8,
-  },
-  transferirButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    fontFamily: 'System',
+    marginBottom: 15,
   },
   transaccionItem: {
     backgroundColor: '#fff',
@@ -902,13 +569,6 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     textTransform: 'capitalize',
     fontWeight: '600',
-  },
-  transaccionTipo: {
-    fontSize: 11,
-    color: '#3498db',
-    marginTop: 2,
-    fontFamily: 'System',
-    fontWeight: '500',
   },
   emptyContainer: {
     alignItems: 'center',

@@ -23,7 +23,7 @@ export const obtenerMembresias = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en obtenerMembresias:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -54,7 +54,7 @@ export const crearMembresia = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en crearMembresia:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -83,7 +83,7 @@ export const obtenerMembresiaPorId = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en obtenerMembresiaPorId:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -114,7 +114,7 @@ export const actualizarMembresia = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en actualizarMembresia:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -143,7 +143,7 @@ export const eliminarMembresia = createAsyncThunk(
 
       return membresiaId;
     } catch (error) {
-      console.error('Error en eliminarMembresia:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -172,7 +172,7 @@ export const obtenerMembresiaPorTipo = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en obtenerMembresiaPorTipo:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -201,7 +201,7 @@ export const obtenerMembresiasActivas = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en obtenerMembresiasActivas:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -232,7 +232,7 @@ export const toggleActivarMembresia = createAsyncThunk(
 
       return { membresiaId, activar, ...data };
     } catch (error) {
-      console.error('Error en toggleActivarMembresia:', error);
+      console.error(error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -243,8 +243,6 @@ export const suscribirMembresia = createAsyncThunk(
   async (suscripcionData, { getState, rejectWithValue }) => {
     try {
       const { auth } = getState();
-
-      console.log('🔵 [Redux] Iniciando suscripción con datos:', suscripcionData);
 
       if (!auth.token) {
         return rejectWithValue('Token de autenticación no disponible');
@@ -266,8 +264,6 @@ export const suscribirMembresia = createAsyncThunk(
         renovacionAutomatica: suscripcionData.renovacionAutomatica !== false, 
       };
 
-      console.log('🔵 [Redux] Payload final enviado al backend:', payload);
-
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/membresias/suscribir`,
         {
@@ -282,20 +278,7 @@ export const suscribirMembresia = createAsyncThunk(
 
       const data = await response.json();
 
-      console.log('🔵 [Redux] Respuesta completa del servidor:', {
-        status: response.status,
-        ok: response.ok,
-        data
-      });
-
       if (!response.ok) {
-        console.error('🔴 [Redux] Error HTTP del servidor:', {
-          status: response.status,
-          message: data.message,
-          details: data.details,
-          field: data.field
-        });
-
         return rejectWithValue(
           data.message ||
           data.details ||
@@ -304,21 +287,12 @@ export const suscribirMembresia = createAsyncThunk(
       }
 
       if (!data.usuario) {
-        console.error('🔴 [Redux] Respuesta sin usuario:', data);
         return rejectWithValue('Respuesta del servidor incompleta: falta información del usuario');
       }
 
       if (!data.usuario.membresia) {
-        console.error('🔴 [Redux] Usuario sin membresía en respuesta:', data.usuario);
         return rejectWithValue('El usuario no tiene membresía asignada en la respuesta del servidor');
       }
-
-      console.log('🟢 [Redux] Suscripción exitosa:', {
-        usuarioId: data.usuario._id,
-        username: data.usuario.username,
-        membresiaAsignada: data.usuario.membresia,
-        suscripcionInfo: data.suscripcion
-      });
 
       return {
         success: true,
@@ -328,12 +302,6 @@ export const suscribirMembresia = createAsyncThunk(
       };
 
     } catch (error) {
-      console.error('🔴 [Redux] Error de conexión en suscripción:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
-
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
         return rejectWithValue('Error de conexión. Verifica tu conexión a internet.');
       }
@@ -356,8 +324,6 @@ export const cancelarMembresia = createAsyncThunk(
     try {
       const { auth } = getState();
 
-      console.log('🔵 [cancelarMembresia] Datos recibidos:', cancelacionData);
-
       const payload = {
         usuarioId: cancelacionData.usuarioId,
         membresiaId: cancelacionData.membresiaId || cancelacionData.tipoMembresiaId,
@@ -365,8 +331,6 @@ export const cancelarMembresia = createAsyncThunk(
         fechaCancelacion: cancelacionData.fechaCancelacion,
         reembolsoParcial: cancelacionData.reembolsoParcial || false
       };
-
-      console.log('🔵 [cancelarMembresia] Payload enviado:', payload);
 
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/membresias/cancelar`,
@@ -382,10 +346,7 @@ export const cancelarMembresia = createAsyncThunk(
 
       const data = await response.json();
 
-      console.log('🔵 [cancelarMembresia] Respuesta del servidor:', data);
-
       if (!response.ok) {
-        console.error('🔴 [cancelarMembresia] Error del servidor:', data);
         return rejectWithValue(data.message || data.details || 'Error al cancelar membresía');
       }
 
@@ -395,7 +356,6 @@ export const cancelarMembresia = createAsyncThunk(
         message: data.message
       };
     } catch (error) {
-      console.error('🔴 [cancelarMembresia] Error de conexión:', error);
       return rejectWithValue('Error de conexión al cancelar membresía');
     }
   }
@@ -424,7 +384,6 @@ export const obtenerPromociones = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en obtenerPromociones:', error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -455,7 +414,6 @@ export const crearPromocion = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en crearPromocion:', error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -484,7 +442,6 @@ export const obtenerPromocionPorCodigo = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en obtenerPromocionPorCodigo:', error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -513,7 +470,6 @@ export const obtenerPromocionesActivas = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en obtenerPromocionesActivas:', error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -544,7 +500,6 @@ export const validarPromocion = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en validarPromocion:', error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -574,7 +529,6 @@ export const filtrarPromociones = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en filtrarPromociones:', error);
       return rejectWithValue('Error de conexión');
     }
   }
@@ -837,29 +791,19 @@ const membresiaSlice = createSlice({
       })
 
       .addCase(suscribirMembresia.pending, (state) => {
-        console.log('🔵 [Redux] Iniciando proceso de suscripción...');
         state.loadingSuscripcion = true;
         state.errorSuscripcion = null;
       })
       .addCase(suscribirMembresia.fulfilled, (state, action) => {
-        console.log('🟢 [Redux] Suscripción completada exitosamente:', action.payload);
-
         state.loadingSuscripcion = false;
         state.errorSuscripcion = null;
 
         if (action.payload.suscripcion) {
           state.suscripcionActual = action.payload.suscripcion;
-          console.log('🟢 [Redux] Suscripción actual actualizada:', state.suscripcionActual);
-        }
-
-        if (action.payload.success !== false) {
-          console.log('🟢 [Redux] Suscripción marcada como exitosa');
         }
 
       })
       .addCase(suscribirMembresia.rejected, (state, action) => {
-        console.error('🔴 [Redux] Error en suscripción:', action.payload);
-
         state.loadingSuscripcion = false;
         state.errorSuscripcion = action.payload;
 
@@ -867,13 +811,10 @@ const membresiaSlice = createSlice({
       })
 
       .addCase(cancelarMembresia.pending, (state) => {
-        console.log('🔵 [Redux] Iniciando proceso de cancelación...');
         state.loadingSuscripcion = true;
         state.errorSuscripcion = null;
       })
       .addCase(cancelarMembresia.fulfilled, (state, action) => {
-        console.log('🟢 [Redux] Cancelación completada exitosamente:', action.payload);
-
         state.loadingSuscripcion = false;
         state.errorSuscripcion = null;
 
@@ -885,13 +826,10 @@ const membresiaSlice = createSlice({
             motivo: action.payload.cancelacion.motivo,
             mantenerHasta: action.payload.cancelacion.mantenerHasta
           };
-          console.log('🟢 [Redux] Cancelación guardada en estado:', action.payload.cancelacion);
         }
 
       })
       .addCase(cancelarMembresia.rejected, (state, action) => {
-        console.error('🔴 [Redux] Error en cancelación:', action.payload);
-
         state.loadingSuscripcion = false;
         state.errorSuscripcion = action.payload;
       })

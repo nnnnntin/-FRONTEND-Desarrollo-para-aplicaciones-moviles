@@ -17,42 +17,50 @@ import { crearServicioAdicional } from '../store/slices/proveedoresSlice';
 const CrearServicio = ({ navigation }) => {
   const dispatch = useDispatch();
   const { datosUsuario } = useSelector(state => state.usuario);
-  const { loading } = useSelector(state => state.proveedores);
+  const { loading, error } = useSelector(state => state.proveedores);
 
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
-    categoria: '',
+    tipo: '',
     precio: '',
-    duracion: '',
-    disponibilidad: [],
-    requisitos: '',
-    experiencia: '',
-    certificaciones: '',
-    imagenes: []
+    unidadPrecio: 'por_uso',
+    disponibilidad: {
+      diasDisponibles: [],
+      horaInicio: '',
+      horaFin: ''
+    },
+    tiempoAnticipacion: '',
+    requiereAprobacion: false,
+    espaciosDisponibles: []
   });
 
   const [errores, setErrores] = useState({});
 
   const categorias = [
-    { id: 'limpieza', nombre: 'Limpieza', icono: 'sparkles', color: '#3498db' },
-    { id: 'tecnologia', nombre: 'Tecnología', icono: 'laptop', color: '#9b59b6' },
     { id: 'catering', nombre: 'Catering', icono: 'restaurant', color: '#e74c3c' },
-    { id: 'seguridad', nombre: 'Seguridad', icono: 'shield-checkmark', color: '#e67e22' },
-    { id: 'mantenimiento', nombre: 'Mantenimiento', icono: 'construct', color: '#95a5a6' },
-    { id: 'eventos', nombre: 'Eventos', icono: 'calendar', color: '#f39c12' },
-    { id: 'transporte', nombre: 'Transporte', icono: 'car', color: '#2ecc71' },
-    { id: 'consultoria', nombre: 'Consultoría', icono: 'briefcase', color: '#34495e' }
+    { id: 'limpieza', nombre: 'Limpieza', icono: 'sparkles', color: '#3498db' },
+    { id: 'recepcion', nombre: 'Recepción', icono: 'people', color: '#9b59b6' },
+    { id: 'parking', nombre: 'Parking', icono: 'car', color: '#2ecc71' },
+    { id: 'impresion', nombre: 'Impresión', icono: 'print', color: '#f39c12' },
+    { id: 'otro', nombre: 'Otro', icono: 'ellipse', color: '#95a5a6' }
   ];
 
   const diasSemana = [
     { id: 'lunes', nombre: 'Lunes' },
     { id: 'martes', nombre: 'Martes' },
-    { id: 'miercoles', nombre: 'Miércoles' },
+    { id: 'miércoles', nombre: 'Miércoles' },
     { id: 'jueves', nombre: 'Jueves' },
     { id: 'viernes', nombre: 'Viernes' },
-    { id: 'sabado', nombre: 'Sábado' },
+    { id: 'sábado', nombre: 'Sábado' },
     { id: 'domingo', nombre: 'Domingo' }
+  ];
+
+  const unidadesPrecio = [
+    { id: 'por_uso', nombre: 'Por uso' },
+    { id: 'por_hora', nombre: 'Por hora' },
+    { id: 'por_persona', nombre: 'Por persona' },
+    { id: 'por_dia', nombre: 'Por día' }
   ];
 
   const validarFormulario = () => {
@@ -66,22 +74,34 @@ const CrearServicio = ({ navigation }) => {
       nuevosErrores.descripcion = 'La descripción es obligatoria';
     }
 
-    if (!formData.categoria) {
-      nuevosErrores.categoria = 'Selecciona una categoría';
+    if (!formData.tipo) {
+      nuevosErrores.tipo = 'Selecciona una categoría';
     }
 
     if (!formData.precio.trim()) {
       nuevosErrores.precio = 'El precio es obligatorio';
-    } else if (isNaN(parseFloat(formData.precio)) || parseFloat(formData.precio) <= 0) {
-      nuevosErrores.precio = 'Ingresa un precio válido';
+    } else if (isNaN(parseFloat(formData.precio)) || parseFloat(formData.precio) < 0) {
+      nuevosErrores.precio = 'Ingresa un precio válido (mayor o igual a 0)';
     }
 
-    if (!formData.duracion.trim()) {
-      nuevosErrores.duracion = 'La duración estimada es obligatoria';
-    }
-
-    if (formData.disponibilidad.length === 0) {
+    if (formData.disponibilidad.diasDisponibles.length === 0) {
       nuevosErrores.disponibilidad = 'Selecciona al menos un día de disponibilidad';
+    }
+
+    if (formData.disponibilidad.horaInicio && formData.disponibilidad.horaFin) {
+      const horaInicioValid = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(formData.disponibilidad.horaInicio);
+      const horaFinValid = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(formData.disponibilidad.horaFin);
+      
+      if (!horaInicioValid) {
+        nuevosErrores.horaInicio = 'Formato de hora inválido (HH:MM)';
+      }
+      if (!horaFinValid) {
+        nuevosErrores.horaFin = 'Formato de hora inválido (HH:MM)';
+      }
+    }
+
+    if (formData.tiempoAnticipacion && (isNaN(parseInt(formData.tiempoAnticipacion)) || parseInt(formData.tiempoAnticipacion) < 0)) {
+      nuevosErrores.tiempoAnticipacion = 'El tiempo de anticipación debe ser un número entero mayor o igual a 0';
     }
 
     setErrores(nuevosErrores);
@@ -97,26 +117,28 @@ const CrearServicio = ({ navigation }) => {
     const servicioData = {
       nombre: formData.nombre.trim(),
       descripcion: formData.descripcion.trim(),
-      tipo: formData.categoria,
+      tipo: formData.tipo,
       precio: parseFloat(formData.precio),
-      duracionEstimada: formData.duracion.trim(),
-      diasDisponibles: formData.disponibilidad,
-      requisitos: formData.requisitos.trim(),
-      experiencia: formData.experiencia.trim(),
-      certificaciones: formData.certificaciones.split(',').map(c => c.trim()).filter(c => c),
-      imagenes: formData.imagenes,
+      unidadPrecio: formData.unidadPrecio,
+      disponibilidad: {
+        diasDisponibles: formData.disponibilidad.diasDisponibles,
+        ...(formData.disponibilidad.horaInicio && { horaInicio: formData.disponibilidad.horaInicio }),
+        ...(formData.disponibilidad.horaFin && { horaFin: formData.disponibilidad.horaFin })
+      },
+      ...(formData.tiempoAnticipacion && { tiempoAnticipacion: parseInt(formData.tiempoAnticipacion) }),
+      requiereAprobacion: formData.requiereAprobacion,
       proveedorId: datosUsuario?._id,
       activo: true,
-      requiereAprobacion: true
+      ...(formData.espaciosDisponibles.length > 0 && { espaciosDisponibles: formData.espaciosDisponibles })
     };
 
     try {
       const result = await dispatch(crearServicioAdicional(servicioData));
 
-      if (result.success) {
+      if (crearServicioAdicional.fulfilled.match(result)) {
         Alert.alert(
           'Servicio creado',
-          'Tu servicio ha sido creado exitosamente y está pendiente de revisión.',
+          'Tu servicio ha sido creado exitosamente.',
           [
             {
               text: 'OK',
@@ -125,35 +147,41 @@ const CrearServicio = ({ navigation }) => {
           ]
         );
       } else {
-        Alert.alert('Error', result.error || 'No se pudo crear el servicio');
+        Alert.alert('Error', result.payload || 'No se pudo crear el servicio');
       }
     } catch (error) {
-      console.error(error);
+      console.error('Error al crear servicio:', error);
       Alert.alert('Error', 'Ocurrió un error al crear el servicio');
     }
   };
 
   const selectCategoria = (categoriaId) => {
-    setFormData({ ...formData, categoria: categoriaId });
-    if (errores.categoria) {
-      setErrores({ ...errores, categoria: null });
+    setFormData({ ...formData, tipo: categoriaId });
+    if (errores.tipo) {
+      setErrores({ ...errores, tipo: null });
     }
   };
 
   const toggleDisponibilidad = (dia) => {
-    const nuevaDisponibilidad = formData.disponibilidad.includes(dia)
-      ? formData.disponibilidad.filter(d => d !== dia)
-      : [...formData.disponibilidad, dia];
+    const nuevaDisponibilidad = formData.disponibilidad.diasDisponibles.includes(dia)
+      ? formData.disponibilidad.diasDisponibles.filter(d => d !== dia)
+      : [...formData.disponibilidad.diasDisponibles, dia];
 
-    setFormData({ ...formData, disponibilidad: nuevaDisponibilidad });
+    setFormData({ 
+      ...formData, 
+      disponibilidad: {
+        ...formData.disponibilidad,
+        diasDisponibles: nuevaDisponibilidad
+      }
+    });
 
     if (errores.disponibilidad && nuevaDisponibilidad.length > 0) {
       setErrores({ ...errores, disponibilidad: null });
     }
   };
 
-  const handleImagePicker = () => {
-    Alert.alert('Función no disponible', 'La selección de imágenes se implementará próximamente');
+  const selectUnidadPrecio = (unidad) => {
+    setFormData({ ...formData, unidadPrecio: unidad });
   };
 
   const renderCategoria = (categoria) => (
@@ -162,7 +190,7 @@ const CrearServicio = ({ navigation }) => {
       style={[
         styles.categoriaCard,
         { borderColor: categoria.color },
-        formData.categoria === categoria.id && { backgroundColor: categoria.color + '20', borderWidth: 2 }
+        formData.tipo === categoria.id && { backgroundColor: categoria.color + '20', borderWidth: 2 }
       ]}
       onPress={() => selectCategoria(categoria.id)}
     >
@@ -171,7 +199,7 @@ const CrearServicio = ({ navigation }) => {
       </View>
       <Text style={[
         styles.categoriaNombre,
-        formData.categoria === categoria.id && { color: categoria.color, fontWeight: 'bold' }
+        formData.tipo === categoria.id && { color: categoria.color, fontWeight: 'bold' }
       ]}>
         {categoria.nombre}
       </Text>
@@ -194,16 +222,6 @@ const CrearServicio = ({ navigation }) => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.proveedorInfo}>
-          <View style={styles.proveedorAvatar}>
-            <Ionicons name="person" size={24} color="#4a90e2" />
-          </View>
-          <View style={styles.proveedorDetails}>
-            <Text style={styles.proveedorNombre}>{datosUsuario?.nombre || 'Tu nombre'}</Text>
-            <Text style={styles.proveedorTipo}>Proveedor de servicios</Text>
-          </View>
-        </View>
-
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Información básica</Text>
 
@@ -240,44 +258,81 @@ const CrearServicio = ({ navigation }) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Categoría del servicio *</Text>
-          {errores.categoria && <Text style={styles.errorText}>{errores.categoria}</Text>}
+          {errores.tipo && <Text style={styles.errorText}>{errores.tipo}</Text>}
           <View style={styles.categoriasGrid}>
             {categorias.map(renderCategoria)}
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Precio y duración</Text>
+          <Text style={styles.sectionTitle}>Precio y configuración</Text>
 
-          <View style={styles.rowInputs}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
-              <Text style={styles.inputLabel}>Precio (USD) *</Text>
-              <TextInput
-                style={[styles.input, errores.precio && styles.inputError]}
-                value={formData.precio}
-                onChangeText={(text) => {
-                  setFormData({ ...formData, precio: text });
-                  if (errores.precio) setErrores({ ...errores, precio: null });
-                }}
-                placeholder="120"
-                keyboardType="numeric"
-              />
-              {errores.precio && <Text style={styles.errorText}>{errores.precio}</Text>}
-            </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Precio (USD) *</Text>
+            <TextInput
+              style={[styles.input, errores.precio && styles.inputError]}
+              value={formData.precio}
+              onChangeText={(text) => {
+                setFormData({ ...formData, precio: text });
+                if (errores.precio) setErrores({ ...errores, precio: null });
+              }}
+              placeholder="120"
+              keyboardType="numeric"
+            />
+            {errores.precio && <Text style={styles.errorText}>{errores.precio}</Text>}
+          </View>
 
-            <View style={[styles.inputGroup, { flex: 1, marginLeft: 10 }]}>
-              <Text style={styles.inputLabel}>Duración estimada *</Text>
-              <TextInput
-                style={[styles.input, errores.duracion && styles.inputError]}
-                value={formData.duracion}
-                onChangeText={(text) => {
-                  setFormData({ ...formData, duracion: text });
-                  if (errores.duracion) setErrores({ ...errores, duracion: null });
-                }}
-                placeholder="2-3 horas"
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Unidad de precio *</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.unidadContainer}>
+              {unidadesPrecio.map((unidad) => (
+                <TouchableOpacity
+                  key={unidad.id}
+                  style={[
+                    styles.unidadButton,
+                    formData.unidadPrecio === unidad.id && styles.unidadButtonActive
+                  ]}
+                  onPress={() => selectUnidadPrecio(unidad.id)}
+                >
+                  <Text style={[
+                    styles.unidadButtonText,
+                    formData.unidadPrecio === unidad.id && styles.unidadButtonTextActive
+                  ]}>
+                    {unidad.nombre}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Tiempo de anticipación (horas)</Text>
+            <TextInput
+              style={[styles.input, errores.tiempoAnticipacion && styles.inputError]}
+              value={formData.tiempoAnticipacion}
+              onChangeText={(text) => {
+                setFormData({ ...formData, tiempoAnticipacion: text });
+                if (errores.tiempoAnticipacion) setErrores({ ...errores, tiempoAnticipacion: null });
+              }}
+              placeholder="24"
+              keyboardType="numeric"
+            />
+            {errores.tiempoAnticipacion && <Text style={styles.errorText}>{errores.tiempoAnticipacion}</Text>}
+            <Text style={styles.inputHelp}>Tiempo mínimo requerido para solicitar el servicio</Text>
+          </View>
+
+          <View style={styles.checkboxContainer}>
+            <TouchableOpacity
+              style={styles.checkbox}
+              onPress={() => setFormData({ ...formData, requiereAprobacion: !formData.requiereAprobacion })}
+            >
+              <Ionicons
+                name={formData.requiereAprobacion ? 'checkbox' : 'square-outline'}
+                size={24}
+                color={formData.requiereAprobacion ? '#27ae60' : '#7f8c8d'}
               />
-              {errores.duracion && <Text style={styles.errorText}>{errores.duracion}</Text>}
-            </View>
+              <Text style={styles.checkboxText}>Requiere aprobación previa</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -292,72 +347,58 @@ const CrearServicio = ({ navigation }) => {
                 key={dia.id}
                 style={[
                   styles.diaButton,
-                  formData.disponibilidad.includes(dia.id) && styles.diaButtonActive
+                  formData.disponibilidad.diasDisponibles.includes(dia.id) && styles.diaButtonActive
                 ]}
                 onPress={() => toggleDisponibilidad(dia.id)}
               >
                 <Text style={[
                   styles.diaText,
-                  formData.disponibilidad.includes(dia.id) && styles.diaTextActive
+                  formData.disponibilidad.diasDisponibles.includes(dia.id) && styles.diaTextActive
                 ]}>
                   {dia.nombre}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Información adicional</Text>
+          <View style={styles.horariosContainer}>
+            <Text style={styles.inputLabel}>Horarios de disponibilidad (opcional)</Text>
+            <View style={styles.rowInputs}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
+                <Text style={styles.inputLabel}>Hora inicio</Text>
+                <TextInput
+                  style={[styles.input, errores.horaInicio && styles.inputError]}
+                  value={formData.disponibilidad.horaInicio}
+                  onChangeText={(text) => {
+                    setFormData({ 
+                      ...formData, 
+                      disponibilidad: { ...formData.disponibilidad, horaInicio: text }
+                    });
+                    if (errores.horaInicio) setErrores({ ...errores, horaInicio: null });
+                  }}
+                  placeholder="09:00"
+                />
+                {errores.horaInicio && <Text style={styles.errorText}>{errores.horaInicio}</Text>}
+              </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Requisitos especiales</Text>
-            <TextInput
-              style={styles.textArea}
-              value={formData.requisitos}
-              onChangeText={(text) => setFormData({ ...formData, requisitos: text })}
-              placeholder="Ej: Acceso a toma de agua, espacio de estacionamiento, etc."
-              multiline
-              numberOfLines={3}
-            />
+              <View style={[styles.inputGroup, { flex: 1, marginLeft: 10 }]}>
+                <Text style={styles.inputLabel}>Hora fin</Text>
+                <TextInput
+                  style={[styles.input, errores.horaFin && styles.inputError]}
+                  value={formData.disponibilidad.horaFin}
+                  onChangeText={(text) => {
+                    setFormData({ 
+                      ...formData, 
+                      disponibilidad: { ...formData.disponibilidad, horaFin: text }
+                    });
+                    if (errores.horaFin) setErrores({ ...errores, horaFin: null });
+                  }}
+                  placeholder="17:00"
+                />
+                {errores.horaFin && <Text style={styles.errorText}>{errores.horaFin}</Text>}
+              </View>
+            </View>
           </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Experiencia y calificaciones</Text>
-            <TextInput
-              style={styles.textArea}
-              value={formData.experiencia}
-              onChangeText={(text) => setFormData({ ...formData, experiencia: text })}
-              placeholder="Describe tu experiencia, años en el rubro, clientes destacados, etc."
-              multiline
-              numberOfLines={3}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Certificaciones</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.certificaciones}
-              onChangeText={(text) => setFormData({ ...formData, certificaciones: text })}
-              placeholder="Ej: ISO 9001, Certificación en higiene industrial, etc."
-            />
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Imágenes del servicio</Text>
-          <Text style={styles.sectionSubtitle}>
-            Agrega fotos que muestren tu trabajo (opcional)
-          </Text>
-
-          <TouchableOpacity style={styles.imageUpload} onPress={handleImagePicker}>
-            <Ionicons name="camera" size={32} color="#4a90e2" />
-            <Text style={styles.imageUploadText}>Agregar imágenes</Text>
-            <Text style={styles.imageUploadSubtext}>
-              Toca para seleccionar fotos de trabajos anteriores
-            </Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.actionsContainer}>
@@ -503,6 +544,12 @@ const styles = StyleSheet.create({
     color: '#e74c3c',
     marginTop: 5,
   },
+  inputHelp: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginTop: 5,
+    fontStyle: 'italic',
+  },
   rowInputs: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -541,10 +588,48 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     textAlign: 'center',
   },
+  unidadContainer: {
+    marginBottom: 10,
+  },
+  unidadButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+    marginRight: 10,
+  },
+  unidadButtonActive: {
+    backgroundColor: '#4a90e2',
+    borderColor: '#4a90e2',
+  },
+  unidadButtonText: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    fontWeight: '600',
+  },
+  unidadButtonTextActive: {
+    color: '#fff',
+  },
+  checkboxContainer: {
+    marginTop: 10,
+  },
+  checkbox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  checkboxText: {
+    fontSize: 16,
+    color: '#2c3e50',
+    fontWeight: '500',
+  },
   diasContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    marginBottom: 20,
   },
   diaButton: {
     paddingHorizontal: 16,
@@ -566,27 +651,8 @@ const styles = StyleSheet.create({
   diaTextActive: {
     color: '#fff',
   },
-  imageUpload: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#e1e5e9',
-    borderStyle: 'dashed',
-    padding: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  imageUploadText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#4a90e2',
-    marginTop: 8,
-  },
-  imageUploadSubtext: {
-    fontSize: 14,
-    color: '#7f8c8d',
-    marginTop: 4,
-    textAlign: 'center',
+  horariosContainer: {
+    marginTop: 15,
   },
   actionsContainer: {
     flexDirection: 'row',
@@ -614,6 +680,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#bdc3c7',
   },
   cancelButtonText: {
     fontSize: 16,

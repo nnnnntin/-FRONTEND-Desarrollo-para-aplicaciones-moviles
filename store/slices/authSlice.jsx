@@ -104,16 +104,7 @@ const authSlice = createSlice({
           state.esAdmin = false;
           state.permisos = [];
         }
-        
-        console.log('🟢 [Auth] Usuario actualizado en estado:', {
-          id: usuarioActualizado._id || usuarioActualizado.id,
-          username: usuarioActualizado.username,
-          tipoUsuario: usuarioActualizado.tipoUsuario,
-          membresia: usuarioActualizado.membresia ? {
-            tipoMembresiaId: usuarioActualizado.membresia.tipoMembresiaId,
-            renovacionAutomatica: usuarioActualizado.membresia.renovacionAutomatica
-          } : null
-        });
+      
       }
     },
 
