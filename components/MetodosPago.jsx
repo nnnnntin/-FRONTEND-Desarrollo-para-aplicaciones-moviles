@@ -223,7 +223,6 @@ const crearFacturaDesdeReserva = async (reserva, pago, usuario, datosReserva) =>
 
     const conceptos = [];
 
-    // Concepto principal de la reserva
     const conceptoPrincipal = {
       descripcion: `Reserva de ${datosReserva.espacioNombre || 'Espacio'}`,
       cantidad: 1,
@@ -234,7 +233,6 @@ const crearFacturaDesdeReserva = async (reserva, pago, usuario, datosReserva) =>
     };
     conceptos.push(conceptoPrincipal);
 
-    // Servicios adicionales
     if (datosReserva.serviciosAdicionales?.length > 0) {
       datosReserva.serviciosAdicionales.forEach(servicio => {
         conceptos.push({
@@ -248,13 +246,11 @@ const crearFacturaDesdeReserva = async (reserva, pago, usuario, datosReserva) =>
       });
     }
 
-    // Cálculos de totales
     const subtotal = conceptos.reduce((sum, concepto) => sum + concepto.subtotal, 0);
     const descuentoTotal = (datosReserva.descuento?.porcentaje || 0) * subtotal / 100;
-    const impuestosTotal = 0; // Por ahora sin impuestos
+    const impuestosTotal = 0; 
     const total = subtotal - descuentoTotal + impuestosTotal;
 
-    // Validar que tenemos datos mínimos requeridos
     const usuarioId = usuario?.id || usuario?._id;
     if (!usuarioId) {
       throw new Error('ID de usuario requerido para crear factura');
@@ -272,27 +268,25 @@ const crearFacturaDesdeReserva = async (reserva, pago, usuario, datosReserva) =>
       throw new Error('La factura debe tener al menos un concepto');
     }
 
-    // Crear objeto de factura con todos los campos requeridos
     const facturaData = {
       numeroFactura,
       usuarioId: usuarioId.toString(),
-      emisorId: 'plataforma_id', // ID fijo para la plataforma
+      emisorId: 'plataforma_id', 
       tipoEmisor: 'plataforma',
       fechaEmision: new Date(),
-      fechaVencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días
+      fechaVencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 
       conceptos,
-      subtotal: Math.round(subtotal * 100) / 100, // Redondear a 2 decimales
+      subtotal: Math.round(subtotal * 100) / 100,
       impuestosTotal: Math.round(impuestosTotal * 100) / 100,
       descuentoTotal: Math.round(descuentoTotal * 100) / 100,
       total: Math.round(total * 100) / 100,
-      estado: 'pagada', // Ya está pagada porque se crea después del pago
+      estado: 'pagada', 
       metodoPago: `${pago.metodoPago?.tipo || 'Tarjeta'} •••• ${pago.metodoPago?.detalles?.ultimosDigitos || '****'}`,
-      pagosIds: [pago._id || pago.id].filter(Boolean) // Filtrar valores falsy
+      pagosIds: [pago._id || pago.id].filter(Boolean) 
     };
 
     console.log('Factura generada:', facturaData);
 
-    // Validación final antes de retornar
     const camposRequeridos = ['numeroFactura', 'usuarioId', 'emisorId', 'tipoEmisor', 'fechaEmision', 'fechaVencimiento', 'conceptos', 'subtotal', 'impuestosTotal', 'total'];
     const camposFaltantes = camposRequeridos.filter(campo =>
       facturaData[campo] === undefined || facturaData[campo] === null
@@ -437,6 +431,14 @@ const EstadoPago = ({
   const renderEstadoProcesando = () => (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
+
+      {/* Loading indicator en la parte superior */}
+      <View style={styles.topLoadingContainer}>
+        <ActivityIndicator size="small" color="#4a90e2" />
+        <Text style={styles.topLoadingText}>Procesando...</Text>
+      </View>
+
+      {/* Contenido principal centrado */}
       <View style={styles.estadoContainer}>
         <View style={styles.estadoIcono}>
           <ActivityIndicator size="large" color="#fff" />
@@ -445,6 +447,18 @@ const EstadoPago = ({
         <Text style={styles.estadoSubtitulo}>
           Por favor espera mientras procesamos tu {modoSuscripcion ? 'suscripción' : 'reserva'}
         </Text>
+
+        {/* Indicador de progreso adicional */}
+        <View style={styles.progressContainer}>
+          <View style={styles.progressDots}>
+            <View style={[styles.dot, styles.dotActive]} />
+            <View style={[styles.dot, styles.dotActive]} />
+            <View style={[styles.dot, styles.dotActive]} />
+            <View style={styles.dot} />
+            <View style={styles.dot} />
+          </View>
+          <Text style={styles.progressText}>Validando información...</Text>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -564,6 +578,11 @@ const MetodosPago = ({ navigation, route }) => {
   const errorMetodosPago = useSelector(state => state.usuario.errorMetodosPago);
   const { loading: loadingReserva } = useSelector(state => state.reservas);
 
+  console.log('🔍 [MetodosPago] Estado completo de auth:', auth);
+  console.log('🔍 [MetodosPago] Usuario del estado:', usuario);
+  console.log('🔍 [MetodosPago] Tipo de usuario:', typeof usuario);
+  console.log('🔍 [MetodosPago] Keys del usuario:', usuario ? Object.keys(usuario) : 'No hay usuario');
+
   const [estadoPago, setEstadoPago] = useState(null);
   const [transaccionActual, setTransaccionActual] = useState(null);
   const [reservaCreada, setReservaCreada] = useState(null);
@@ -579,7 +598,6 @@ const MetodosPago = ({ navigation, route }) => {
     datosReserva
   } = route?.params || {};
 
-  // Pre-procesar métodos de pago para asegurar IDs únicos
   const metodosPagoConIds = useMemo(() => {
     return metodosPago.map((metodo, index) => ({
       ...metodo,
@@ -677,7 +695,6 @@ const MetodosPago = ({ navigation, route }) => {
           style: 'destructive',
           onPress: () => {
             const userId = usuario?.id || usuario?._id;
-            // Usar el ID original, no el tempId
             const originalId = metodo._id || metodo.id;
             if (userId && originalId) {
               dispatch(eliminarMetodoPago({
@@ -713,7 +730,6 @@ const MetodosPago = ({ navigation, route }) => {
 
   const handleMarcarPredeterminado = (metodo) => {
     const userId = usuario?.id || usuario?._id;
-    // Usar el ID original, no el tempId
     const originalId = metodo._id || metodo.id;
     if (userId && originalId) {
       dispatch(actualizarMetodoPagoPredeterminado({
@@ -734,9 +750,8 @@ const MetodosPago = ({ navigation, route }) => {
       console.log('🔵 [MetodosPago] Método de pago:', metodo);
       console.log('🔵 [MetodosPago] Usuario completo:', usuario);
 
-      // Simular delay de procesamiento
       await new Promise(resolve => setTimeout(resolve, 2000));
-      const exitoPago = Math.random() > 0.05; // 95% de éxito
+      const exitoPago = Math.random() > 0.05; 
 
       if (!exitoPago) {
         console.log('🔴 [MetodosPago] Simulación de fallo de pago');
@@ -744,7 +759,6 @@ const MetodosPago = ({ navigation, route }) => {
         return;
       }
 
-      // ✅ MODO RESERVA (mantener la lógica existente)
       if (!modoSuscripcion && datosReserva) {
         console.log('🔵 [MetodosPago] ===== PROCESANDO RESERVA =====');
 
@@ -762,7 +776,6 @@ const MetodosPago = ({ navigation, route }) => {
         }
 
         try {
-          // 1. CREAR RESERVA
           console.log('Creando reserva con datos:', reservaParaBackend);
           const resultadoReserva = await dispatch(crearReserva(reservaParaBackend));
 
@@ -793,7 +806,6 @@ const MetodosPago = ({ navigation, route }) => {
           console.log('Reserva creada exitosamente:', { reservaId, reservaActual });
           setReservaCreada(reservaActual);
 
-          // 2. CREAR PAGO
           const pagoData = crearDatosPagoCompatibles(datosReserva, reservaId, usuario, metodo);
           console.log('Creando pago con datos:', pagoData);
 
@@ -824,7 +836,6 @@ const MetodosPago = ({ navigation, route }) => {
           const pagoCreado = resultadoPago.payload;
           console.log('Pago creado exitosamente:', pagoCreado);
 
-          // 3. CREAR FACTURA
           let facturaCreada = null;
           try {
             console.log('Iniciando creación de factura...');
@@ -837,7 +848,6 @@ const MetodosPago = ({ navigation, route }) => {
 
             console.log('Datos de factura generados:', facturaData);
 
-            // Validar datos de factura antes de enviar
             if (!facturaData.numeroFactura || !facturaData.usuarioId || !facturaData.total) {
               throw new Error('Datos de factura incompletos');
             }
@@ -848,17 +858,13 @@ const MetodosPago = ({ navigation, route }) => {
               facturaCreada = resultadoFactura.payload;
               console.log('Factura creada exitosamente:', facturaCreada);
 
-              // 4. VINCULAR FACTURA AL PAGO
               try {
-                // Extract IDs more safely
                 const pagoCreado = resultadoPago.payload;
                 const facturaCreada = resultadoFactura.payload;
 
-                // Log the full objects to debug
                 console.log('Pago creado completo:', JSON.stringify(pagoCreado, null, 2));
                 console.log('Factura creada completa:', JSON.stringify(facturaCreada, null, 2));
 
-                // Try different possible ID field names
                 const pagoId = pagoCreado?._id ||
                   pagoCreado?.id ||
                   pagoCreado?.pago?._id ||
@@ -887,7 +893,6 @@ const MetodosPago = ({ navigation, route }) => {
                     console.log('Factura vinculada exitosamente al pago');
                   } else {
                     console.error('Error al vincular factura al pago:', resultadoVinculacion.payload);
-                    // No fallar todo el proceso, la factura ya está creada
                   }
                 } else {
                   console.error('IDs faltantes para vinculación:', {
@@ -897,7 +902,6 @@ const MetodosPago = ({ navigation, route }) => {
                     facturaCreada: Object.keys(facturaCreada || {})
                   });
 
-                  // Check if the response has nested structures
                   if (pagoCreado && typeof pagoCreado === 'object') {
                     console.log('Estructura de pagoCreado:', Object.keys(pagoCreado));
                     if (pagoCreado.pago) console.log('pagoCreado.pago keys:', Object.keys(pagoCreado.pago));
@@ -912,7 +916,6 @@ const MetodosPago = ({ navigation, route }) => {
                 }
               } catch (vinculacionError) {
                 console.error('Error en vinculación factura-pago:', vinculacionError);
-                // No fallar todo el proceso, la factura ya está creada
               }
             } else {
               console.error('Error al crear factura:', resultadoFactura);
@@ -920,7 +923,6 @@ const MetodosPago = ({ navigation, route }) => {
             }
           } catch (facturaError) {
             console.error('Error en proceso de facturación:', facturaError);
-            // No fallar todo el proceso si la factura falla, pero registrar el error
             Alert.alert(
               'Advertencia',
               'La reserva y pago se procesaron correctamente, pero hubo un problema al generar la factura. Puedes solicitar la factura más tarde desde el detalle de la transacción.',
@@ -928,7 +930,6 @@ const MetodosPago = ({ navigation, route }) => {
             );
           }
 
-          // 5. CREAR NOTIFICACIONES
           try {
             console.log('Creando notificaciones...');
             await Promise.all([
@@ -938,10 +939,8 @@ const MetodosPago = ({ navigation, route }) => {
             console.log('Notificaciones creadas exitosamente');
           } catch (notificacionError) {
             console.error('Error al crear notificaciones:', notificacionError);
-            // No fallar el proceso por las notificaciones
           }
 
-          // 6. RECARGAR NOTIFICACIONES DEL USUARIO
           try {
             const userId = usuario?.id || usuario?._id;
             if (userId && auth?.token) {
@@ -952,7 +951,6 @@ const MetodosPago = ({ navigation, route }) => {
             console.error('Error al recargar notificaciones:', error);
           }
 
-          // 7. CONFIGURAR DATOS DE TRANSACCIÓN PARA MOSTRAR
           setTransaccionActual({
             id: pagoCreado._id || pagoCreado.id,
             fecha: new Date().toLocaleDateString('es-ES'),
@@ -980,7 +978,7 @@ const MetodosPago = ({ navigation, route }) => {
               tipoReserva: reservaParaBackend.tipoReserva
             },
             pago: pagoCreado,
-            factura: facturaCreada // Puede ser null si falló la creación
+            factura: facturaCreada 
           });
 
           console.log('Proceso de reserva completado exitosamente');
@@ -996,52 +994,58 @@ const MetodosPago = ({ navigation, route }) => {
         }
 
       } else if (modoSuscripcion && planSuscripcion) {
-        // ✅ MODO SUSCRIPCIÓN - IMPLEMENTACIÓN COMPLETA CORREGIDA
         console.log('🔵 [MetodosPago] ===== PROCESANDO SUSCRIPCIÓN =====');
 
         try {
-          // ✅ VALIDAR DATOS NECESARIOS - VERSIÓN CORREGIDA
-          console.log('🔵 [MetodosPago] Validando usuario:', {
+          console.log('🔵 [MetodosPago] Validando usuario completo:', {
             usuario: !!usuario,
             usuarioKeys: usuario ? Object.keys(usuario) : [],
-            usuarioId: usuario?._id,
-            usuarioIdAlt: usuario?.id,
-            username: usuario?.username,
-            email: usuario?.email
+            usuarioCompleto: usuario, 
           });
 
-          const usuarioId = usuario?._id || usuario?.id;
-          if (!usuario || !usuarioId) {
-            console.error('🔴 [MetodosPago] Usuario inválido:', {
-              usuario: !!usuario,
-              usuarioData: usuario,
-              _id: usuario?._id,
-              id: usuario?.id
-            });
-            throw new Error(`Usuario no válido para suscripción. Usuario: ${!!usuario}, ID: ${usuarioId}`);
+          const usuarioId = usuario?._id || usuario?.id || usuario?.userId;
+
+          console.log('🔵 [MetodosPago] IDs encontrados:', {
+            _id: usuario?._id,
+            id: usuario?.id,
+            userId: usuario?.userId,
+            usuarioIdFinal: usuarioId
+          });
+
+          if (!usuario) {
+            console.error('🔴 [MetodosPago] Usuario no existe en el estado');
+            throw new Error('Usuario no disponible. Por favor, inicia sesión nuevamente.');
           }
 
-          const planId = planSuscripcion.id || planSuscripcion._id;
+          if (!usuarioId) {
+            console.error('🔴 [MetodosPago] Usuario sin ID válido:', {
+              usuarioKeys: Object.keys(usuario),
+              usuario: usuario
+            });
+            throw new Error('ID de usuario no encontrado. Por favor, inicia sesión nuevamente.');
+          }
+
+          const planId = planSuscripcion?.id || planSuscripcion?._id || planSuscripcion?.datosCompletos?._id;
           if (!planId) {
             console.error('🔴 [MetodosPago] Plan inválido:', {
               planSuscripcion: !!planSuscripcion,
               planKeys: planSuscripcion ? Object.keys(planSuscripcion) : [],
               id: planSuscripcion?.id,
-              _id: planSuscripcion?._id
+              _id: planSuscripcion?._id,
+              datosCompletos: planSuscripcion?.datosCompletos
             });
             throw new Error('Plan de suscripción no válido');
           }
 
           console.log('🟢 [MetodosPago] Validación exitosa:', {
             usuarioId,
-            username: usuario.username,
-            email: usuario.email,
+            username: usuario.username || usuario.email,
             planId,
             planNombre: planSuscripcion.nombre
           });
 
           console.log('🔵 [MetodosPago] Datos de suscripción:', {
-            usuario: usuario.username,
+            usuario: usuario.username || usuario.email,
             usuarioId: usuarioId,
             plan: planSuscripcion.nombre,
             planId: planId,
@@ -1049,21 +1053,18 @@ const MetodosPago = ({ navigation, route }) => {
             metodosUltimosDigitos: metodo.ultimosDigitos
           });
 
-          // ✅ PREPARAR DATOS DE SUSCRIPCIÓN
           const fechaInicio = new Date();
 
           const suscripcionData = {
-            usuarioId: usuarioId, // Usar la variable validada
-            membresiaId: planId, // Usar la variable validada
+            usuarioId: usuarioId, 
+            membresiaId: planId,
             fechaInicio: fechaInicio.toISOString(),
             metodoPagoId: metodo._id || metodo.id || 'default',
             renovacionAutomatica: true,
-            codigoPromocional: null
           };
 
           console.log('🔵 [MetodosPago] Enviando datos de suscripción al backend:', suscripcionData);
 
-          // ✅ LLAMAR A LA ACCIÓN DE REDUX
           const resultadoSuscripcion = await dispatch(suscribirMembresia(suscripcionData));
 
           console.log('🔵 [MetodosPago] Resultado de suscripción:', {
@@ -1073,13 +1074,11 @@ const MetodosPago = ({ navigation, route }) => {
             payload: resultadoSuscripcion.payload
           });
 
-          // ✅ VERIFICAR SI LA SUSCRIPCIÓN FUE EXITOSA
           if (suscribirMembresia.fulfilled.match(resultadoSuscripcion)) {
             console.log('🟢 [MetodosPago] ===== SUSCRIPCIÓN EXITOSA =====');
 
             const { usuario: usuarioActualizado, suscripcion } = resultadoSuscripcion.payload;
 
-            // Validar respuesta
             if (!usuarioActualizado) {
               throw new Error('No se recibió el usuario actualizado del servidor');
             }
@@ -1097,7 +1096,6 @@ const MetodosPago = ({ navigation, route }) => {
               renovacionAutomatica: usuarioActualizado.membresia.renovacionAutomatica
             });
 
-            // ✅ ACTUALIZAR AUTH STORE
             console.log('🔵 [MetodosPago] Actualizando auth store...');
             dispatch(loguear({
               usuario: usuarioActualizado,
@@ -1105,19 +1103,17 @@ const MetodosPago = ({ navigation, route }) => {
               tipoUsuario: usuarioActualizado.tipoUsuario
             }));
 
-            // ✅ ACTUALIZAR ESTADO LOCAL DE SUSCRIPCIÓN
             if (suscripcion) {
               dispatch(actualizarSuscripcionActual(suscripcion));
             }
 
-            // ✅ CONFIGURAR DATOS DE TRANSACCIÓN PARA MOSTRAR
             setTransaccionActual({
               id: `suscripcion_${Date.now()}`,
               fecha: new Date().toLocaleDateString('es-ES'),
               precio: precio,
               metodo: metodo,
               usuario: {
-                id: usuarioId, // Usar la variable validada
+                id: usuarioId, 
                 nombre: usuario.nombre || usuario.username || 'Usuario',
                 email: usuario.email
               },
@@ -1135,7 +1131,6 @@ const MetodosPago = ({ navigation, route }) => {
             setEstadoPago('confirmado');
 
           } else {
-            // Error en la suscripción
             console.error('🔴 [MetodosPago] Error en suscripción:', resultadoSuscripcion.payload);
             throw new Error(resultadoSuscripcion.payload || 'Error al procesar la suscripción');
           }
@@ -1151,7 +1146,6 @@ const MetodosPago = ({ navigation, route }) => {
         }
 
       } else {
-        // ✅ MODO DEFAULT/FALLBACK
         console.log('🔵 [MetodosPago] Modo de pago genérico');
         setEstadoPago('confirmado');
         setTransaccionActual({
@@ -1195,7 +1189,6 @@ const MetodosPago = ({ navigation, route }) => {
         dispatch(cargarNotificacionesUsuario(userId, auth.token));
       }
 
-      // ✅ NAVEGACIÓN SEGÚN EL TIPO
       if (modoSuscripcion) {
         console.log('🔵 [MetodosPago] Navegando a Membresias después de suscripción exitosa');
         navigation.navigate('Membresias');
@@ -1863,6 +1856,48 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     textDecorationLine: 'underline',
   },
+  topLoadingContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  paddingVertical: 12,
+  paddingHorizontal: 20,
+  backgroundColor: 'rgba(74, 144, 226, 0.1)',
+  borderBottomWidth: 1,
+  borderBottomColor: 'rgba(74, 144, 226, 0.2)',
+},
+topLoadingText: {
+  fontSize: 14,
+  color: '#4a90e2',
+  marginLeft: 8,
+  fontWeight: '500',
+  fontFamily: 'System',
+},
+progressContainer: {
+  alignItems: 'center',
+  marginTop: 30,
+},
+progressDots: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: 12,
+},
+dot: {
+  width: 8,
+  height: 8,
+  borderRadius: 4,
+  backgroundColor: '#e0e0e0',
+  marginHorizontal: 4,
+},
+dotActive: {
+  backgroundColor: '#4a90e2',
+  transform: [{ scale: 1.2 }],
+},
+progressText: {
+  fontSize: 12,
+  color: '#7f8c8d',
+  fontFamily: 'System',
+},
 });
 
 export default MetodosPago;

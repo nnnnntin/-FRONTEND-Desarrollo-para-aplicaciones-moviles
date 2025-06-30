@@ -166,12 +166,6 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
           onPress: () => handleNavigation('CrearPublicacion')
         },
         {
-          id: 6,
-          title: 'Estadísticas',
-          icon: 'stats-chart-outline',
-          onPress: () => handleNavigation('Estadisticas')
-        },
-        {
           id: 7,
           title: 'Ganancias',
           icon: 'cash-outline',

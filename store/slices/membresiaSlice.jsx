@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
-// Thunk para obtener todas las membresías con paginación
 export const obtenerMembresias = createAsyncThunk(
   'membresia/obtenerTodas',
   async ({ skip = 0, limit = 10 } = {}, { getState, rejectWithValue }) => {
@@ -30,7 +29,6 @@ export const obtenerMembresias = createAsyncThunk(
   }
 );
 
-// Thunk para crear una membresía (admin)
 export const crearMembresia = createAsyncThunk(
   'membresia/crear',
   async (membresiaData, { getState, rejectWithValue }) => {
@@ -62,7 +60,6 @@ export const crearMembresia = createAsyncThunk(
   }
 );
 
-// Thunk para obtener una membresía por ID
 export const obtenerMembresiaPorId = createAsyncThunk(
   'membresia/obtenerPorId',
   async (membresiaId, { getState, rejectWithValue }) => {
@@ -92,7 +89,6 @@ export const obtenerMembresiaPorId = createAsyncThunk(
   }
 );
 
-// Thunk para actualizar una membresía (admin)
 export const actualizarMembresia = createAsyncThunk(
   'membresia/actualizar',
   async ({ membresiaId, datosActualizacion }, { getState, rejectWithValue }) => {
@@ -124,7 +120,6 @@ export const actualizarMembresia = createAsyncThunk(
   }
 );
 
-// Thunk para eliminar una membresía (admin)
 export const eliminarMembresia = createAsyncThunk(
   'membresia/eliminar',
   async (membresiaId, { getState, rejectWithValue }) => {
@@ -154,7 +149,6 @@ export const eliminarMembresia = createAsyncThunk(
   }
 );
 
-// Thunk para obtener membresía por tipo
 export const obtenerMembresiaPorTipo = createAsyncThunk(
   'membresia/obtenerPorTipo',
   async (tipo, { getState, rejectWithValue }) => {
@@ -184,7 +178,6 @@ export const obtenerMembresiaPorTipo = createAsyncThunk(
   }
 );
 
-// Thunk para obtener solo las membresías activas
 export const obtenerMembresiasActivas = createAsyncThunk(
   'membresia/obtenerActivas',
   async (_, { getState, rejectWithValue }) => {
@@ -214,7 +207,6 @@ export const obtenerMembresiasActivas = createAsyncThunk(
   }
 );
 
-// Thunk para activar/desactivar una membresía (admin)
 export const toggleActivarMembresia = createAsyncThunk(
   'membresia/toggleActivar',
   async ({ membresiaId, activar }, { getState, rejectWithValue }) => {
@@ -246,7 +238,6 @@ export const toggleActivarMembresia = createAsyncThunk(
   }
 );
 
-// Thunk para suscribir a una membresía - VERSIÓN CORREGIDA
 export const suscribirMembresia = createAsyncThunk(
   'membresia/suscribir',
   async (suscripcionData, { getState, rejectWithValue }) => {
@@ -255,7 +246,6 @@ export const suscribirMembresia = createAsyncThunk(
 
       console.log('🔵 [Redux] Iniciando suscripción con datos:', suscripcionData);
 
-      // ✅ VALIDACIONES PREVIAS
       if (!auth.token) {
         return rejectWithValue('Token de autenticación no disponible');
       }
@@ -268,19 +258,16 @@ export const suscribirMembresia = createAsyncThunk(
         return rejectWithValue('ID de membresía es requerido');
       }
 
-      // ✅ PREPARAR PAYLOAD - usar exactamente la estructura que espera el backend
       const payload = {
         usuarioId: suscripcionData.usuarioId,
-        membresiaId: suscripcionData.membresiaId, // ⚠️ NO cambiar el nombre
+        membresiaId: suscripcionData.membresiaId, 
         fechaInicio: suscripcionData.fechaInicio,
         metodoPagoId: suscripcionData.metodoPagoId || 'default',
-        renovacionAutomatica: suscripcionData.renovacionAutomatica !== false, // true por defecto
-        codigoPromocional: suscripcionData.codigoPromocional
+        renovacionAutomatica: suscripcionData.renovacionAutomatica !== false, 
       };
 
       console.log('🔵 [Redux] Payload final enviado al backend:', payload);
 
-      // ✅ LLAMADA A LA API
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/membresias/suscribir`,
         {
@@ -301,7 +288,6 @@ export const suscribirMembresia = createAsyncThunk(
         data
       });
 
-      // ✅ MANEJO DE ERRORES HTTP
       if (!response.ok) {
         console.error('🔴 [Redux] Error HTTP del servidor:', {
           status: response.status,
@@ -310,7 +296,6 @@ export const suscribirMembresia = createAsyncThunk(
           field: data.field
         });
 
-        // Retornar error específico del servidor
         return rejectWithValue(
           data.message ||
           data.details ||
@@ -318,7 +303,6 @@ export const suscribirMembresia = createAsyncThunk(
         );
       }
 
-      // ✅ VALIDAR ESTRUCTURA DE RESPUESTA
       if (!data.usuario) {
         console.error('🔴 [Redux] Respuesta sin usuario:', data);
         return rejectWithValue('Respuesta del servidor incompleta: falta información del usuario');
@@ -336,7 +320,6 @@ export const suscribirMembresia = createAsyncThunk(
         suscripcionInfo: data.suscripcion
       });
 
-      // ✅ RETORNAR ESTRUCTURA CONSISTENTE
       return {
         success: true,
         usuario: data.usuario,
@@ -351,7 +334,6 @@ export const suscribirMembresia = createAsyncThunk(
         name: error.name
       });
 
-      // Manejo específico de errores de red
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
         return rejectWithValue('Error de conexión. Verifica tu conexión a internet.');
       }
@@ -368,8 +350,6 @@ export const suscribirMembresia = createAsyncThunk(
   }
 );
 
-
-// Thunk para cancelar una membresía
 export const cancelarMembresia = createAsyncThunk(
   'membresia/cancelar',
   async (cancelacionData, { getState, rejectWithValue }) => {
@@ -409,7 +389,6 @@ export const cancelarMembresia = createAsyncThunk(
         return rejectWithValue(data.message || data.details || 'Error al cancelar membresía');
       }
 
-      // Retornar tanto los datos del usuario como la información de la cancelación
       return {
         usuario: data.usuario,
         cancelacion: data.cancelacion,
@@ -422,7 +401,6 @@ export const cancelarMembresia = createAsyncThunk(
   }
 );
 
-// Thunks para promociones
 export const obtenerPromociones = createAsyncThunk(
   'membresia/obtenerPromociones',
   async ({ skip = 0, limit = 10 } = {}, { getState, rejectWithValue }) => {
@@ -602,30 +580,24 @@ export const filtrarPromociones = createAsyncThunk(
   }
 );
 
-// Estado inicial
 const initialState = {
-  // Membresías
   membresias: [],
   membresiaSeleccionada: null,
   membresiasActivas: [],
 
-  // Promociones
   promociones: [],
   promocionSeleccionada: null,
   promocionesActivas: [],
   promocionValidada: null,
 
-  // Suscripción actual del usuario
   suscripcionActual: null,
 
-  // Paginación
   pagination: {
     skip: 0,
     limit: 10,
     total: 0,
   },
 
-  // Estados de carga y errores
   loading: false,
   error: null,
   loadingPromociones: false,
@@ -633,17 +605,14 @@ const initialState = {
   loadingSuscripcion: false,
   errorSuscripcion: null,
 
-  // Estados específicos para diferentes operaciones
   loadingMembresiasActivas: false,
   errorMembresiasActivas: null,
 };
 
-// Slice
 const membresiaSlice = createSlice({
   name: 'membresia',
   initialState,
   reducers: {
-    // Selección de membresía
     seleccionarMembresia: (state, action) => {
       state.membresiaSeleccionada = action.payload;
     },
@@ -652,7 +621,6 @@ const membresiaSlice = createSlice({
       state.membresiaSeleccionada = null;
     },
 
-    // Selección de promoción
     seleccionarPromocion: (state, action) => {
       state.promocionSeleccionada = action.payload;
     },
@@ -665,7 +633,6 @@ const membresiaSlice = createSlice({
       state.promocionValidada = null;
     },
 
-    // Suscripción actual
     actualizarSuscripcionActual: (state, action) => {
       state.suscripcionActual = action.payload;
     },
@@ -674,12 +641,10 @@ const membresiaSlice = createSlice({
       state.suscripcionActual = null;
     },
 
-    // Paginación
     setPaginacion: (state, action) => {
       state.pagination = { ...state.pagination, ...action.payload };
     },
 
-    // Estados de carga y errores
     setLoading: (state, action) => {
       state.loading = action.payload;
     },
@@ -704,17 +669,14 @@ const membresiaSlice = createSlice({
     },
   },
 
-  // 🔥 EXTRA REDUCERS COMPLETO - membresiaSlice.js
   extraReducers: (builder) => {
     builder
-      // obtenerMembresias
       .addCase(obtenerMembresias.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(obtenerMembresias.fulfilled, (state, action) => {
         state.loading = false;
-        // Manejar diferentes formatos de respuesta del backend
         let membresias;
         if (Array.isArray(action.payload)) {
           membresias = action.payload;
@@ -734,7 +696,6 @@ const membresiaSlice = createSlice({
         state.error = action.payload;
       })
 
-      // crearMembresia
       .addCase(crearMembresia.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -743,7 +704,6 @@ const membresiaSlice = createSlice({
         state.loading = false;
         const nuevaMembresia = action.payload.membresia || action.payload;
         state.membresias.push(nuevaMembresia);
-        // Si está activa, también añadirla a membresiasActivas
         if (nuevaMembresia.activo) {
           state.membresiasActivas.push(nuevaMembresia);
         }
@@ -753,7 +713,6 @@ const membresiaSlice = createSlice({
         state.error = action.payload;
       })
 
-      // obtenerMembresiaPorId
       .addCase(obtenerMembresiaPorId.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -767,7 +726,6 @@ const membresiaSlice = createSlice({
         state.error = action.payload;
       })
 
-      // actualizarMembresia
       .addCase(actualizarMembresia.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -786,7 +744,6 @@ const membresiaSlice = createSlice({
           (membresiaActualizada.id || membresiaActualizada._id)) {
           state.membresiaSeleccionada = membresiaActualizada;
         }
-        // Actualizar también en membresiasActivas si corresponde
         const indexActivas = state.membresiasActivas.findIndex(m =>
           (m.id || m._id) === (membresiaActualizada.id || membresiaActualizada._id)
         );
@@ -805,7 +762,6 @@ const membresiaSlice = createSlice({
         state.error = action.payload;
       })
 
-      // eliminarMembresia
       .addCase(eliminarMembresia.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -829,14 +785,12 @@ const membresiaSlice = createSlice({
         state.error = action.payload;
       })
 
-      // obtenerMembresiasActivas
       .addCase(obtenerMembresiasActivas.pending, (state) => {
         state.loadingMembresiasActivas = true;
         state.errorMembresiasActivas = null;
       })
       .addCase(obtenerMembresiasActivas.fulfilled, (state, action) => {
         state.loadingMembresiasActivas = false;
-        // Manejar diferentes formatos de respuesta del backend
         let membresias;
         if (Array.isArray(action.payload)) {
           membresias = action.payload;
@@ -855,7 +809,6 @@ const membresiaSlice = createSlice({
         state.errorMembresiasActivas = action.payload;
       })
 
-      // toggleActivarMembresia
       .addCase(toggleActivarMembresia.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -867,7 +820,6 @@ const membresiaSlice = createSlice({
         if (index !== -1) {
           state.membresias[index].activo = activar;
         }
-        // Actualizar membresiasActivas
         if (activar) {
           const membresia = state.membresias.find(m => (m.id || m._id) === membresiaId);
           if (membresia && !state.membresiasActivas.find(m => (m.id || m._id) === membresiaId)) {
@@ -884,7 +836,6 @@ const membresiaSlice = createSlice({
         state.error = action.payload;
       })
 
-      // ✅ SUSCRIBIR MEMBRESIA - VERSIÓN CORREGIDA Y COMPLETA
       .addCase(suscribirMembresia.pending, (state) => {
         console.log('🔵 [Redux] Iniciando proceso de suscripción...');
         state.loadingSuscripcion = true;
@@ -896,18 +847,15 @@ const membresiaSlice = createSlice({
         state.loadingSuscripcion = false;
         state.errorSuscripcion = null;
 
-        // ✅ Guardar la información de suscripción
         if (action.payload.suscripcion) {
           state.suscripcionActual = action.payload.suscripcion;
           console.log('🟢 [Redux] Suscripción actual actualizada:', state.suscripcionActual);
         }
 
-        // ✅ Validar que la respuesta sea exitosa
         if (action.payload.success !== false) {
           console.log('🟢 [Redux] Suscripción marcada como exitosa');
         }
 
-        // Nota: El usuario se actualiza en el auth slice mediante dispatch(loguear(...))
       })
       .addCase(suscribirMembresia.rejected, (state, action) => {
         console.error('🔴 [Redux] Error en suscripción:', action.payload);
@@ -915,11 +863,9 @@ const membresiaSlice = createSlice({
         state.loadingSuscripcion = false;
         state.errorSuscripcion = action.payload;
 
-        // ✅ Limpiar suscripción actual en caso de error
         state.suscripcionActual = null;
       })
 
-      // ✅ CANCELAR MEMBRESIA - VERSIÓN CORREGIDA Y COMPLETA
       .addCase(cancelarMembresia.pending, (state) => {
         console.log('🔵 [Redux] Iniciando proceso de cancelación...');
         state.loadingSuscripcion = true;
@@ -931,9 +877,7 @@ const membresiaSlice = createSlice({
         state.loadingSuscripcion = false;
         state.errorSuscripcion = null;
 
-        // ✅ Actualizar el estado con la información de cancelación
         if (action.payload.cancelacion) {
-          // La suscripción sigue existiendo pero con renovación automática en false
           state.suscripcionActual = {
             ...state.suscripcionActual,
             renovacionAutomatica: false,
@@ -944,7 +888,6 @@ const membresiaSlice = createSlice({
           console.log('🟢 [Redux] Cancelación guardada en estado:', action.payload.cancelacion);
         }
 
-        // Nota: El usuario se actualiza en el auth slice mediante dispatch(loguear(...))
       })
       .addCase(cancelarMembresia.rejected, (state, action) => {
         console.error('🔴 [Redux] Error en cancelación:', action.payload);
@@ -953,7 +896,6 @@ const membresiaSlice = createSlice({
         state.errorSuscripcion = action.payload;
       })
 
-      // obtenerMembresiaPorTipo
       .addCase(obtenerMembresiaPorTipo.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -967,7 +909,6 @@ const membresiaSlice = createSlice({
         state.error = action.payload;
       })
 
-      // ✅ PROMOCIONES - obtenerPromociones
       .addCase(obtenerPromociones.pending, (state) => {
         state.loadingPromociones = true;
         state.errorPromociones = null;
@@ -981,7 +922,6 @@ const membresiaSlice = createSlice({
         state.errorPromociones = action.payload;
       })
 
-      // crearPromocion
       .addCase(crearPromocion.pending, (state) => {
         state.loadingPromociones = true;
         state.errorPromociones = null;
@@ -990,7 +930,6 @@ const membresiaSlice = createSlice({
         state.loadingPromociones = false;
         const nuevaPromocion = action.payload.promocion || action.payload;
         state.promociones.push(nuevaPromocion);
-        // Si está activa, también añadirla a promocionesActivas
         if (nuevaPromocion.activa) {
           state.promocionesActivas.push(nuevaPromocion);
         }
@@ -1000,7 +939,6 @@ const membresiaSlice = createSlice({
         state.errorPromociones = action.payload;
       })
 
-      // obtenerPromocionesActivas
       .addCase(obtenerPromocionesActivas.pending, (state) => {
         state.loadingPromociones = true;
         state.errorPromociones = null;
@@ -1015,7 +953,6 @@ const membresiaSlice = createSlice({
         state.errorPromociones = action.payload;
       })
 
-      // obtenerPromocionPorCodigo
       .addCase(obtenerPromocionPorCodigo.pending, (state) => {
         state.loadingPromociones = true;
         state.errorPromociones = null;
@@ -1029,7 +966,6 @@ const membresiaSlice = createSlice({
         state.errorPromociones = action.payload;
       })
 
-      // validarPromocion
       .addCase(validarPromocion.pending, (state) => {
         state.loadingPromociones = true;
         state.errorPromociones = null;
@@ -1043,7 +979,6 @@ const membresiaSlice = createSlice({
         state.errorPromociones = action.payload;
       })
 
-      // filtrarPromociones
       .addCase(filtrarPromociones.pending, (state) => {
         state.loadingPromociones = true;
         state.errorPromociones = null;
@@ -1060,7 +995,6 @@ const membresiaSlice = createSlice({
   }
 });
 
-// Exportar las acciones
 export const {
   seleccionarMembresia,
   limpiarMembresiaSeleccionada,
@@ -1077,5 +1011,4 @@ export const {
   setLoadingSuscripcion
 } = membresiaSlice.actions;
 
-// Exportar el reducer
 export default membresiaSlice.reducer;

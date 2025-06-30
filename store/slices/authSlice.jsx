@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
-// Thunks existentes...
 export const loginUsuario = createAsyncThunk(
   'auth/login',
   async ({ username, password }, { rejectWithValue }) => {
@@ -72,7 +71,6 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    // Acción para loguearse
     loguear: (state, action) => {
       state.isLoggedIn = true;
       state.usuario = action.payload.usuario;
@@ -85,7 +83,6 @@ const authSlice = createSlice({
       }
     },
 
-    // Acción para desloguearse
     desloguear: (state) => {
       return {
         ...initialState,
@@ -94,14 +91,12 @@ const authSlice = createSlice({
       };
     },
 
-    // Actualizar solo el usuario sin afectar token
     actualizarUsuario: (state, action) => {
       if (state.isLoggedIn) {
         const usuarioActualizado = action.payload;
         state.usuario = usuarioActualizado;
         state.tipoUsuario = usuarioActualizado.tipoUsuario;
         
-        // Actualizar permisos si cambió el tipo de usuario
         if (usuarioActualizado.tipoUsuario === 'administrador') {
           state.esAdmin = true;
           state.permisos = ['all'];
@@ -122,22 +117,18 @@ const authSlice = createSlice({
       }
     },
 
-    // Actualizar token
     actualizarToken: (state, action) => {
       state.token = action.payload;
     },
 
-    // Toggle notificaciones
     toggleNotificaciones: (state) => {
       state.notificacionesActivas = !state.notificacionesActivas;
     },
 
-    // Cambiar idioma
     cambiarIdioma: (state, action) => {
       state.idiomaPreferido = action.payload;
     },
 
-    // Estados de carga y error
     setLoading: (state, action) => {
       state.loading = action.payload;
     },
@@ -153,7 +144,6 @@ const authSlice = createSlice({
 
   extraReducers: (builder) => {
     builder
-      // loginUsuario
       .addCase(loginUsuario.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -185,14 +175,12 @@ const authSlice = createSlice({
         state.isLoggedIn = false;
       })
 
-      // signupUsuario
       .addCase(signupUsuario.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(signupUsuario.fulfilled, (state, action) => {
         state.loading = false;
-        // El signup no loguea automáticamente al usuario
       })
       .addCase(signupUsuario.rejected, (state, action) => {
         state.loading = false;

@@ -37,7 +37,6 @@ const Mapa = ({ navigation }) => {
     longitudeDelta: 0.0421,
   });
 
-  // Redux state
   const { tipoUsuario, usuario } = useSelector(state => state.auth || {});
   const { 
     espaciosMapeados = [], 
@@ -58,7 +57,6 @@ const Mapa = ({ navigation }) => {
     return distancia;
   };
 
-  // Cargar ubicación al montar el componente
   useEffect(() => {
     const obtenerUbicacion = async () => {
       try {
@@ -81,12 +79,11 @@ const Mapa = ({ navigation }) => {
           longitudeDelta: 0.0421,
         });
 
-        // Observar cambios de ubicación
         await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
-            timeInterval: 10000, // Cada 10 segundos
-            distanceInterval: 100, // Cada 100 metros
+            timeInterval: 10000,
+            distanceInterval: 100,
           },
           (nuevaUbicacion) => {
             setUbicacion({
@@ -98,7 +95,6 @@ const Mapa = ({ navigation }) => {
 
       } catch (error) {
         console.error('Error obteniendo ubicación:', error);
-        // Ubicación por defecto (Montevideo)
         setUbicacion({
           latitude: -34.9011,
           longitude: -56.1645,
@@ -111,7 +107,6 @@ const Mapa = ({ navigation }) => {
     obtenerUbicacion();
   }, []);
 
-  // Cargar espacios del backend
   useEffect(() => {
     const cargarEspacios = async () => {
       try {
@@ -128,7 +123,6 @@ const Mapa = ({ navigation }) => {
     cargarEspacios();
   }, [dispatch, tipoUsuario, filtroActivo]);
 
-  // Mostrar errores si los hay
   useEffect(() => {
     if (errorEspacios) {
       Alert.alert('Error', errorEspacios);
@@ -189,9 +183,7 @@ const Mapa = ({ navigation }) => {
     }
   };
 
-  // Obtener coordenadas del espacio desde el backend
   const obtenerCoordenadas = (espacio) => {
-    // Primero verificar en datosCompletos.ubicacion.coordenadas
     if (espacio.datosCompletos?.ubicacion?.coordenadas) {
       const coords = espacio.datosCompletos.ubicacion.coordenadas;
       if (coords.lat && coords.lng) {
@@ -202,7 +194,6 @@ const Mapa = ({ navigation }) => {
       }
     }
 
-    // Verificar en datosCompletos.coordenadas (alternativa)
     if (espacio.datosCompletos?.coordenadas) {
       const coords = espacio.datosCompletos.coordenadas;
       if (coords.lat && coords.lng) {
@@ -219,7 +210,6 @@ const Mapa = ({ navigation }) => {
       }
     }
 
-    // Si no hay coordenadas, retornar null
     return null;
   };
 
@@ -230,12 +220,10 @@ const Mapa = ({ navigation }) => {
 
     let espaciosFiltrados = espaciosMapeados;
 
-    // Filtrar por tipo si no es 'todos'
     if (filtroActivo !== 'todos') {
       espaciosFiltrados = espaciosMapeados.filter(espacio => espacio.tipo === filtroActivo);
     }
 
-    // Para clientes, filtrar solo sus espacios
     if (tipoUsuario === 'cliente') {
       const userId = usuario?.id || usuario?._id;
       if (userId) {
@@ -252,7 +240,6 @@ const Mapa = ({ navigation }) => {
       }
     }
 
-    // Filtrar espacios que tengan coordenadas válidas
     const espaciosConCoordenadas = espaciosFiltrados
       .map(espacio => {
         const coordenadas = obtenerCoordenadas(espacio);
@@ -266,7 +253,6 @@ const Mapa = ({ navigation }) => {
       })
       .filter(Boolean);
 
-    // Filtrar por distancia si hay ubicación del usuario
     if (ubicacion && (tipoUsuario === 'usuario' || tipoUsuario === 'proveedor')) {
       return espaciosConCoordenadas.filter(espacio => {
         const distancia = calcularDistancia(

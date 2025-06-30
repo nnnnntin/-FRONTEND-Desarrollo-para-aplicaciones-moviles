@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -12,10 +12,19 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { obtenerReservas } from '../store/slices/reservasSlice';
 
 const GestionGanancias = ({ navigation }) => {
-  const { datosUsuario } = useSelector(state => state.usuario);
+  const dispatch = useDispatch();
+  
+  // ⭐ CORREGIDO: Usar el slice de auth donde está el usuario logueado ⭐
+  const { usuario: datosUsuario } = useSelector(state => state.auth);
+  const { reservas, loading } = useSelector(state => state.reservas);
+  
+  // ⭐ DEBUG: Verificar que el componente se monte ⭐
+  console.log('🚀 GestionGanancias se está montando');
+  
   const [modalVisible, setModalVisible] = useState(false);
   const [cuentaBancaria, setCuentaBancaria] = useState({
     banco: '',
@@ -25,18 +34,333 @@ const GestionGanancias = ({ navigation }) => {
   });
   const [cuentaGuardada, setCuentaGuardada] = useState(null);
 
-  const ganancias = {
-    disponible: 45850.00,
-    pendiente: 12300.00,
-    total: 58150.00,
-    proximoPago: '25/06/2025'
+  // ⭐ DEBUG: Verificar datos del usuario y estado ⭐
+  console.log('👤 Datos del usuario (auth.usuario):', datosUsuario);
+  console.log('📊 Estado de reservas:', { reservas, loading });
+  console.log('🔍 Estado completo auth:', useSelector(state => state.auth));
+
+  // ⭐ MOVER EL SELECTOR FUERA DEL useEffect ⭐
+  const authToken = useSelector(state => state.auth.token);
+
+  // ⭐ NUEVA FUNCIÓN: Obtener reservas específicamente para ganancias ⭐
+  const obtenerReservasParaGanancias = async () => {
+    console.log('💰 Obteniendo reservas específicamente para ganancias...');
+    
+    try {
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/v1/reservas?limit=100&populate=true`,
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.log('❌ Error en response de reservas para ganancias:', response.status);
+        return [];
+      }
+
+      const data = await response.json();
+      console.log('📥 Datos crudos del servidor:', data);
+      
+      return Array.isArray(data) ? data : (data.reservas || data.data || []);
+    } catch (error) {
+      console.log('❌ Error al obtener reservas para ganancias:', error);
+      return [];
+    }
   };
 
-  const transacciones = [
-    { id: 1, fecha: '10/06/2025', monto: 15000, estado: 'completado', descripcion: 'Transferencia mensual' },
-    { id: 2, fecha: '10/05/2025', monto: 18500, estado: 'completado', descripcion: 'Transferencia mensual' },
-    { id: 3, fecha: '10/04/2025', monto: 12350, estado: 'completado', descripcion: 'Transferencia mensual' },
-  ];
+  // Obtener reservas al cargar el componente
+  useEffect(() => {
+    console.log('📡 Ejecutando dispatch de obtenerReservas');
+    console.log('🔑 Token disponible:', !!authToken);
+    console.log('🌐 API URL:', process.env.EXPO_PUBLIC_API_URL);
+    
+    // ⭐ USAR AMBOS MÉTODOS PARA COMPARAR ⭐
+    dispatch(obtenerReservas({ skip: 0, limit: 100 }))
+      .then((result) => {
+        console.log('📥 Resultado del dispatch obtenerReservas:', result);
+      })
+      .catch((error) => {
+        console.log('❌ Error en dispatch obtenerReservas:', error);
+      });
+
+    // ⭐ TAMBIÉN PROBAR LA NUEVA FUNCIÓN ⭐
+    obtenerReservasParaGanancias().then((reservasDirectas) => {
+      console.log('💰 Reservas obtenidas directamente:', reservasDirectas);
+      if (reservasDirectas.length > 0) {
+        console.log('🎯 Primera reserva directa:', reservasDirectas[0]);
+        
+        // Verificar si tienen entidad reservada
+        reservasDirectas.forEach((reserva, index) => {
+          console.log(`--- Reserva directa ${index + 1} ---`);
+          console.log('ID:', reserva._id);
+          console.log('Estado:', reserva.estado);
+          console.log('Precio:', reserva.precioTotal);
+          console.log('Entidad reservada completa:', reserva.entidadReservada);
+          
+          if (reserva.entidadReservada && reserva.entidadReservada.usuarioId) {
+            console.log('✅ Tiene entidad con usuarioId:', reserva.entidadReservada.usuarioId);
+          } else {
+            console.log('❌ No tiene entidad reservada o usuarioId');
+          }
+        });
+      }
+    });
+  }, [dispatch, authToken]);
+
+  // ⭐ DEBUG: Monitorear cambios en reservas ⭐
+  useEffect(() => {
+    console.log('🔄 UseEffect de reservas ejecutándose');
+    console.log('📈 Reservas actuales:', reservas);
+    console.log('📈 Cantidad de reservas:', reservas?.length || 0);
+    console.log('⏳ Loading:', loading);
+    
+    if (reservas && Array.isArray(reservas)) {
+      console.log('✅ Reservas es un array válido');
+      if (reservas.length > 0) {
+        console.log('🎯 Tenemos reservas, procesando...');
+        
+        reservas.forEach((reserva, index) => {
+          console.log(`--- Reserva ${index + 1} ---`);
+          console.log('ID:', reserva._id);
+          console.log('Estado:', reserva.estado);
+          console.log('Precio total:', reserva.precioTotal);
+          console.log('Estructura completa:', reserva);
+          
+          // Verificar entidad reservada
+          const entidad = reserva.entidadReservada || reserva.oficina || reserva.espacio || reserva.escritorio || reserva.sala;
+          if (entidad) {
+            console.log('🏢 Entidad encontrada:', entidad);
+          } else {
+            console.log('❌ No se encontró entidad en esta reserva');
+          }
+        });
+      } else {
+        console.log('📭 El array de reservas está vacío');
+      }
+    } else {
+      console.log('❌ Reservas no es un array válido:', typeof reservas);
+    }
+  }, [reservas, loading]);
+
+  // Calcular ganancias basadas en las reservas de las entidades del usuario
+  const calcularGanancias = () => {
+    console.log('💰 Calculando ganancias...');
+    console.log('📊 Datos para cálculo:', { reservas, datosUsuario });
+    
+    // ⭐ CORREGIDO: Verificar tanto _id como id ⭐
+    const usuarioId = datosUsuario?._id || datosUsuario?.id;
+    
+    if (!reservas || !usuarioId) {
+      console.log('❌ Faltan datos para calcular ganancias');
+      console.log('  - reservas:', !!reservas);
+      console.log('  - datosUsuario:', !!datosUsuario);
+      console.log('  - datosUsuario._id:', !!datosUsuario?._id);
+      console.log('  - datosUsuario.id:', !!datosUsuario?.id);
+      console.log('  - usuarioId final:', usuarioId);
+      return {
+        disponible: 0,
+        pendiente: 0,
+        total: 0,
+        proximoPago: 'N/A'
+      };
+    }
+
+    console.log('=== DEBUG CALCULAR GANANCIAS ===');
+    console.log('Usuario logueado ID:', usuarioId);
+    console.log('Total reservas:', reservas.length);
+
+    // Filtrar reservas donde la entidad pertenece al usuario logueado
+    const reservasDelUsuario = reservas.filter(reserva => {
+      console.log('\n--- Procesando reserva ---');
+      console.log('Reserva ID:', reserva._id);
+      console.log('Precio total:', reserva.precioTotal);
+      console.log('Estado:', reserva.estado);
+      
+      // La entidad puede estar en entidadReservada o directamente en otros campos
+      const entidad = reserva.entidadReservada || reserva.oficina || reserva.espacio || reserva.escritorio || reserva.sala;
+      
+      if (!entidad) {
+        console.log('❌ No se encontró entidad en la reserva');
+        return false;
+      }
+      
+      console.log('Entidad encontrada:', {
+        id: entidad._id || entidad.id,
+        nombre: entidad.nombre,
+        tipo: entidad.tipo,
+        usuarioId: entidad.usuarioId
+      });
+      
+      // Buscar el propietario en diferentes posibles campos
+      const propietarioId = entidad.usuarioId || 
+                           entidad.propietarioId || 
+                           entidad.ownerId ||
+                           entidad.creadorId;
+      
+      if (!propietarioId) {
+        console.log('❌ No se encontró propietarioId en la entidad');
+        return false;
+      }
+      
+      // Obtener el ID del propietario (puede ser objeto o string)
+      let entidadUserId;
+      if (typeof propietarioId === 'string') {
+        entidadUserId = propietarioId;
+      } else if (propietarioId._id) {
+        entidadUserId = propietarioId._id;
+      } else if (propietarioId.id) {
+        entidadUserId = propietarioId.id;
+      } else {
+        entidadUserId = propietarioId.toString();
+      }
+      
+      // ID del usuario logueado
+      let usuarioLogueadoId;
+      if (typeof usuarioId === 'string') {
+        usuarioLogueadoId = usuarioId;
+      } else if (usuarioId) {
+        usuarioLogueadoId = usuarioId.toString();
+      }
+      
+      console.log('Comparando IDs:');
+      console.log('  Entidad User ID:', entidadUserId);
+      console.log('  Usuario Logueado ID:', usuarioLogueadoId);
+      
+      if (!entidadUserId || !usuarioLogueadoId) {
+        console.log('❌ Falta algún ID para comparar');
+        return false;
+      }
+      
+      // Convertir ambos a string para comparación segura
+      const esDelUsuario = entidadUserId.toString() === usuarioLogueadoId.toString();
+      console.log('¿Es del usuario?:', esDelUsuario);
+      
+      return esDelUsuario;
+    });
+
+    console.log('\n=== RESULTADO FILTRADO ===');
+    console.log('Reservas del usuario:', reservasDelUsuario.length);
+    reservasDelUsuario.forEach(r => {
+      console.log(`- Reserva ${r._id}: $${r.precioTotal} (${r.estado})`);
+    });
+
+    let disponible = 0;
+    let pendiente = 0;
+    let total = 0;
+
+    const ahora = new Date();
+    const hace30Dias = new Date(ahora.getTime() - (30 * 24 * 60 * 60 * 1000));
+
+    reservasDelUsuario.forEach(reserva => {
+      const precioTotal = Number(reserva.precioTotal) || 0;
+      const fechaReserva = new Date(reserva.fechaInicio || reserva.fecha || reserva.createdAt);
+      
+      total += precioTotal;
+
+      // Si la reserva fue completada hace más de 30 días, está disponible para transferir
+      if (reserva.estado === 'completada' && fechaReserva < hace30Dias) {
+        disponible += precioTotal;
+      }
+      // Si está confirmada pero no completada o es reciente, está pendiente
+      else if (reserva.estado === 'confirmada' || reserva.estado === 'completada') {
+        pendiente += precioTotal;
+      }
+    });
+
+    console.log('\n=== TOTALES CALCULADOS ===');
+    console.log('Disponible:', disponible);
+    console.log('Pendiente:', pendiente);
+    console.log('Total:', total);
+
+    // Calcular próximo pago (primer día del próximo mes)
+    const proximoPago = new Date();
+    proximoPago.setMonth(proximoPago.getMonth() + 1);
+    proximoPago.setDate(1);
+
+    return {
+      disponible,
+      pendiente,
+      total,
+      proximoPago: proximoPago.toLocaleDateString('es-UY')
+    };
+  };
+  
+  // Generar historial de reservas para mostrar
+  const generarHistorialReservas = () => {
+    const usuarioId = datosUsuario?._id || datosUsuario?.id;
+    if (!reservas || !usuarioId) return [];
+
+    const reservasDelUsuario = reservas
+      .filter(reserva => {
+        // La entidad puede estar en entidadReservada o directamente en otros campos
+        const entidad = reserva.entidadReservada || reserva.oficina || reserva.espacio || reserva.escritorio || reserva.sala;
+        
+        if (!entidad) return false;
+        
+        // Buscar el propietario en diferentes posibles campos
+        const propietarioId = entidad.usuarioId || 
+                             entidad.propietarioId || 
+                             entidad.ownerId ||
+                             entidad.creadorId;
+        
+        // Obtener el ID del propietario (puede ser objeto o string)
+        const entidadUserId = propietarioId?._id || 
+                             propietarioId?.id || 
+                             propietarioId;
+        
+        // ID del usuario logueado
+        const usuarioLogueadoId = usuarioId;
+        
+        if (!entidadUserId || !usuarioLogueadoId) return false;
+        
+        return entidadUserId === usuarioLogueadoId ||
+               entidadUserId?.toString() === usuarioLogueadoId?.toString();
+      })
+      .filter(reserva => reserva.estado === 'completada' || reserva.estado === 'confirmada')
+      .sort((a, b) => new Date(b.fechaInicio || b.fecha || b.createdAt) - 
+                     new Date(a.fechaInicio || a.fecha || a.createdAt))
+      .slice(0, 10); // Mostrar solo las últimas 10
+
+    return reservasDelUsuario.map(reserva => {
+      const entidad = reserva.entidadReservada || reserva.oficina || reserva.espacio || reserva.escritorio || reserva.sala;
+      
+      // Determinar el nombre y tipo de la entidad
+      const nombreEntidad = entidad?.nombre || entidad?.titulo || entidad?.name || 'Entidad';
+      const tipoEntidad = reserva.tipo || 
+                         entidad?.tipo || 
+                         (reserva.entidadReservada ? 'espacio' : 'oficina');
+      
+      // Mapear tipos para mostrar nombres más amigables
+      const tiposMapeados = {
+        'oficina': 'Oficina',
+        'espacio': 'Espacio',
+        'escritorio': 'Escritorio',
+        'escritorio_flexible': 'Escritorio',
+        'sala': 'Sala',
+        'sala_reunion': 'Sala de Reunión',
+        'edificio': 'Edificio'
+      };
+      
+      const tipoDisplay = tiposMapeados[tipoEntidad] || 'Espacio';
+      
+      return {
+        id: reserva._id,
+        fecha: new Date(reserva.fechaInicio || reserva.fecha || reserva.createdAt).toLocaleDateString('es-UY'),
+        monto: reserva.precioTotal || 0,
+        estado: reserva.estado,
+        descripcion: `Reserva de ${tipoDisplay}: ${nombreEntidad}`,
+        codigo: reserva.codigo || reserva._id?.slice(-6) || 'N/A',
+        tipoEntidad: tipoDisplay
+      };
+    });
+  };
+
+  const ganancias = calcularGanancias();
+  const historialReservas = generarHistorialReservas();
 
   const bancos = [
     { id: 'brou', nombre: 'Banco República (BROU)', color: '#0066CC' },
@@ -50,39 +374,6 @@ const GestionGanancias = ({ navigation }) => {
 
   const handleGoBack = () => {
     navigation.goBack();
-  };
-
-  const handleSolicitarTransferencia = () => {
-    if (!cuentaGuardada) {
-      Alert.alert('Error', 'Primero debes configurar una cuenta bancaria');
-      return;
-    }
-
-    if (ganancias.disponible === 0) {
-      Alert.alert('Sin fondos', 'No tienes fondos disponibles para transferir');
-      return;
-    }
-
-    Alert.alert(
-      'Solicitar transferencia',
-      `¿Deseas solicitar la transferencia de $${ganancias.disponible.toLocaleString('es-UY')} a tu cuenta en ${cuentaGuardada.banco}?`,
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Confirmar',
-          onPress: () => {
-            Alert.alert(
-              'Transferencia solicitada',
-              'Tu solicitud ha sido procesada. Recibirás el dinero en 2-3 días hábiles.',
-              [{ text: 'OK' }]
-            );
-          },
-        },
-      ]
-    );
   };
 
   const handleGuardarCuenta = () => {
@@ -104,6 +395,54 @@ const GestionGanancias = ({ navigation }) => {
     return `$${numero.toLocaleString('es-UY', { minimumFractionDigits: 2 })}`;
   };
 
+  const getEstadoColor = (estado) => {
+    switch (estado) {
+      case 'completada':
+        return '#27ae60';
+      case 'confirmada':
+        return '#f39c12';
+      case 'pendiente':
+        return '#3498db';
+      default:
+        return '#95a5a6';
+    }
+  };
+
+  const getEstadoText = (estado) => {
+    switch (estado) {
+      case 'completada':
+        return 'Completada';
+      case 'confirmada':
+        return 'Confirmada';
+      case 'pendiente':
+        return 'Pendiente';
+      default:
+        return estado;
+    }
+  };
+
+  if (loading) {
+    console.log('⏳ Mostrando pantalla de carga');
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#2c3e50" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Ganancias</Text>
+          <View style={styles.placeholder} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Cargando ganancias...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  console.log('🎨 Renderizando componente principal');
+  console.log('💰 Ganancias calculadas:', ganancias);
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
@@ -121,6 +460,20 @@ const GestionGanancias = ({ navigation }) => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* ⭐ AGREGAR CARD DE DEBUG TEMPORAL ⭐ */}
+        <View style={[styles.resumenContainer, { backgroundColor: '#e74c3c', marginBottom: 10 }]}>
+          <Text style={[styles.gananciaLabel, { fontSize: 14 }]}>DEBUG INFO</Text>
+          <Text style={[styles.gananciaLabel, { fontSize: 12 }]}>
+            Usuario: {datosUsuario?.username || 'No logueado'}
+          </Text>
+          <Text style={[styles.gananciaLabel, { fontSize: 12 }]}>
+            ID: {datosUsuario?.id || datosUsuario?._id || 'Sin ID'}
+          </Text>
+          <Text style={[styles.gananciaLabel, { fontSize: 12 }]}>
+            Reservas: {reservas?.length || 0}
+          </Text>
+        </View>
+
         <View style={styles.resumenContainer}>
           <View style={styles.gananciaPrincipal}>
             <Text style={styles.gananciaLabel}>Disponible para transferir</Text>
@@ -144,69 +497,43 @@ const GestionGanancias = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Cuenta bancaria</Text>
-            <TouchableOpacity
-              onPress={() => setModalVisible(true)}
-              style={styles.editButton}
-            >
-              <Ionicons name={cuentaGuardada ? "create-outline" : "add-circle-outline"} size={20} color="#4a90e2" />
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.sectionTitle}>Historial de reservas</Text>
 
-          {cuentaGuardada ? (
-            <View style={styles.cuentaCard}>
-              <Ionicons name="business" size={24} color="#4a90e2" style={styles.bancoIcon} />
-              <View style={styles.cuentaInfo}>
-                <Text style={styles.bancoNombre}>{cuentaGuardada.banco}</Text>
-                <Text style={styles.cuentaDetalle}>
-                  Cuenta {cuentaGuardada.tipoCuenta} - ****{cuentaGuardada.numeroCuenta.slice(-4)}
-                </Text>
-                <Text style={styles.cuentaTitular}>{cuentaGuardada.titular}</Text>
-              </View>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.agregarCuentaButton}
-              onPress={() => setModalVisible(true)}
-            >
-              <Ionicons name="add-circle-outline" size={24} color="#4a90e2" />
-              <Text style={styles.agregarCuentaText}>Agregar cuenta bancaria</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        <TouchableOpacity
-          style={[
-            styles.transferirButton,
-            (!cuentaGuardada || ganancias.disponible === 0) && styles.transferirButtonDisabled
-          ]}
-          onPress={handleSolicitarTransferencia}
-          disabled={!cuentaGuardada || ganancias.disponible === 0}
-        >
-          <Ionicons name="send" size={20} color="#fff" style={styles.transferirIcon} />
-          <Text style={styles.transferirButtonText}>Solicitar transferencia</Text>
-        </TouchableOpacity>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Historial de transferencias</Text>
-
-          {transacciones.map((transaccion) => (
-            <View key={transaccion.id} style={styles.transaccionItem}>
-              <View style={styles.transaccionLeft}>
-                <Text style={styles.transaccionFecha}>{transaccion.fecha}</Text>
-                <Text style={styles.transaccionDescripcion}>{transaccion.descripcion}</Text>
-              </View>
-              <View style={styles.transaccionRight}>
-                <Text style={styles.transaccionMonto}>
-                  {formatearNumero(transaccion.monto)}
-                </Text>
-                <View style={[styles.estadoBadge, styles[`estado${transaccion.estado}`]]}>
-                  <Text style={styles.estadoText}>{transaccion.estado}</Text>
+          {historialReservas.length > 0 ? (
+            historialReservas.map((reserva) => (
+              <View key={reserva.id} style={styles.transaccionItem}>
+                <View style={styles.transaccionLeft}>
+                  <Text style={styles.transaccionFecha}>{reserva.fecha}</Text>
+                  <Text style={styles.transaccionDescripcion}>{reserva.descripcion}</Text>
+                  <Text style={styles.transaccionCodigo}>#{reserva.codigo}</Text>
+                </View>
+                <View style={styles.transaccionRight}>
+                  <Text style={styles.transaccionMonto}>
+                    {formatearNumero(reserva.monto)}
+                  </Text>
+                  <View style={[
+                    styles.estadoBadge, 
+                    { backgroundColor: `${getEstadoColor(reserva.estado)}15` }
+                  ]}>
+                    <Text style={[
+                      styles.estadoText, 
+                      { color: getEstadoColor(reserva.estado) }
+                    ]}>
+                      {getEstadoText(reserva.estado)}
+                    </Text>
+                  </View>
                 </View>
               </View>
+            ))
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="document-text-outline" size={48} color="#bdc3c7" />
+              <Text style={styles.emptyText}>No hay reservas registradas</Text>
+              <Text style={styles.emptySubtext}>
+                Las ganancias aparecerán aquí cuando tengas reservas completadas en tus espacios
+              </Text>
             </View>
-          ))}
+          )}
         </View>
 
         <View style={styles.bottomSpacing} />
@@ -350,6 +677,16 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    fontFamily: 'System',
   },
   resumenContainer: {
     backgroundColor: '#4a90e2',
@@ -539,6 +876,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontFamily: 'System',
   },
+  transaccionCodigo: {
+    fontSize: 12,
+    color: '#95a5a6',
+    marginTop: 2,
+    fontFamily: 'System',
+  },
   transaccionRight: {
     alignItems: 'flex-end',
   },
@@ -554,14 +897,38 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 4,
   },
-  estadocompletado: {
-    backgroundColor: '#e8f8f5',
-  },
   estadoText: {
     fontSize: 12,
-    color: '#27ae60',
     fontFamily: 'System',
     textTransform: 'capitalize',
+    fontWeight: '600',
+  },
+  transaccionTipo: {
+    fontSize: 11,
+    color: '#3498db',
+    marginTop: 2,
+    fontFamily: 'System',
+    fontWeight: '500',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: '#7f8c8d',
+    marginTop: 16,
+    fontWeight: '600',
+    fontFamily: 'System',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#95a5a6',
+    marginTop: 8,
+    textAlign: 'center',
+    lineHeight: 20,
+    fontFamily: 'System',
   },
   bottomSpacing: {
     height: 30,

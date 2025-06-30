@@ -38,7 +38,7 @@ export const obtenerReservas = createAsyncThunk(
     try {
       const { auth } = getState();
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/v1/reservas?skip=${skip}&limit=${limit}`,
+        `${process.env.EXPO_PUBLIC_API_URL}/v1/reservas?skip=${skip}&limit=${limit}&populate=entidadReservada`,
         {
           headers: {
             Authorization: `Bearer ${auth.token}`,

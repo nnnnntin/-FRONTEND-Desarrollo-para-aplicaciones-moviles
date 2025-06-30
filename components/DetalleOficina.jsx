@@ -23,14 +23,802 @@ import MapSelector from './MapSelector';
 const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
+const FormularioEdicionCompleta = ({
+  editData,
+  setEditData,
+  editingImages,
+  setEditingImages,
+  uploadingImage,
+  toggleAmenidadEdit,
+  toggleEquipamientoEdit,
+  toggleDiaEdit,
+  selectImageEdit,
+  removeImageEdit,
+  handleSave,
+  handleCancel,
+  handleEditDataChange,
+  handlePrecioChange,
+  handleHorarioChange
+}) => {
+  if (!editData || typeof editData !== 'object' || Object.keys(editData).length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4a90e2" />
+        <Text style={styles.loadingText}>Cargando formulario...</Text>
+      </View>
+    );
+  }
+  const hasRequiredProps = editData.nombre !== undefined &&
+    editData.tipo !== undefined &&
+    editData.ubicacion !== undefined &&
+    editData.precios !== undefined;
+
+  if (!hasRequiredProps) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4a90e2" />
+        <Text style={styles.loadingText}>Preparando formulario...</Text>
+      </View>
+    );
+  }
+
+  const tipos = [
+    {
+      id: 'oficina',
+      nombre: 'Oficina',
+      icon: 'business',
+      color: '#4a90e2',
+      subtipos: [
+        { id: 'privada', nombre: 'Privada', descripcion: 'Oficina individual cerrada' },
+        { id: 'compartida', nombre: 'Compartida', descripcion: 'Oficina para varios usuarios' },
+        { id: 'coworking', nombre: 'Coworking', descripcion: 'Espacio colaborativo abierto' }
+      ],
+      requiereNumero: true,
+      requiereCapacidad: true
+    },
+    {
+      id: 'espacio',
+      nombre: 'Espacio',
+      icon: 'cube',
+      color: '#27ae60',
+      subtipos: [],
+      requiereSector: true,
+      requiereCapacidad: true
+    },
+    {
+      id: 'escritorio',
+      nombre: 'Escritorio',
+      icon: 'desktop',
+      color: '#f39c12',
+      subtipos: [
+        { id: 'individual', nombre: 'Individual', descripcion: 'Puesto de trabajo personal' },
+        { id: 'compartido', nombre: 'Compartido', descripcion: 'Escritorio para uso compartido' },
+        { id: 'standing', nombre: 'Standing', descripcion: 'Escritorio para trabajar de pie' }
+      ],
+      requiereZona: true,
+      requiereNumero: true
+    },
+    {
+      id: 'sala',
+      nombre: 'Sala de reuniones',
+      icon: 'people',
+      color: '#e74c3c',
+      subtipos: [
+        { id: 'mesa_redonda', nombre: 'Mesa Redonda', descripcion: 'Ideal para reuniones participativas' },
+        { id: 'auditorio', nombre: 'Auditorio', descripcion: 'Para presentaciones y conferencias' },
+        { id: 'en_u', nombre: 'En U', descripcion: 'Configuración para capacitaciones' },
+        { id: 'aula', nombre: 'Aula', descripcion: 'Disposición tradicional de clase' },
+        { id: 'flexible', nombre: 'Flexible', descripcion: 'Configuración adaptable' }
+      ],
+      requiereNumero: true,
+      requiereCapacidad: true,
+      requierePrecioHora: true
+    }
+  ];
+
+  const amenidadesDisponibles = {
+    oficina: [
+      { id: 'wifi', nombre: 'Wi-Fi', icon: 'wifi' },
+      { id: 'aire_acondicionado', nombre: 'Aire acondicionado', icon: 'snow' },
+      { id: 'seguridad', nombre: 'Seguridad 24/7', icon: 'shield-checkmark' },
+      { id: 'parking', nombre: 'Estacionamiento', icon: 'car' },
+      { id: 'cocina', nombre: 'Cocina', icon: 'restaurant' },
+      { id: 'baño_privado', nombre: 'Baño privado', icon: 'home' }
+    ],
+    espacio: [
+      { id: 'wifi', nombre: 'Wi-Fi', icon: 'wifi' },
+      { id: 'aire_acondicionado', nombre: 'Aire acondicionado', icon: 'snow' },
+      { id: 'seguridad', nombre: 'Seguridad', icon: 'shield-checkmark' },
+      { id: 'parking', nombre: 'Estacionamiento', icon: 'car' },
+      { id: 'flexible', nombre: 'Espacio flexible', icon: 'resize' }
+    ],
+    escritorio: [
+      { id: 'monitor', nombre: 'Monitor', icon: 'desktop' },
+      { id: 'teclado', nombre: 'Teclado', icon: 'keypad' },
+      { id: 'mouse', nombre: 'Mouse', icon: 'hand-left' },
+      { id: 'reposapiés', nombre: 'Reposapiés', icon: 'fitness' },
+      { id: 'lampara', nombre: 'Lámpara', icon: 'bulb' }
+    ],
+    sala: [
+      { id: 'proyector', nombre: 'Proyector', icon: 'videocam' },
+      { id: 'videoconferencia', nombre: 'Videoconferencia', icon: 'videocam' },
+      { id: 'pizarra', nombre: 'Pizarra', icon: 'clipboard' },
+      { id: 'tv', nombre: 'TV', icon: 'tv' },
+      { id: 'aire_acondicionado', nombre: 'Aire acondicionado', icon: 'snow' }
+    ]
+  };
+
+  const equipamientoDisponible = [
+    { id: 'proyector', nombre: 'Proyector', icon: 'videocam' },
+    { id: 'pantalla', nombre: 'Pantalla', icon: 'tablet-landscape' },
+    { id: 'audio', nombre: 'Sistema de audio', icon: 'volume-high' },
+    { id: 'videoconferencia', nombre: 'Videoconferencia', icon: 'videocam' },
+    { id: 'pizarra', nombre: 'Pizarra', icon: 'clipboard' },
+    { id: 'tv', nombre: 'TV', icon: 'tv' },
+    { id: 'impresora', nombre: 'Impresora', icon: 'print' },
+    { id: 'scanner', nombre: 'Scanner', icon: 'scan' },
+    { id: 'telefono', nombre: 'Teléfono', icon: 'call' },
+    { id: 'internet', nombre: 'Internet', icon: 'globe' }
+  ];
+
+  const diasSemana = [
+    { id: 'lunes', nombre: 'Lun', nombreCompleto: 'Lunes' },
+    { id: 'martes', nombre: 'Mar', nombreCompleto: 'Martes' },
+    { id: 'miércoles', nombre: 'Mié', nombreCompleto: 'Miércoles' },
+    { id: 'jueves', nombre: 'Jue', nombreCompleto: 'Jueves' },
+    { id: 'viernes', nombre: 'Vie', nombreCompleto: 'Viernes' },
+    { id: 'sábado', nombre: 'Sáb', nombreCompleto: 'Sábado' },
+    { id: 'domingo', nombre: 'Dom', nombreCompleto: 'Domingo' }
+  ];
+
+  const tipoActual = tipos.find(t => t.id === editData.tipo);
+
+  return (
+    <ScrollView style={styles.editSection} showsVerticalScrollIndicator={false}>
+      {/* Selector de tipo de espacio mejorado */}
+      <View style={styles.editField}>
+        <Text style={styles.sectionTitleEdit}>Tipo de espacio</Text>
+        <View style={styles.tiposGridContainer}>
+          {tipos.map(tipo => (
+            <TouchableOpacity
+              key={tipo.id}
+              style={[
+                styles.tipoCardEdit,
+                editData.tipo === tipo.id && [styles.tipoCardEditActive, { borderColor: tipo.color }]
+              ]}
+              onPress={() => setEditData({ ...editData, tipo: tipo.id, configuracion: '' })}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.tipoIconContainer, { backgroundColor: tipo.color + '20' }]}>
+                <Ionicons name={tipo.icon} size={24} color={tipo.color} />
+              </View>
+              <Text style={[
+                styles.tipoNombreEdit,
+                editData.tipo === tipo.id && { color: tipo.color, fontWeight: 'bold' }
+              ]}>
+                {tipo.nombre}
+              </Text>
+              {editData.tipo === tipo.id && (
+                <View style={[styles.tipoCheckmark, { backgroundColor: tipo.color }]}>
+                  <Ionicons name="checkmark" size={12} color="#fff" />
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Subtipos si están disponibles */}
+      {tipoActual?.subtipos.length > 0 && (
+        <View style={styles.editField}>
+          <Text style={styles.editLabel}>Tipo específico de {tipoActual.nombre.toLowerCase()} *</Text>
+          <View style={styles.subtiposContainer}>
+            {tipoActual.subtipos.map(subtipo => (
+              <TouchableOpacity
+                key={subtipo.id}
+                style={[
+                  styles.subtipoCard,
+                  editData.configuracion === subtipo.id && [styles.subtipoCardActive, { borderColor: tipoActual.color }]
+                ]}
+                onPress={() => setEditData({ ...editData, configuracion: subtipo.id })}
+                activeOpacity={0.7}
+              >
+                <View style={styles.subtipoHeader}>
+                  <Text style={[
+                    styles.subtipoNombre,
+                    editData.configuracion === subtipo.id && { color: tipoActual.color }
+                  ]}>
+                    {subtipo.nombre}
+                  </Text>
+                  {editData.configuracion === subtipo.id && (
+                    <Ionicons name="checkmark-circle" size={20} color={tipoActual.color} />
+                  )}
+                </View>
+                <Text style={styles.subtipoDescripcion}>{subtipo.descripcion}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      <View style={styles.editField}>
+        <Text style={styles.editLabel}>Nombre del espacio *</Text>
+        <TextInput
+          style={styles.editInput}
+          value={editData.nombre || ''}
+          onChangeText={(text) => setEditData({ ...editData, nombre: text })}
+          placeholder="Nombre del espacio"
+        />
+      </View>
+
+      <View style={styles.editField}>
+        <Text style={styles.editLabel}>Descripción *</Text>
+        <TextInput
+          style={[styles.editInput, styles.editInputMultiline]}
+          value={editData.descripcion || ''}
+          onChangeText={(text) => setEditData({ ...editData, descripcion: text })}
+          multiline
+          numberOfLines={4}
+          placeholder="Describe tu espacio..."
+        />
+      </View>
+
+      <View style={styles.editRow}>
+        {tipoActual?.requiereCapacidad && (
+          <View style={editData.tipo === 'oficina' ? styles.editFieldHalf : styles.editField}>
+            <Text style={styles.editLabel}>Capacidad (personas) *</Text>
+            <TextInput
+              style={styles.editInput}
+              value={editData.capacidadPersonas || ''}
+              onChangeText={(text) => setEditData({ ...editData, capacidadPersonas: text })}
+              placeholder="8"
+              keyboardType="numeric"
+            />
+          </View>
+        )}
+
+        {editData.tipo === 'oficina' && (
+          <View style={styles.editFieldHalf}>
+            <Text style={styles.editLabel}>Superficie (m²)</Text>
+            <TextInput
+              style={styles.editInput}
+              value={editData.superficieM2 || ''}
+              onChangeText={(text) => setEditData({ ...editData, superficieM2: text })}
+              placeholder="50"
+              keyboardType="numeric"
+            />
+          </View>
+        )}
+      </View>
+
+      {/* Sección de ubicación mejorada */}
+      <View style={styles.editField}>
+        <Text style={styles.sectionTitleEdit}>📍 Ubicación</Text>
+
+        <View style={styles.ubicacionCard}>
+          <View style={styles.direccionSection}>
+            <Text style={styles.subsectionTitle}>Dirección principal</Text>
+
+            <View style={styles.editRow}>
+              <View style={styles.editFieldTwoThirds}>
+                <Text style={styles.editLabel}>Calle *</Text>
+                <TextInput
+                  style={styles.editInput}
+                  placeholder="Ej: 18 de Julio"
+                  value={editData.ubicacion?.direccionCompleta?.calle || ''}
+                  onChangeText={(text) => setEditData({
+                    ...editData,
+                    ubicacion: {
+                      ...editData.ubicacion,
+                      direccionCompleta: {
+                        ...editData.ubicacion?.direccionCompleta,
+                        calle: text
+                      }
+                    }
+                  })}
+                />
+              </View>
+              <View style={styles.editFieldOneThird}>
+                <Text style={styles.editLabel}>Número *</Text>
+                <TextInput
+                  style={styles.editInput}
+                  placeholder="1234"
+                  value={editData.ubicacion?.direccionCompleta?.numero || ''}
+                  onChangeText={(text) => setEditData({
+                    ...editData,
+                    ubicacion: {
+                      ...editData.ubicacion,
+                      direccionCompleta: {
+                        ...editData.ubicacion?.direccionCompleta,
+                        numero: text
+                      }
+                    }
+                  })}
+                />
+              </View>
+            </View>
+
+            <View style={styles.editRow}>
+              <View style={styles.editFieldHalf}>
+                <Text style={styles.editLabel}>Ciudad *</Text>
+                <TextInput
+                  style={styles.editInput}
+                  placeholder="Montevideo"
+                  value={editData.ubicacion?.direccionCompleta?.ciudad || ''}
+                  onChangeText={(text) => setEditData({
+                    ...editData,
+                    ubicacion: {
+                      ...editData.ubicacion,
+                      direccionCompleta: {
+                        ...editData.ubicacion?.direccionCompleta,
+                        ciudad: text
+                      }
+                    }
+                  })}
+                />
+              </View>
+              <View style={styles.editFieldHalf}>
+                <Text style={styles.editLabel}>Departamento *</Text>
+                <TextInput
+                  style={styles.editInput}
+                  placeholder="Montevideo"
+                  value={editData.ubicacion?.direccionCompleta?.departamento || ''}
+                  onChangeText={(text) => setEditData({
+                    ...editData,
+                    ubicacion: {
+                      ...editData.ubicacion,
+                      direccionCompleta: {
+                        ...editData.ubicacion?.direccionCompleta,
+                        departamento: text
+                      }
+                    }
+                  })}
+                />
+              </View>
+            </View>
+
+            <View style={styles.editRow}>
+              <View style={styles.editFieldHalf}>
+                <Text style={styles.editLabel}>Código Postal *</Text>
+                <TextInput
+                  style={styles.editInput}
+                  placeholder="11000"
+                  value={editData.ubicacion?.direccionCompleta?.codigoPostal || ''}
+                  onChangeText={(text) => setEditData({
+                    ...editData,
+                    ubicacion: {
+                      ...editData.ubicacion,
+                      direccionCompleta: {
+                        ...editData.ubicacion?.direccionCompleta,
+                        codigoPostal: text
+                      }
+                    }
+                  })}
+                />
+              </View>
+              <View style={styles.editFieldHalf}>
+                <Text style={styles.editLabel}>Piso *</Text>
+                <TextInput
+                  style={styles.editInput}
+                  placeholder="1, 2, 3..."
+                  value={editData.ubicacion?.piso || ''}
+                  onChangeText={(text) => setEditData({
+                    ...editData,
+                    ubicacion: {
+                      ...editData.ubicacion,
+                      piso: text
+                    }
+                  })}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.ubicacionEspecifica}>
+            <Text style={styles.subsectionTitle}>Ubicación específica</Text>
+
+            {tipoActual?.requiereNumero && (
+              <View style={styles.editField}>
+                <Text style={styles.editLabel}>
+                  Número de {editData.tipo === 'oficina' ? 'oficina' : editData.tipo === 'sala' ? 'sala' : 'escritorio'} *
+                </Text>
+                <TextInput
+                  style={styles.editInput}
+                  placeholder="Ej: 101, A-5, Mesa 12"
+                  value={editData.ubicacion?.numero || ''}
+                  onChangeText={(text) => setEditData({
+                    ...editData,
+                    ubicacion: {
+                      ...editData.ubicacion,
+                      numero: text
+                    }
+                  })}
+                />
+              </View>
+            )}
+
+            {tipoActual?.requiereZona && (
+              <View style={styles.editField}>
+                <Text style={styles.editLabel}>Zona *</Text>
+                <TextInput
+                  style={styles.editInput}
+                  placeholder="Ej: Zona A, Open Space, Área Norte"
+                  value={editData.ubicacion?.zona || ''}
+                  onChangeText={(text) => setEditData({
+                    ...editData,
+                    ubicacion: {
+                      ...editData.ubicacion,
+                      zona: text
+                    }
+                  })}
+                />
+              </View>
+            )}
+
+            {tipoActual?.requiereSector && (
+              <View style={styles.editField}>
+                <Text style={styles.editLabel}>Sector *</Text>
+                <TextInput
+                  style={styles.editInput}
+                  placeholder="Ej: Norte, Sur, Principal"
+                  value={editData.ubicacion?.sector || ''}
+                  onChangeText={(text) => setEditData({
+                    ...editData,
+                    ubicacion: {
+                      ...editData.ubicacion,
+                      sector: text
+                    }
+                  })}
+                />
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.editField}>
+        <Text style={styles.sectionTitleEdit}>💰 Precios</Text>
+        <View style={styles.preciosContainer}>
+          <View style={styles.editRow}>
+            <View style={styles.editFieldThird}>
+              <Text style={styles.editLabel}>
+                Por hora {tipoActual?.requierePrecioHora ? '*' : ''}
+              </Text>
+              <View style={styles.precioInputContainer}>
+                <Text style={styles.precioMoneda}>USD</Text>
+                <TextInput
+                  style={styles.precioInput}
+                  placeholder="0"
+                  value={editData.precios?.porHora || ''}
+                  onChangeText={(text) => setEditData({
+                    ...editData,
+                    precios: { ...editData.precios, porHora: text }
+                  })}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+            <View style={styles.editFieldThird}>
+              <Text style={styles.editLabel}>
+                Por día {editData.tipo === 'escritorio' ? '*' : ''}
+              </Text>
+              <View style={styles.precioInputContainer}>
+                <Text style={styles.precioMoneda}>USD</Text>
+                <TextInput
+                  style={styles.precioInput}
+                  placeholder="0"
+                  value={editData.precios?.porDia || ''}
+                  onChangeText={(text) => setEditData({
+                    ...editData,
+                    precios: { ...editData.precios, porDia: text }
+                  })}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+            <View style={styles.editFieldThird}>
+              <Text style={styles.editLabel}>Por mes</Text>
+              <View style={styles.precioInputContainer}>
+                <Text style={styles.precioMoneda}>USD</Text>
+                <TextInput
+                  style={styles.precioInput}
+                  placeholder="0"
+                  value={editData.precios?.porMes || ''}
+                  onChangeText={(text) => setEditData({
+                    ...editData,
+                    precios: { ...editData.precios, porMes: text }
+                  })}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.editField}>
+        <Text style={styles.sectionTitleEdit}>🕐 Horario disponible</Text>
+        <View style={styles.horarioContainer}>
+          <View style={styles.editRow}>
+            <View style={styles.editFieldHalf}>
+              <Text style={styles.editLabel}>Apertura</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editData.disponibilidad?.horario?.apertura || '09:00'}
+                onChangeText={(text) => setEditData({
+                  ...editData,
+                  disponibilidad: {
+                    ...editData.disponibilidad,
+                    horario: { ...editData.disponibilidad?.horario, apertura: text }
+                  }
+                })}
+                placeholder="09:00"
+              />
+            </View>
+
+            <View style={styles.editFieldHalf}>
+              <Text style={styles.editLabel}>Cierre</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editData.disponibilidad?.horario?.cierre || '18:00'}
+                onChangeText={(text) => setEditData({
+                  ...editData,
+                  disponibilidad: {
+                    ...editData.disponibilidad,
+                    horario: { ...editData.disponibilidad?.horario, cierre: text }
+                  }
+                })}
+                placeholder="18:00"
+              />
+            </View>
+          </View>
+
+          <Text style={styles.editLabel}>Días disponibles</Text>
+          <View style={styles.diasGrid}>
+            {diasSemana.map(dia => (
+              <TouchableOpacity
+                key={dia.id}
+                style={[
+                  styles.diaButton,
+                  (editData.disponibilidad?.dias || []).includes(dia.id) && styles.diaButtonActive
+                ]}
+                onPress={() => toggleDiaEdit(dia.id)}
+                activeOpacity={0.7}
+              >
+                <Text style={[
+                  styles.diaText,
+                  (editData.disponibilidad?.dias || []).includes(dia.id) && styles.diaTextActive
+                ]}>
+                  {dia.nombre}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.editField}>
+        <Text style={styles.sectionTitleEdit}>📸 Imágenes *</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagenesScrollContainer}>
+          <TouchableOpacity
+            style={[styles.addImageButtonEdit, uploadingImage && styles.addImageButtonEditDisabled]}
+            onPress={selectImageEdit}
+            disabled={uploadingImage}
+            activeOpacity={0.7}
+          >
+            {uploadingImage ? (
+              <View style={styles.uploadingContainer}>
+                <ActivityIndicator size="small" color="#4a90e2" />
+                <Text style={styles.uploadingTextEdit}>Subiendo...</Text>
+              </View>
+            ) : (
+              <View style={styles.addImageContent}>
+                <Ionicons name="camera" size={32} color="#4a90e2" />
+                <Text style={styles.addImageTextEdit}>Agregar</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          {(editingImages || []).map((uri, index) => (
+            <View key={index} style={styles.imageContainerEdit}>
+              <Image source={{ uri }} style={styles.previewImageEdit} />
+              <TouchableOpacity
+                style={styles.removeImageButtonEdit}
+                onPress={() => removeImageEdit(index)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close-circle" size={24} color="#e74c3c" />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+
+      <View style={styles.editField}>
+        <Text style={styles.sectionTitleEdit}>
+          ✨ {editData.tipo === 'sala' ? 'Equipamiento' : 'Amenidades'}
+        </Text>
+        <View style={styles.caracteristicasGrid}>
+          {amenidadesDisponibles[editData.tipo]?.map(amenidad => (
+            <TouchableOpacity
+              key={amenidad.id}
+              style={[
+                styles.caracteristicaCard,
+                (editData.amenidades || []).includes(amenidad.id) && styles.caracteristicaCardActive
+              ]}
+              onPress={() => toggleAmenidadEdit(amenidad.id)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.caracteristicaIconContainer}>
+                <Ionicons
+                  name={amenidad.icon}
+                  size={20}
+                  color={(editData.amenidades || []).includes(amenidad.id) ? '#4a90e2' : '#7f8c8d'}
+                />
+              </View>
+              <Text style={[
+                styles.caracteristicaText,
+                (editData.amenidades || []).includes(amenidad.id) && styles.caracteristicaTextActive
+              ]}>
+                {amenidad.nombre}
+              </Text>
+              {(editData.amenidades || []).includes(amenidad.id) && (
+                <View style={styles.caracteristicaCheck}>
+                  <Ionicons name="checkmark" size={12} color="#fff" />
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.editField}>
+        <Text style={styles.sectionTitleEdit}>🔧 Equipamiento adicional</Text>
+        <View style={styles.caracteristicasGrid}>
+          {equipamientoDisponible.map(equipo => (
+            <TouchableOpacity
+              key={equipo.id}
+              style={[
+                styles.caracteristicaCard,
+                (editData.equipamiento || []).includes(equipo.nombre) && styles.caracteristicaCardActive
+              ]}
+              onPress={() => toggleEquipamientoEdit(equipo.nombre)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.caracteristicaIconContainer}>
+                <Ionicons
+                  name={equipo.icon}
+                  size={20}
+                  color={(editData.equipamiento || []).includes(equipo.nombre) ? '#4a90e2' : '#7f8c8d'}
+                />
+              </View>
+              <Text style={[
+                styles.caracteristicaText,
+                (editData.equipamiento || []).includes(equipo.nombre) && styles.caracteristicaTextActive
+              ]}>
+                {equipo.nombre}
+              </Text>
+              {(editData.equipamiento || []).includes(equipo.nombre) && (
+                <View style={styles.caracteristicaCheck}>
+                  <Ionicons name="checkmark" size={12} color="#fff" />
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.editField}>
+        <Text style={styles.sectionTitleEdit}>📊 Estado del espacio</Text>
+        <View style={styles.estadoContainer}>
+          {[
+            { id: 'disponible', nombre: 'Disponible', color: '#27ae60', icon: 'checkmark-circle' },
+            { id: 'ocupado', nombre: 'Ocupado', color: '#f39c12', icon: 'time' },
+            { id: 'mantenimiento', nombre: 'Mantenimiento', color: '#e74c3c', icon: 'construct' }
+          ].map(estado => (
+            <TouchableOpacity
+              key={estado.id}
+              style={[
+                styles.estadoCard,
+                editData.estado === estado.id && [styles.estadoCardActive, { borderColor: estado.color }]
+              ]}
+              onPress={() => setEditData({ ...editData, estado: estado.id })}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.estadoIconContainer, { backgroundColor: estado.color + '20' }]}>
+                <Ionicons name={estado.icon} size={20} color={estado.color} />
+              </View>
+              <Text style={[
+                styles.estadoText,
+                editData.estado === estado.id && { color: estado.color, fontWeight: 'bold' }
+              ]}>
+                {estado.nombre}
+              </Text>
+              {editData.estado === estado.id && (
+                <View style={[styles.estadoCheck, { backgroundColor: estado.color }]}>
+                  <Ionicons name="checkmark" size={12} color="#fff" />
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.editButtons}>
+        <TouchableOpacity
+          style={[styles.editButtonStyle, styles.cancelButton]}
+          onPress={handleCancel}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="close" size={20} color="#6c757d" />
+          <Text style={styles.cancelButtonText}>Cancelar</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.editButtonStyle, styles.saveButton]}
+          onPress={handleSave}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="checkmark" size={20} color="#fff" />
+          <Text style={styles.saveButtonText}>Guardar cambios</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+};
+
 const DetalleOficina = ({ navigation, route }) => {
+  const [shouldNavigateBack, setShouldNavigateBack] = useState(false);
+
+  useEffect(() => {
+    if (!route?.params?.oficina) {
+      Alert.alert('Error', 'No se encontraron los datos de la oficina', [
+        { text: 'OK', onPress: () => setShouldNavigateBack(true) }
+      ]);
+      return;
+    }
+
+    const { oficina } = route.params;
+    if (!oficina.id || !oficina.tipo) {
+      Alert.alert('Error', 'Datos de oficina incompletos', [
+        { text: 'OK', onPress: () => setShouldNavigateBack(true) }
+      ]);
+      return;
+    }
+  }, [route?.params]);
+
+  useEffect(() => {
+    if (shouldNavigateBack) {
+      navigation.goBack();
+    }
+  }, [shouldNavigateBack, navigation]);
+
   if (!route?.params?.oficina) {
-    Alert.alert('Error', 'No se encontraron los datos de la oficina');
-    navigation.goBack();
-    return null;
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4a90e2" />
+          <Text style={styles.loadingText}>Cargando...</Text>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   const { oficina, esPropia, espacio } = route.params;
+
+  if (!oficina.id || !oficina.tipo) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={60} color="#e74c3c" />
+          <Text style={styles.errorText}>Datos de oficina incompletos</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const dispatch = useDispatch();
 
   const { tipoUsuario } = useSelector(state => state.auth);
@@ -51,7 +839,7 @@ const DetalleOficina = ({ navigation, route }) => {
     capacidadPersonas: '',
     ubicacion: {
       edificioId: '',
-      piso: '',
+      piso: '1',
       numero: '',
       zona: '',
       sector: '',
@@ -62,9 +850,9 @@ const DetalleOficina = ({ navigation, route }) => {
       direccionCompleta: {
         calle: '',
         numero: '',
-        ciudad: '',
-        departamento: '',
-        codigoPostal: '',
+        ciudad: 'Montevideo',
+        departamento: 'Montevideo',
+        codigoPostal: '11000',
         pais: 'Uruguay'
       }
     },
@@ -445,7 +1233,7 @@ const DetalleOficina = ({ navigation, route }) => {
 
     const espacioActual = datosEspacio;
 
-    setEditData({
+    const editDataInitial = {
       nombre: oficina.nombre || '',
       descripcion: detalle.descripcion || '',
       tipo: oficina.tipo || 'oficina',
@@ -455,7 +1243,7 @@ const DetalleOficina = ({ navigation, route }) => {
 
       ubicacion: {
         edificioId: espacioActual?.ubicacion?.edificioId || '',
-        piso: espacioActual?.ubicacion?.piso?.toString() || '',
+        piso: espacioActual?.ubicacion?.piso?.toString() || '1',
         numero: espacioActual?.ubicacion?.numero || '',
         zona: espacioActual?.ubicacion?.zona || '',
         sector: espacioActual?.ubicacion?.sector || '',
@@ -464,11 +1252,11 @@ const DetalleOficina = ({ navigation, route }) => {
           lng: espacioActual?.ubicacion?.coordenadas?.lng || null
         },
         direccionCompleta: {
-          calle: espacioActual?.ubicacion?.direccionCompleta?.calle || '',
-          numero: espacioActual?.ubicacion?.direccionCompleta?.numero || '',
-          ciudad: espacioActual?.ubicacion?.direccionCompleta?.ciudad || '',
-          departamento: espacioActual?.ubicacion?.direccionCompleta?.departamento || '',
-          codigoPostal: espacioActual?.ubicacion?.direccionCompleta?.codigoPostal || '',
+          calle: espacioActual?.ubicacion?.direccionCompleta?.calle || oficina.direccion?.split(' ')[0] || '',
+          numero: espacioActual?.ubicacion?.direccionCompleta?.numero || oficina.direccion?.split(' ')[1] || '',
+          ciudad: espacioActual?.ubicacion?.direccionCompleta?.ciudad || 'Montevideo',
+          departamento: espacioActual?.ubicacion?.direccionCompleta?.departamento || 'Montevideo',
+          codigoPostal: espacioActual?.ubicacion?.direccionCompleta?.codigoPostal || '11000',
           pais: espacioActual?.ubicacion?.direccionCompleta?.pais || 'Uruguay'
         }
       },
@@ -479,9 +1267,12 @@ const DetalleOficina = ({ navigation, route }) => {
         porMes: espacioActual?.precios?.porMes?.toString() || ''
       },
 
-      amenidades: detalle.amenidades || [],
+      amenidades: Array.isArray(detalle.amenidades) ? detalle.amenidades : [],
       equipamiento: Array.isArray(espacioActual?.equipamiento)
-        ? espacioActual.equipamiento.map(item => item.tipo || item.nombre || item)
+        ? espacioActual.equipamiento.map(item => {
+          if (typeof item === 'string') return item;
+          return item.tipo || item.nombre || item;
+        })
         : [],
 
       disponibilidad: {
@@ -499,8 +1290,11 @@ const DetalleOficina = ({ navigation, route }) => {
       },
 
       estado: espacioActual?.estado || 'disponible'
-    });
+    };
 
+    console.log('EditData inicializado:', editDataInitial); // Para debug
+
+    setEditData(editDataInitial);
     setEditingImages(espacioActual?.imagenes || []);
     setIsEditing(true);
   };
@@ -842,608 +1636,6 @@ const DetalleOficina = ({ navigation, route }) => {
     setEditingImages([]);
   };
 
-  const FormularioEdicionCompleta = () => {
-    const tipos = [
-      {
-        id: 'oficina',
-        nombre: 'Oficina',
-        subtipos: ['privada', 'compartida', 'coworking'],
-        requiereNumero: true,
-        requiereCapacidad: true
-      },
-      {
-        id: 'espacio',
-        nombre: 'Espacio',
-        subtipos: [],
-        requiereSector: true,
-        requiereCapacidad: true
-      },
-      {
-        id: 'escritorio',
-        nombre: 'Escritorio',
-        subtipos: ['individual', 'compartido', 'standing'],
-        requiereZona: true,
-        requiereNumero: true
-      },
-      {
-        id: 'sala',
-        nombre: 'Sala de reuniones',
-        subtipos: ['mesa_redonda', 'auditorio', 'en_u', 'aula', 'flexible'],
-        requiereNumero: true,
-        requiereCapacidad: true,
-        requierePrecioHora: true
-      }
-    ];
-
-    const amenidadesDisponibles = {
-      oficina: ['wifi', 'aire_acondicionado', 'seguridad', 'parking', 'cocina', 'baño_privado'],
-      espacio: ['wifi', 'aire_acondicionado', 'seguridad', 'parking', 'flexible'],
-      escritorio: ['monitor', 'teclado', 'mouse', 'reposapiés', 'lampara'],
-      sala: ['proyector', 'videoconferencia', 'pizarra', 'tv', 'aire_acondicionado']
-    };
-
-    const equipamientoDisponible = [
-      'Proyector', 'Pantalla', 'Sistema de audio', 'Videoconferencia',
-      'Pizarra', 'TV', 'Impresora', 'Scanner', 'Teléfono', 'Internet'
-    ];
-
-    const diasSemana = [
-      'lunes', 'martes', 'miércoles', 'jueves',
-      'viernes', 'sábado', 'domingo'
-    ];
-
-    const tipoActual = tipos.find(t => t.id === editData.tipo);
-
-    return (
-      <ScrollView style={styles.editSection} showsVerticalScrollIndicator={false}>
-        <View style={styles.editField}>
-          <Text style={styles.editLabel}>Tipo de espacio</Text>
-          <View style={styles.tiposContainer}>
-            {tipos.map(tipo => (
-              <TouchableOpacity
-                key={tipo.id}
-                style={[
-                  styles.tipoButtonEdit,
-                  editData.tipo === tipo.id && styles.tipoButtonEditActive
-                ]}
-                onPress={() => setEditData({ ...editData, tipo: tipo.id })}
-              >
-                <Text style={[
-                  styles.tipoTextEdit,
-                  editData.tipo === tipo.id && styles.tipoTextEditActive
-                ]}>
-                  {tipo.nombre}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {tipoActual?.subtipos.length > 0 && (
-          <View style={styles.editField}>
-            <Text style={styles.editLabel}>
-              {editData.tipo === 'sala' ? 'Configuración' : 'Tipo'} *
-            </Text>
-            <View style={styles.subtiposContainer}>
-              {tipoActual.subtipos.map(subtipo => (
-                <TouchableOpacity
-                  key={subtipo}
-                  style={[
-                    styles.subtipoButtonEdit,
-                    editData.configuracion === subtipo && styles.subtipoButtonEditActive
-                  ]}
-                  onPress={() => setEditData({ ...editData, configuracion: subtipo })}
-                >
-                  <Text style={[
-                    styles.subtipoTextEdit,
-                    editData.configuracion === subtipo && styles.subtipoTextEditActive
-                  ]}>
-                    {subtipo.replace('_', ' ').toUpperCase()}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        <View style={styles.editField}>
-          <Text style={styles.editLabel}>Nombre del espacio *</Text>
-          <TextInput
-            style={styles.editInput}
-            value={editData.nombre}
-            onChangeText={(text) => setEditData({ ...editData, nombre: text })}
-            placeholder="Nombre del espacio"
-          />
-        </View>
-
-        <View style={styles.editField}>
-          <Text style={styles.editLabel}>Descripción *</Text>
-          <TextInput
-            style={[styles.editInput, styles.editInputMultiline]}
-            value={editData.descripcion}
-            onChangeText={(text) => setEditData({ ...editData, descripcion: text })}
-            multiline
-            numberOfLines={4}
-            placeholder="Describe tu espacio..."
-          />
-        </View>
-
-        <View style={styles.editRow}>
-          {tipoActual?.requiereCapacidad && (
-            <View style={editData.tipo === 'oficina' ? styles.editFieldHalf : styles.editField}>
-              <Text style={styles.editLabel}>Capacidad (personas) *</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editData.capacidadPersonas}
-                onChangeText={(text) => setEditData({ ...editData, capacidadPersonas: text })}
-                placeholder="8"
-                keyboardType="numeric"
-              />
-            </View>
-          )}
-
-          {editData.tipo === 'oficina' && (
-            <View style={styles.editFieldHalf}>
-              <Text style={styles.editLabel}>Superficie (m²)</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editData.superficieM2}
-                onChangeText={(text) => setEditData({ ...editData, superficieM2: text })}
-                placeholder="50"
-                keyboardType="numeric"
-              />
-            </View>
-          )}
-        </View>
-
-        <View style={styles.editField}>
-          <Text style={styles.sectionTitleEdit}>Ubicación</Text>
-
-          <Text style={styles.editLabel}>Calle *</Text>
-          <TextInput
-            style={styles.editInput}
-            placeholder="Nombre de la calle"
-            value={editData.ubicacion.direccionCompleta.calle}
-            onChangeText={(text) => setEditData({
-              ...editData,
-              ubicacion: {
-                ...editData.ubicacion,
-                direccionCompleta: {
-                  ...editData.ubicacion.direccionCompleta,
-                  calle: text
-                }
-              }
-            })}
-          />
-
-          <View style={styles.editRow}>
-            <View style={styles.editFieldHalf}>
-              <Text style={styles.editLabel}>Número *</Text>
-              <TextInput
-                style={styles.editInput}
-                placeholder="1234"
-                value={editData.ubicacion.direccionCompleta.numero}
-                onChangeText={(text) => setEditData({
-                  ...editData,
-                  ubicacion: {
-                    ...editData.ubicacion,
-                    direccionCompleta: {
-                      ...editData.ubicacion.direccionCompleta,
-                      numero: text
-                    }
-                  }
-                })}
-              />
-            </View>
-            <View style={styles.editFieldHalf}>
-              <Text style={styles.editLabel}>Piso *</Text>
-              <TextInput
-                style={styles.editInput}
-                placeholder="1, 2, 3..."
-                value={editData.ubicacion.piso}
-                onChangeText={(text) => setEditData({
-                  ...editData,
-                  ubicacion: {
-                    ...editData.ubicacion,
-                    piso: text
-                  }
-                })}
-                keyboardType="numeric"
-              />
-            </View>
-          </View>
-
-          {tipoActual?.requiereNumero && (
-            <>
-              <Text style={styles.editLabel}>
-                Número de {editData.tipo === 'oficina' ? 'oficina' : editData.tipo === 'sala' ? 'sala' : 'escritorio'} *
-              </Text>
-              <TextInput
-                style={styles.editInput}
-                placeholder="Ej: 101, A-5, etc."
-                value={editData.ubicacion.numero}
-                onChangeText={(text) => setEditData({
-                  ...editData,
-                  ubicacion: {
-                    ...editData.ubicacion,
-                    numero: text
-                  }
-                })}
-              />
-            </>
-          )}
-
-          {tipoActual?.requiereZona && (
-            <>
-              <Text style={styles.editLabel}>Zona *</Text>
-              <TextInput
-                style={styles.editInput}
-                placeholder="Ej: Zona A, Open Space, etc."
-                value={editData.ubicacion.zona}
-                onChangeText={(text) => setEditData({
-                  ...editData,
-                  ubicacion: {
-                    ...editData.ubicacion,
-                    zona: text
-                  }
-                })}
-              />
-            </>
-          )}
-
-          {tipoActual?.requiereSector && (
-            <>
-              <Text style={styles.editLabel}>Sector *</Text>
-              <TextInput
-                style={styles.editInput}
-                placeholder="Ej: Norte, Sur, Principal, etc."
-                value={editData.ubicacion.sector}
-                onChangeText={(text) => setEditData({
-                  ...editData,
-                  ubicacion: {
-                    ...editData.ubicacion,
-                    sector: text
-                  }
-                })}
-              />
-            </>
-          )}
-
-          <View style={styles.editRow}>
-            <View style={styles.editFieldHalf}>
-              <Text style={styles.editLabel}>Ciudad *</Text>
-              <TextInput
-                style={styles.editInput}
-                placeholder="Montevideo"
-                value={editData.ubicacion.direccionCompleta.ciudad}
-                onChangeText={(text) => setEditData({
-                  ...editData,
-                  ubicacion: {
-                    ...editData.ubicacion,
-                    direccionCompleta: {
-                      ...editData.ubicacion.direccionCompleta,
-                      ciudad: text
-                    }
-                  }
-                })}
-              />
-            </View>
-            <View style={styles.editFieldHalf}>
-              <Text style={styles.editLabel}>Departamento *</Text>
-              <TextInput
-                style={styles.editInput}
-                placeholder="Montevideo"
-                value={editData.ubicacion.direccionCompleta.departamento}
-                onChangeText={(text) => setEditData({
-                  ...editData,
-                  ubicacion: {
-                    ...editData.ubicacion,
-                    direccionCompleta: {
-                      ...editData.ubicacion.direccionCompleta,
-                      departamento: text
-                    }
-                  }
-                })}
-              />
-            </View>
-          </View>
-
-          <Text style={styles.editLabel}>Código Postal *</Text>
-          <TextInput
-            style={styles.editInput}
-            placeholder="11000"
-            value={editData.ubicacion.direccionCompleta.codigoPostal}
-            onChangeText={(text) => setEditData({
-              ...editData,
-              ubicacion: {
-                ...editData.ubicacion,
-                direccionCompleta: {
-                  ...editData.ubicacion.direccionCompleta,
-                  codigoPostal: text
-                }
-              }
-            })}
-          />
-
-          <View style={styles.mapSectionEdit}>
-            <View style={styles.mapSectionHeaderEdit}>
-              <Ionicons name="location" size={20} color="#4a90e2" />
-              <Text style={styles.mapSectionTitleEdit}>Ubicación en el mapa *</Text>
-            </View>
-
-            {editData.ubicacion.coordenadas.lat && editData.ubicacion.coordenadas.lng ? (
-              <View style={styles.locationSelectedEdit}>
-                <View style={styles.locationInfoEdit}>
-                  <View style={styles.locationIconEdit}>
-                    <Ionicons name="checkmark-circle" size={20} color="#27ae60" />
-                  </View>
-                  <View style={styles.locationDetailsEdit}>
-                    <Text style={styles.locationLabelEdit}>Coordenadas confirmadas</Text>
-                    <Text style={styles.locationCoordsEdit}>
-                      {editData.ubicacion.coordenadas.lat.toFixed(6)}, {editData.ubicacion.coordenadas.lng.toFixed(6)}
-                    </Text>
-                  </View>
-                </View>
-                <TouchableOpacity
-                  style={styles.editLocationBtnEdit}
-                  onPress={abrirMapaEdit}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="pencil" size={16} color="#4a90e2" />
-                  <Text style={styles.editLocationTextEdit}>Editar</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={styles.selectLocationCardEdit}
-                onPress={abrirMapaEdit}
-                activeOpacity={0.7}
-              >
-                <View style={styles.selectLocationContentEdit}>
-                  <View style={styles.mapIconContainerEdit}>
-                    <Ionicons name="map" size={32} color="#4a90e2" />
-                  </View>
-                  <View style={styles.selectLocationTextsEdit}>
-                    <Text style={styles.selectLocationTitleEdit}>Seleccionar en el mapa</Text>
-                    <Text style={styles.selectLocationSubtitleEdit}>
-                      Toca para abrir el mapa y marcar la ubicación exacta
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color="#bdc3c7" />
-                </View>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        <View style={styles.editField}>
-          <Text style={styles.sectionTitleEdit}>Precios</Text>
-          <View style={styles.editRow}>
-            <View style={styles.editFieldThird}>
-              <Text style={styles.editLabel}>
-                Por hora {tipoActual?.requierePrecioHora ? '*' : ''}
-              </Text>
-              <TextInput
-                style={styles.editInput}
-                placeholder="USD"
-                value={editData.precios.porHora}
-                onChangeText={(text) => setEditData({
-                  ...editData,
-                  precios: { ...editData.precios, porHora: text }
-                })}
-                keyboardType="numeric"
-              />
-            </View>
-            <View style={styles.editFieldThird}>
-              <Text style={styles.editLabel}>
-                Por día {editData.tipo === 'escritorio' ? '*' : ''}
-              </Text>
-              <TextInput
-                style={styles.editInput}
-                placeholder="USD"
-                value={editData.precios.porDia}
-                onChangeText={(text) => setEditData({
-                  ...editData,
-                  precios: { ...editData.precios, porDia: text }
-                })}
-                keyboardType="numeric"
-              />
-            </View>
-            <View style={styles.editFieldThird}>
-              <Text style={styles.editLabel}>Por mes</Text>
-              <TextInput
-                style={styles.editInput}
-                placeholder="USD"
-                value={editData.precios.porMes}
-                onChangeText={(text) => setEditData({
-                  ...editData,
-                  precios: { ...editData.precios, porMes: text }
-                })}
-                keyboardType="numeric"
-              />
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.editField}>
-          <Text style={styles.sectionTitleEdit}>Horario disponible</Text>
-          <View style={styles.editRow}>
-            <View style={styles.editFieldHalf}>
-              <Text style={styles.editLabel}>Apertura</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editData.disponibilidad.horario.apertura}
-                onChangeText={(text) => setEditData({
-                  ...editData,
-                  disponibilidad: {
-                    ...editData.disponibilidad,
-                    horario: { ...editData.disponibilidad.horario, apertura: text }
-                  }
-                })}
-                placeholder="09:00"
-              />
-            </View>
-
-            <View style={styles.editFieldHalf}>
-              <Text style={styles.editLabel}>Cierre</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editData.disponibilidad.horario.cierre}
-                onChangeText={(text) => setEditData({
-                  ...editData,
-                  disponibilidad: {
-                    ...editData.disponibilidad,
-                    horario: { ...editData.disponibilidad.horario, cierre: text }
-                  }
-                })}
-                placeholder="18:00"
-              />
-            </View>
-          </View>
-
-          <Text style={styles.editLabel}>Días disponibles</Text>
-          <View style={styles.diasContainer}>
-            {diasSemana.map(dia => (
-              <TouchableOpacity
-                key={dia}
-                style={[
-                  styles.diaButton,
-                  editData.disponibilidad.dias.includes(dia) && styles.diaButtonActive
-                ]}
-                onPress={() => toggleDiaEdit(dia)}
-              >
-                <Text style={[
-                  styles.diaText,
-                  editData.disponibilidad.dias.includes(dia) && styles.diaTextActive
-                ]}>
-                  {dia.charAt(0).toUpperCase() + dia.slice(1, 3)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.editField}>
-          <Text style={styles.sectionTitleEdit}>Imágenes *</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <TouchableOpacity
-              style={[styles.addImageButtonEdit, uploadingImage && styles.addImageButtonEditDisabled]}
-              onPress={selectImageEdit}
-              disabled={uploadingImage}
-            >
-              {uploadingImage ? (
-                <Text style={styles.uploadingTextEdit}>Subiendo...</Text>
-              ) : (
-                <>
-                  <Ionicons name="camera" size={32} color="#4a90e2" />
-                  <Text style={styles.addImageTextEdit}>Agregar</Text>
-                </>
-              )}
-            </TouchableOpacity>
-            {editingImages.map((uri, index) => (
-              <View key={index} style={styles.imageContainerEdit}>
-                <Image source={{ uri }} style={styles.previewImageEdit} />
-                <TouchableOpacity
-                  style={styles.removeImageButtonEdit}
-                  onPress={() => removeImageEdit(index)}
-                >
-                  <Ionicons name="close-circle" size={24} color="#e74c3c" />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-
-        <View style={styles.editField}>
-          <Text style={styles.sectionTitleEdit}>
-            {editData.tipo === 'sala' ? 'Equipamiento' : 'Amenidades'}
-          </Text>
-          <View style={styles.amenidadesContainer}>
-            {amenidadesDisponibles[editData.tipo]?.map(amenidad => (
-              <TouchableOpacity
-                key={amenidad}
-                style={[
-                  styles.amenidadButton,
-                  editData.amenidades.includes(amenidad) && styles.amenidadButtonActive
-                ]}
-                onPress={() => toggleAmenidadEdit(amenidad)}
-              >
-                <Text style={[
-                  styles.amenidadText,
-                  editData.amenidades.includes(amenidad) && styles.amenidadTextActive
-                ]}>
-                  {amenidad.replace('_', ' ').toUpperCase()}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.editField}>
-          <Text style={styles.sectionTitleEdit}>Equipamiento adicional</Text>
-          <View style={styles.amenidadesContainer}>
-            {equipamientoDisponible.map(equipo => (
-              <TouchableOpacity
-                key={equipo}
-                style={[
-                  styles.amenidadButton,
-                  editData.equipamiento.includes(equipo) && styles.amenidadButtonActive
-                ]}
-                onPress={() => toggleEquipamientoEdit(equipo)}
-              >
-                <Text style={[
-                  styles.amenidadText,
-                  editData.equipamiento.includes(equipo) && styles.amenidadTextActive
-                ]}>
-                  {equipo}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.editField}>
-          <Text style={styles.editLabel}>Estado</Text>
-          <View style={styles.estadoContainer}>
-            {['disponible', 'ocupado', 'mantenimiento'].map(estado => (
-              <TouchableOpacity
-                key={estado}
-                style={[
-                  styles.estadoButton,
-                  editData.estado === estado && styles.estadoButtonActive
-                ]}
-                onPress={() => setEditData({ ...editData, estado })}
-              >
-                <Text style={[
-                  styles.estadoText,
-                  editData.estado === estado && styles.estadoTextActive
-                ]}>
-                  {estado.charAt(0).toUpperCase() + estado.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.editButtons}>
-          <TouchableOpacity
-            style={[styles.editButtonStyle, styles.cancelButton]}
-            onPress={handleCancel}
-          >
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.editButtonStyle, styles.saveButton]}
-            onPress={handleSave}
-          >
-            <Text style={styles.saveButtonText}>Guardar cambios</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    );
-  };
-
   const MapaEdicionModal = () => (
     <Modal
       visible={mostrarMapaEdit}
@@ -1618,7 +1810,30 @@ const DetalleOficina = ({ navigation, route }) => {
           <Text style={styles.sectionTitleMain}>Descripción</Text>
 
           {isEditing ? (
-            <FormularioEdicionCompleta />
+            editData &&
+              editData.ubicacion &&
+              editData.precios &&
+              editData.disponibilidad ? (
+              <FormularioEdicionCompleta
+                editData={editData}
+                setEditData={setEditData}
+                editingImages={editingImages}
+                setEditingImages={setEditingImages}
+                uploadingImage={uploadingImage}
+                toggleAmenidadEdit={toggleAmenidadEdit}
+                toggleEquipamientoEdit={toggleEquipamientoEdit}
+                toggleDiaEdit={toggleDiaEdit}
+                selectImageEdit={selectImageEdit}
+                removeImageEdit={removeImageEdit}
+                handleSave={handleSave}
+                handleCancel={handleCancel}
+              />
+            ) : (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#4a90e2" />
+                <Text style={styles.loadingText}>Preparando formulario...</Text>
+              </View>
+            )
           ) : (
             <>
               <Text style={styles.description}>{detalle.descripcion}</Text>
@@ -2391,6 +2606,550 @@ const styles = StyleSheet.create({
     color: '#7f8c8d',
     textAlign: 'center',
     paddingVertical: 20,
+  },
+  editSection: {
+    marginTop: 20,
+    paddingHorizontal: 4,
+  },
+  editField: {
+    marginBottom: 24,
+  },
+  editRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  editFieldHalf: {
+    flex: 1,
+  },
+  editFieldThird: {
+    flex: 1,
+  },
+  editFieldTwoThirds: {
+    flex: 2,
+  },
+  editFieldOneThird: {
+    flex: 1,
+  },
+  sectionTitleEdit: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2c3e50',
+    marginBottom: 16,
+    letterSpacing: 0.5,
+  },
+  subsectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#34495e',
+    marginBottom: 12,
+  },
+  editLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  editInput: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    borderWidth: 1.5,
+    borderColor: '#e1e5e9',
+    color: '#2c3e50',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  editInputMultiline: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  tiposGridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  tipoCardEdit: {
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e1e5e9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    position: 'relative',
+  },
+  tipoCardEditActive: {
+    borderWidth: 2,
+    backgroundColor: '#f8fbff',
+    transform: [{ scale: 1.02 }],
+  },
+  tipoIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  tipoNombreEdit: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+    textAlign: 'center',
+  },
+  tipoCheckmark: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  subtiposContainer: {
+    gap: 12,
+  },
+  subtipoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: '#e1e5e9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  subtipoCardActive: {
+    borderWidth: 2,
+    backgroundColor: '#f8fbff',
+  },
+  subtipoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  subtipoNombre: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  subtipoDescripcion: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    lineHeight: 18,
+  },
+  ubicacionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  direccionSection: {
+    marginBottom: 20,
+  },
+  ubicacionEspecifica: {
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f3f4',
+  },
+  mapSectionEdit: {
+    marginTop: 20,
+  },
+  coordenadasCard: {
+    backgroundColor: '#f8fff9',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#d4edda',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  coordenadasInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  coordenadasIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#27ae60',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  coordenadasTexto: {
+    flex: 1,
+  },
+  coordenadasTitulo: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#27ae60',
+    marginBottom: 2,
+  },
+  coordenadasValor: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontFamily: 'monospace',
+    marginBottom: 2,
+  },
+  coordenadasDireccion: {
+    fontSize: 12,
+    color: '#7f8c8d',
+  },
+  coordenadasBotonEditar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#4a90e2',
+    gap: 4,
+  },
+  coordenadasTextoEditar: {
+    fontSize: 12,
+    color: '#4a90e2',
+    fontWeight: '600',
+  },
+  mapaSelectorCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#e1e5e9',
+    borderStyle: 'dashed',
+  },
+  mapaSelectorContenido: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  mapaSelectorIcono: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#e3f2fd',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  mapaSelectorTextos: {
+    flex: 1,
+  },
+  mapaSelectorTitulo: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4a90e2',
+    marginBottom: 4,
+  },
+  mapaSelectorSubtitulo: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    lineHeight: 18,
+  },
+  preciosContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  precioInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#e1e5e9',
+    overflow: 'hidden',
+  },
+  precioMoneda: {
+    backgroundColor: '#4a90e2',
+    color: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  precioInput: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: '#2c3e50',
+    backgroundColor: '#fff',
+  },
+  horarioContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  diasGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  diaButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+    minWidth: 48,
+    alignItems: 'center',
+  },
+  diaButtonActive: {
+    backgroundColor: '#4a90e2',
+    borderColor: '#4a90e2',
+  },
+  diaText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#7f8c8d',
+  },
+  diaTextActive: {
+    color: '#fff',
+  },
+  imagenesScrollContainer: {
+    marginTop: 8,
+  },
+  addImageButtonEdit: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#4a90e2',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fbff',
+    marginRight: 12,
+  },
+  addImageButtonEditDisabled: {
+    opacity: 0.6,
+  },
+  uploadingContainer: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  uploadingTextEdit: {
+    fontSize: 12,
+    color: '#4a90e2',
+    fontWeight: '600',
+  },
+  addImageContent: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  addImageTextEdit: {
+    fontSize: 12,
+    color: '#4a90e2',
+    fontWeight: '600',
+  },
+  imageContainerEdit: {
+    position: 'relative',
+    marginRight: 12,
+  },
+  previewImageEdit: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+  },
+  removeImageButtonEdit: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  caracteristicasGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 8,
+  },
+  caracteristicaCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#e1e5e9',
+    minWidth: '45%',
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  caracteristicaCardActive: {
+    borderColor: '#4a90e2',
+    backgroundColor: '#f8fbff',
+  },
+  caracteristicaIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  caracteristicaText: {
+    fontSize: 14,
+    color: '#2c3e50',
+    fontWeight: '500',
+    flex: 1,
+  },
+  caracteristicaTextActive: {
+    color: '#4a90e2',
+    fontWeight: '600',
+  },
+  caracteristicaCheck: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#4a90e2',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  estadoContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  estadoCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#e1e5e9',
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  estadoCardActive: {
+    borderWidth: 2,
+    backgroundColor: '#f8fbff',
+  },
+  estadoIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  estadoText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2c3e50',
+    textAlign: 'center',
+  },
+  estadoCheck: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 40,
+    marginBottom: 20,
+    gap: 16,
+  },
+  editButtonStyle: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  cancelButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#dee2e6',
+  },
+  saveButton: {
+    backgroundColor: '#4a90e2',
+  },
+  cancelButtonText: {
+    color: '#6c757d',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

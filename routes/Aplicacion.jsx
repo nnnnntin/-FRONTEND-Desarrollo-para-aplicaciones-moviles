@@ -12,7 +12,6 @@ import CrearPublicacion from '../components/CrearPublicacion';
 import CrearServicio from '../components/CrearServicio';
 import DetalleOficina from '../components/DetalleOficina';
 import DetalleReserva from '../components/DetalleReserva';
-import Estadisticas from '../components/Estadisticas';
 import FormularioProblema from '../components/FormularioProblema';
 import GananciasProveedor from '../components/GananciasProveedor';
 import GestionGanancias from '../components/GestionGanancias';
@@ -189,10 +188,6 @@ const InicioStack = ({ setIsLogged, resetSession }) => {
 
       {tipoUsuario === 'cliente' && (
         <>
-          <Stack.Screen
-            name="Estadisticas"
-            component={Estadisticas}
-          />
           <Stack.Screen
             name="GestionGanancias"
             component={GestionGanancias}
@@ -475,14 +470,6 @@ const Aplicacion = ({ setIsLogged, resetSession }) => {
             component={Reservas}
             options={{
               title: 'Reservas recibidas',
-              headerShown: false
-            }}
-          />
-          <Drawer.Screen
-            name='Estadisticas'
-            component={Estadisticas}
-            options={{
-              title: 'Estadísticas',
               headerShown: false
             }}
           />

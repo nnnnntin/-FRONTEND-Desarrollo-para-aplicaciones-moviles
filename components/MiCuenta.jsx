@@ -320,6 +320,15 @@ const MiCuenta = ({ navigation }) => {
   const showImageOptions = () => {
     if (uploadingImage) return;
 
+    if (!isEditing) {
+      Alert.alert(
+        'Modo de edición requerido',
+        'Para cambiar tu foto de perfil, primero debes activar el modo de edición.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     Alert.alert(
       'Cambiar foto de perfil',
       'Selecciona una opción',
@@ -371,11 +380,18 @@ const MiCuenta = ({ navigation }) => {
           />
         )}
         <TouchableOpacity
-          style={styles.editPhotoButton}
+          style={[
+            styles.editPhotoButton,
+            !isEditing && styles.editPhotoButtonDisabled
+          ]}
           onPress={showImageOptions}
-          disabled={uploadingImage}
+          disabled={uploadingImage || !isEditing}
         >
-          <Ionicons name="camera" size={20} color="#4a90e2" />
+          <Ionicons
+            name="camera"
+            size={20}
+            color={isEditing ? "#4a90e2" : "#95a5a6"}
+          />
         </TouchableOpacity>
       </View>
     );
@@ -765,6 +781,11 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  editPhotoButtonDisabled: {
+    backgroundColor: '#f8f9fa',
+    borderColor: '#dee2e6',
+    opacity: 0.7,
   },
 });
 

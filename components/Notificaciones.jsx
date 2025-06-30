@@ -62,10 +62,10 @@ const Notificaciones = ({ navigation }) => {
     }));
   };
 
-  const manejarMarcarComoLeida = (notificacion) => {
-    if (notificacion.leida) return;
+  const manejarMarcarComoLeida = (item) => {
+    if (item.leida) return;
 
-    dispatch(marcarNotificacionComoLeida(notificacion.id, token));
+    dispatch(marcarNotificacionComoLeida(item.id, token));
   };
 
   const manejarEliminarNotificacion = async (notificacionId) => {
@@ -100,14 +100,6 @@ const Notificaciones = ({ navigation }) => {
   const handleGoBack = () => {
     navigation.goBack();
   };
-
-
-  useEffect(() => {
-    return () => {
-
-
-    };
-  }, []);
 
   const renderNotificacion = ({ item }) => (
     <TouchableOpacity

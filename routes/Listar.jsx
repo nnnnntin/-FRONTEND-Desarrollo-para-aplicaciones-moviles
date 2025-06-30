@@ -4,7 +4,6 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { useSelector } from 'react-redux';
 
 import ComisionesAdmin from '../components/ComisionesAdmin';
-import Estadisticas from '../components/Estadisticas';
 import GananciasProveedor from '../components/GananciasProveedor';
 import GestionGanancias from '../components/GestionGanancias';
 import GestionProveedores from '../components/GestionProveedores';
@@ -114,11 +113,6 @@ const ClienteServiciosStack = () => (
       name="ServiciosOfrecidos"
       component={ServiciosOfrecidos}
       options={{ title: 'Servicios Ofrecidos' }}
-    />
-    <Stack.Screen
-      name="Estadisticas"
-      component={Estadisticas}
-      options={{ title: 'Estadísticas' }}
     />
   </Stack.Navigator>
 );
