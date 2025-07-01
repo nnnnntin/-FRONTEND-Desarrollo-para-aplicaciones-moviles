@@ -28,18 +28,11 @@ import ServiciosEspacio from '../components/ServiciosEspacio';
 import ServiciosOfrecidos from '../components/ServiciosOfrecidos';
 import ServiciosProveedor from '../components/ServiciosProveedor';
 import Transacciones from '../components/Transacciones';
-
-import ComisionesAdmin from '../components/ComisionesAdmin';
-import ConfiguracionAdmin from '../components/ConfiguracionAdmin';
 import DashboardAdmin from '../components/DashboardAdmin';
 import GestionProveedores from '../components/GestionProveedores';
 import GestionPublicaciones from '../components/GestionPublicaciones';
 import GestionReservas from '../components/GestionReservas';
 import GestionUsuarios from '../components/GestionUsuarios';
-import NotificacionesAdmin from '../components/NotificacionesAdmin';
-import ReportesAdmin from '../components/ReportesAdmin';
-import SoporteAdmin from '../components/SoporteAdmin';
-import TransaccionesAdmin from '../components/TransaccionesAdmin';
 
 import Listar from './Listar';
 
@@ -124,30 +117,6 @@ const InicioStack = ({ setIsLogged, resetSession }) => {
           <Stack.Screen
             name="GestionProveedores"
             component={GestionProveedores}
-          />
-          <Stack.Screen
-            name="TransaccionesAdmin"
-            component={TransaccionesAdmin}
-          />
-          <Stack.Screen
-            name="ComisionesAdmin"
-            component={ComisionesAdmin}
-          />
-          <Stack.Screen
-            name="ReportesAdmin"
-            component={ReportesAdmin}
-          />
-          <Stack.Screen
-            name="NotificacionesAdmin"
-            component={NotificacionesAdmin}
-          />
-          <Stack.Screen
-            name="ConfiguracionAdmin"
-            component={ConfiguracionAdmin}
-          />
-          <Stack.Screen
-            name="SoporteAdmin"
-            component={SoporteAdmin}
           />
         </>
       )}

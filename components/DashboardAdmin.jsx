@@ -249,13 +249,6 @@ const DashboardAdmin = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#2c3e50" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Panel de Administración</Text>
-        <TouchableOpacity
-          style={styles.notificationButton}
-          onPress={() => navegarA('NotificacionesAdmin')}
-        >
-          <Ionicons name="notifications-outline" size={24} color="#4a90e2" />
-          <View style={styles.notificationBadge} />
-        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -375,59 +368,6 @@ const DashboardAdmin = ({ navigation }) => {
             scrollEnabled={false}
           />
         </View>
-
-        <View style={styles.seccion}>
-          <View style={styles.seccionHeader}>
-            <Text style={styles.seccionTitulo}>Transacciones recientes</Text>
-            <TouchableOpacity onPress={() => navegarA('TransaccionesAdmin')}>
-              <Text style={styles.verTodo}>Ver todas</Text>
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={transaccionesRecientes}
-            renderItem={renderTransaccion}
-            keyExtractor={(item) => item.id.toString()}
-            scrollEnabled={false}
-          />
-        </View>
-
-        <View style={styles.accesosRapidos}>
-          <Text style={styles.seccionTitulo}>Gestión rápida</Text>
-          <View style={styles.botonesGrid}>
-            <TouchableOpacity
-              style={styles.botonAcceso}
-              onPress={() => navegarA('ComisionesAdmin')}
-            >
-              <Ionicons name="calculator" size={24} color="#4a90e2" />
-              <Text style={styles.botonAccesoText}>Comisiones</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.botonAcceso}
-              onPress={() => navegarA('ReportesAdmin')}
-            >
-              <Ionicons name="document-text" size={24} color="#27ae60" />
-              <Text style={styles.botonAccesoText}>Reportes</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.botonAcceso}
-              onPress={() => navegarA('ConfiguracionAdmin')}
-            >
-              <Ionicons name="settings" size={24} color="#9b59b6" />
-              <Text style={styles.botonAccesoText}>Configuración</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.botonAcceso}
-              onPress={() => navegarA('SoporteAdmin')}
-            >
-              <Ionicons name="help-circle" size={24} color="#e74c3c" />
-              <Text style={styles.botonAccesoText}>Soporte</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
         <View style={styles.bottomSpacing} />
       </ScrollView>
     </SafeAreaView>

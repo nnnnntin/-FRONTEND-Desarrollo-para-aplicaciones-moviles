@@ -13,6 +13,7 @@ import {
   View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import * as yup from 'yup';
 import { loguear } from '../store/slices/authSlice';
 import {
   actualizarSuscripcionActual,
@@ -26,6 +27,349 @@ import {
   eliminarMetodoPago,
   obtenerMetodosPagoUsuario
 } from '../store/slices/usuarioSlice';
+
+
+
+const metodoPagoSchema = yup.object({
+  _id: yup.string().optional(),
+  id: yup.string().optional(),
+  tipo: yup.string()
+    .test('tipo-metodo-pago-valido', 'Tipo de método de pago inválido', function (value) {
+      const tiposValidos = ['tarjeta_credito', 'tarjeta_debito', 'cuenta_bancaria', 'paypal', 'efectivo'];
+      return tiposValidos.includes(value);
+    })
+    .required('El tipo de método de pago es requerido'),
+  marca: yup.string().optional(),
+  ultimosDigitos: yup.string()
+    .matches(/^\d{4}$/, 'Los últimos dígitos deben ser 4 números')
+    .optional(),
+  fechaVencimiento: yup.string()
+    .matches(/^(0[1-9]|1[0-2])\/\d{2}$/, 'Formato de fecha inválido (MM/YY)')
+    .optional(),
+  predeterminado: yup.boolean().default(false),
+});
+
+const datosReservaSchema = yup.object({
+  espacioId: yup.string().required('El ID del espacio es requerido'),
+  espacioNombre: yup.string().required('El nombre del espacio es requerido'),
+  espacioTipo: yup.string()
+    .test('tipo-espacio-valido', 'Tipo de espacio inválido', function (value) {
+      const tiposValidos = ['oficina', 'sala', 'escritorio', 'espacio', 'edificio'];
+      return tiposValidos.includes(value);
+    })
+    .required('El tipo de espacio es requerido'),
+  clienteId: yup.string().optional(),
+  propietarioId: yup.string().optional(),
+  fechaHoraInicio: yup.date().required('La fecha de inicio es requerida'),
+  fechaHoraFin: yup.date().required('La fecha de fin es requerida'),
+  horaInicio: yup.string()
+    .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido (HH:MM)')
+    .required('La hora de inicio es requerida'),
+  horaFin: yup.string()
+    .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido (HH:MM)')
+    .required('La hora de fin es requerida'),
+  fecha: yup.string().required('La fecha es requerida'),
+  precioTotal: yup.number()
+    .positive('El precio debe ser positivo')
+    .required('El precio total es requerido'),
+  precioFinalPagado: yup.number()
+    .positive('El precio final debe ser positivo')
+    .optional(),
+  cantidadPersonas: yup.number()
+    .integer('La cantidad debe ser un número entero')
+    .min(1, 'Debe ser al menos 1 persona')
+    .required('La cantidad de personas es requerida'),
+  serviciosAdicionales: yup.array().of(
+    yup.object({
+      id: yup.string().required('ID del servicio requerido'),
+      nombre: yup.string().required('Nombre del servicio requerido'),
+      precio: yup.number().min(0, 'El precio no puede ser negativo'),
+      cantidad: yup.number().integer().min(1, 'La cantidad debe ser al menos 1').default(1)
+    })
+  ).optional(),
+  descuento: yup.object({
+    porcentaje: yup.number()
+      .min(0, 'El porcentaje no puede ser negativo')
+      .max(100, 'El porcentaje no puede ser mayor a 100'),
+    codigo: yup.string().optional(),
+    motivo: yup.string().optional()
+  }).optional()
+});
+
+const entidadReservadaSchema = yup.object({
+  tipo: yup.string()
+    .test('tipo-entidad-reservada-valido', 'Tipo de entidad inválido', function (value) {
+      const tiposValidos = ['oficina', 'sala_reunion', 'escritorio_flexible'];
+      return tiposValidos.includes(value);
+    })
+    .required('El tipo de entidad es requerido'),
+  id: yup.string().required('El ID de la entidad es requerido')
+});
+
+const payloadReservaSchema = yup.object({
+  usuarioId: yup.string().required('El ID del usuario es requerido'),
+  clienteId: yup.string().required('El ID del cliente es requerido'),
+  entidadReservada: entidadReservadaSchema.required('La entidad reservada es requerida'),
+  fechaInicio: yup.date().required('La fecha de inicio es requerida'),
+  fechaFin: yup.date().required('La fecha de fin es requerida'),
+  horaInicio: yup.string()
+    .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido')
+    .required('La hora de inicio es requerida'),
+  horaFin: yup.string()
+    .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido')
+    .required('La hora de fin es requerida'),
+  tipoReserva: yup.string()
+    .test('tipo-reserva-valido', 'Tipo de reserva inválido', function (value) {
+      const tiposValidos = ['hora', 'dia', 'semana', 'mes'];
+      return tiposValidos.includes(value);
+    })
+    .required('El tipo de reserva es requerido'),
+  precioTotal: yup.number()
+    .min(0, 'El precio no puede ser negativo')
+    .required('El precio total es requerido'),
+  precioFinalPagado: yup.number()
+    .min(0, 'El precio final no puede ser negativo')
+    .required('El precio final pagado es requerido'),
+  estado: yup.string()
+    .test('estado-reserva-valido', 'Estado de reserva inválido', function (value) {
+      if (!value) return true; 
+      const estadosValidos = ['pendiente', 'confirmada', 'cancelada', 'completada', 'no_asistio'];
+      return estadosValidos.includes(value);
+    })
+    .default('confirmada'),
+  cantidadPersonas: yup.number()
+    .integer('Debe ser un número entero')
+    .min(1, 'Debe ser al menos 1 persona')
+    .default(1),
+  esRecurrente: yup.boolean().default(false),
+  proposito: yup.string().optional(),
+  serviciosAdicionales: yup.array().of(yup.string()).optional(),
+  descuento: yup.object({
+    porcentaje: yup.number().min(0).max(100),
+    codigo: yup.string(),
+    motivo: yup.string()
+  }).optional()
+});
+
+const metodoPagoDetallesSchema = yup.object({
+  marca: yup.string().default('N/A'),
+  ultimosDigitos: yup.string().default('****'),
+  metodoId: yup.string().required('ID del método requerido'),
+  numeroAutorizacion: yup.string().required('Número de autorización requerido'),
+  referencia: yup.string().required('Referencia requerida')
+});
+
+const entidadRelacionadaSchema = yup.object({
+  tipo: yup.string()
+    .test('tipo-entidad-relacionada-valido', 'Tipo de entidad inválido', function (value) {
+      const tiposValidos = ['reserva', 'membresia'];
+      return tiposValidos.includes(value);
+    })
+    .required('El tipo de entidad es requerido'),
+  id: yup.string().required('El ID de la entidad es requerido')
+});
+
+const metodoPagoPagoSchema = yup.object({
+  tipo: yup.string()
+    .test('tipo-metodo-pago-pago-valido', 'Tipo de método de pago inválido', function (value) {
+      const tiposValidos = ['tarjeta', 'transferencia', 'efectivo', 'paypal', 'otro'];
+      return tiposValidos.includes(value);
+    })
+    .required('El tipo de método de pago es requerido'),
+  detalles: metodoPagoDetallesSchema.required('Los detalles del método son requeridos')
+});
+
+const payloadPagoSchema = yup.object({
+  usuarioId: yup.string().required('El ID del usuario es requerido'),
+  monto: yup.number()
+    .min(0, 'El monto no puede ser negativo')
+    .required('El monto es requerido'),
+  moneda: yup.string().default('USD'),
+  conceptoPago: yup.string()
+    .test('concepto-pago-valido', 'Concepto de pago inválido', function (value) {
+      const conceptosValidos = ['reserva', 'membresia', 'multa', 'otro'];
+      return conceptosValidos.includes(value);
+    })
+    .required('El concepto de pago es requerido'),
+  entidadRelacionada: entidadRelacionadaSchema.required('La entidad relacionada es requerida'),
+  fecha: yup.date().default(() => new Date()),
+  metodoPago: metodoPagoPagoSchema.required('El método de pago es requerido'),
+  estado: yup.string()
+    .test('estado-pago-valido', 'Estado de pago inválido', function (value) {
+      if (!value) return true; 
+      const estadosValidos = ['pendiente', 'completado', 'fallido', 'reembolsado'];
+      return estadosValidos.includes(value);
+    })
+    .default('completado'),
+  comprobante: yup.string().required('El comprobante es requerido')
+});
+
+const conceptoFacturaSchema = yup.object({
+  descripcion: yup.string().required('La descripción es requerida'),
+  cantidad: yup.number()
+    .integer('Debe ser un número entero')
+    .min(1, 'La cantidad debe ser al menos 1')
+    .required('La cantidad es requerida'),
+  precioUnitario: yup.number()
+    .min(0, 'El precio no puede ser negativo')
+    .required('El precio unitario es requerido'),
+  impuesto: yup.number()
+    .min(0, 'El impuesto no puede ser negativo')
+    .default(0),
+  descuento: yup.number()
+    .min(0, 'El descuento no puede ser negativo')
+    .max(100, 'El descuento no puede ser mayor a 100')
+    .default(0),
+  subtotal: yup.number()
+    .min(0, 'El subtotal no puede ser negativo')
+    .required('El subtotal es requerido')
+});
+
+const facturaSchema = yup.object({
+  numeroFactura: yup.string().required('El número de factura es requerido'),
+  usuarioId: yup.string().required('El ID del usuario es requerido'),
+  emisorId: yup.string().required('El ID del emisor es requerido'),
+  tipoEmisor: yup.string().required('El tipo de emisor es requerido'),
+  fechaEmision: yup.date().required('La fecha de emisión es requerida'),
+  fechaVencimiento: yup.date().required('La fecha de vencimiento es requerida'),
+  conceptos: yup.array()
+    .of(conceptoFacturaSchema)
+    .min(1, 'Debe haber al menos un concepto')
+    .required('Los conceptos son requeridos'),
+  subtotal: yup.number()
+    .min(0, 'El subtotal no puede ser negativo')
+    .required('El subtotal es requerido'),
+  impuestosTotal: yup.number()
+    .min(0, 'Los impuestos no pueden ser negativos')
+    .required('El total de impuestos es requerido'),
+  descuentoTotal: yup.number()
+    .min(0, 'El descuento no puede ser negativo')
+    .default(0),
+  total: yup.number()
+    .min(0, 'El total no puede ser negativo')
+    .required('El total es requerido'),
+  estado: yup.string().default('pagada'),
+  metodoPago: yup.string().required('El método de pago es requerido'),
+  pagosIds: yup.array().of(yup.string()).default([])
+});
+
+const suscripcionDataSchema = yup.object({
+  usuarioId: yup.string().required('El ID del usuario es requerido'),
+  membresiaId: yup.string().required('El ID de la membresía es requerido'),
+  fechaInicio: yup.string().required('La fecha de inicio es requerida'),
+  metodoPagoId: yup.string().required('El ID del método de pago es requerido'),
+  renovacionAutomatica: yup.boolean().default(true)
+});
+
+const notificacionSchema = yup.object({
+  tipoNotificacion: yup.string()
+    .test('tipo-notificacion-valido', 'Tipo de notificación inválido', function (value) {
+      const tiposValidos = ['reserva', 'pago', 'membresia', 'general'];
+      return tiposValidos.includes(value);
+    })
+    .required('El tipo de notificación es requerido'),
+  titulo: yup.string().required('El título es requerido'),
+  mensaje: yup.string().required('El mensaje es requerido'),
+  destinatarioId: yup.string().required('El ID del destinatario es requerido'),
+  remitenteId: yup.string().optional(),
+  entidadRelacionada: yup.object({
+    tipo: yup.string().required('El tipo de entidad es requerido'),
+    id: yup.string().required('El ID de la entidad es requerido')
+  }).optional(),
+  prioridad: yup.string()
+    .test('prioridad-valida', 'Prioridad inválida', function (value) {
+      if (!value) return true; 
+      const prioridadesValidas = ['baja', 'media', 'alta'];
+      return prioridadesValidas.includes(value);
+    })
+    .default('media'),
+  accion: yup.string().optional()
+});
+
+
+const validarMetodoPago = async (metodo) => {
+  try {
+    await metodoPagoSchema.validate(metodo, { abortEarly: false });
+    return { valido: true, errores: [] };
+  } catch (error) {
+    return {
+      valido: false,
+      errores: error.inner.map(err => err.message)
+    };
+  }
+};
+
+const validarDatosReserva = async (datos) => {
+  try {
+    await datosReservaSchema.validate(datos, { abortEarly: false });
+    return { valido: true, errores: [] };
+  } catch (error) {
+    return {
+      valido: false,
+      errores: error.inner.map(err => err.message)
+    };
+  }
+};
+
+const validarPayloadReserva = async (payload) => {
+  try {
+    await payloadReservaSchema.validate(payload, { abortEarly: false });
+    return { valido: true, errores: [] };
+  } catch (error) {
+    return {
+      valido: false,
+      errores: error.inner.map(err => err.message)
+    };
+  }
+};
+
+const validarPayloadPago = async (payload) => {
+  try {
+    await payloadPagoSchema.validate(payload, { abortEarly: false });
+    return { valido: true, errores: [] };
+  } catch (error) {
+    return {
+      valido: false,
+      errores: error.inner.map(err => err.message)
+    };
+  }
+};
+
+const validarFactura = async (factura) => {
+  try {
+    await facturaSchema.validate(factura, { abortEarly: false });
+    return { valido: true, errores: [] };
+  } catch (error) {
+    return {
+      valido: false,
+      errores: error.inner.map(err => err.message)
+    };
+  }
+};
+
+const validarSuscripcionData = async (data) => {
+  try {
+    await suscripcionDataSchema.validate(data, { abortEarly: false });
+    return { valido: true, errores: [] };
+  } catch (error) {
+    return {
+      valido: false,
+      errores: error.inner.map(err => err.message)
+    };
+  }
+};
+
+const validarNotificacion = async (notificacion) => {
+  try {
+    await notificacionSchema.validate(notificacion, { abortEarly: false });
+    return { valido: true, errores: [] };
+  } catch (error) {
+    return {
+      valido: false,
+      errores: error.inner.map(err => err.message)
+    };
+  }
+};
 
 const crearPayloadReservaLimpio = (datosReserva, usuario, metodo) => {
   const mapearTipoEspacio = (tipoOriginal) => {
@@ -53,11 +397,11 @@ const crearPayloadReservaLimpio = (datosReserva, usuario, metodo) => {
       return precioTotal;
     }
     const montoDescuento = precioTotal * (descuento.porcentaje / 100);
-    return Math.round((precioTotal - montoDescuento) * 100) / 100; 
+    return Math.round((precioTotal - montoDescuento) * 100) / 100;
   };
 
   const precioTotal = parseFloat(datosReserva.precioTotal);
-  const precioFinalPagado = datosReserva.precioFinalPagado 
+  const precioFinalPagado = datosReserva.precioFinalPagado
     ? parseFloat(datosReserva.precioFinalPagado)
     : calcularPrecioFinal(precioTotal, datosReserva.descuento);
 
@@ -142,6 +486,7 @@ const mapearTipoMetodoPago = (tipoOriginal) => {
   };
   return mapeo[tipoOriginal] || 'otro';
 };
+
 
 const validarPayloadPagoBackend = (payload) => {
   const errores = [];
@@ -249,7 +594,7 @@ const validarPayloadLimpio = (payload) => {
     const descuentoEsperado = payload.precioTotal * (payload.descuento.porcentaje / 100);
     const precioFinalEsperado = payload.precioTotal - descuentoEsperado;
     const diferencia = Math.abs(payload.precioFinalPagado - precioFinalEsperado);
-    
+
     if (diferencia > 0.01) {
       errores.push(`Inconsistencia en precios: esperado ${precioFinalEsperado.toFixed(2)}, recibido ${payload.precioFinalPagado}`);
     }
@@ -290,7 +635,7 @@ const crearFacturaDesdeReserva = async (reserva, pago, usuario, datosReserva) =>
 
     const subtotal = conceptos.reduce((sum, concepto) => sum + concepto.subtotal, 0);
     const descuentoTotal = (datosReserva.descuento?.porcentaje || 0) * subtotal / 100;
-    const impuestosTotal = 0; 
+    const impuestosTotal = 0;
     const total = subtotal - descuentoTotal + impuestosTotal;
 
     const usuarioId = usuario?.id || usuario?._id;
@@ -313,18 +658,18 @@ const crearFacturaDesdeReserva = async (reserva, pago, usuario, datosReserva) =>
     const facturaData = {
       numeroFactura,
       usuarioId: usuarioId.toString(),
-      emisorId: 'plataforma_id', 
+      emisorId: 'plataforma_id',
       tipoEmisor: 'plataforma',
       fechaEmision: new Date(),
-      fechaVencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 
+      fechaVencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       conceptos,
       subtotal: Math.round(subtotal * 100) / 100,
       impuestosTotal: Math.round(impuestosTotal * 100) / 100,
       descuentoTotal: Math.round(descuentoTotal * 100) / 100,
       total: Math.round(total * 100) / 100,
-      estado: 'pagada', 
+      estado: 'pagada',
       metodoPago: `${pago.metodoPago?.tipo || 'Tarjeta'} •••• ${pago.metodoPago?.detalles?.ultimosDigitos || '****'}`,
-      pagosIds: [pago._id || pago.id].filter(Boolean) 
+      pagosIds: [pago._id || pago.id].filter(Boolean)
     };
 
     const camposRequeridos = ['numeroFactura', 'usuarioId', 'emisorId', 'tipoEmisor', 'fechaEmision', 'fechaVencimiento', 'conceptos', 'subtotal', 'impuestosTotal', 'total'];
@@ -350,23 +695,72 @@ const crearFacturaDesdeReserva = async (reserva, pago, usuario, datosReserva) =>
 const crearNotificacionPropietario = async (reserva, datosReserva, usuarioReservante, auth) => {
   try {
     const espacioDetalle = await obtenerDetalleEspacioPorId(datosReserva.espacioId, auth.token);
-    const propietarioId = espacioDetalle?.datosCompletos?.propietarioId ||
-      espacioDetalle?.datosCompletos?.usuarioId ||
-      espacioDetalle?.usuarioId;
+
+    
+    let propietarioId = null;
+
+    if (espacioDetalle?.datosCompletos?.propietarioId) {
+      propietarioId = espacioDetalle.datosCompletos.propietarioId;
+    } else if (espacioDetalle?.datosCompletos?.usuarioId) {
+      propietarioId = espacioDetalle.datosCompletos.usuarioId;
+    } else if (espacioDetalle?.usuarioId) {
+      propietarioId = espacioDetalle.usuarioId;
+    }
+
+    
+    if (propietarioId) {
+      
+      if (typeof propietarioId === 'object') {
+        propietarioId = propietarioId._id || propietarioId.id;
+      }
+
+      
+      propietarioId = propietarioId.toString();
+
+      
+      if (!propietarioId || propietarioId === 'undefined' || propietarioId === 'null') {
+        console.warn('No se pudo obtener un ID válido del propietario');
+        return;
+      }
+    } else {
+      console.warn('No se encontró propietarioId en los detalles del espacio');
+      return;
+    }
+
+    
+    const remitenteId = usuarioReservante?.id || usuarioReservante?._id;
+    if (!remitenteId) {
+      console.warn('No se pudo obtener el ID del usuario reservante');
+      return;
+    }
+
+    
+    const reservaId = reserva._id || reserva.id;
+    if (!reservaId) {
+      console.warn('No se pudo obtener el ID de la reserva');
+      return;
+    }
 
     const notificacionData = {
       tipoNotificacion: 'reserva',
       titulo: 'Nueva reserva en tu espacio',
       mensaje: `${usuarioReservante?.nombre || 'Un usuario'} ha reservado ${datosReserva.espacioNombre} para el ${datosReserva.fecha} de ${datosReserva.horaInicio} a ${datosReserva.horaFin}`,
-      destinatarioId: propietarioId,
-      remitenteId: usuarioReservante?.id || usuarioReservante?._id,
+      destinatarioId: propietarioId, 
+      remitenteId: remitenteId.toString(), 
       entidadRelacionada: {
         tipo: 'reserva',
-        id: reserva._id || reserva.id
+        id: reservaId.toString() 
       },
       prioridad: 'alta',
       accion: 'ver_reserva'
     };
+
+    
+    const validacion = await validarNotificacion(notificacionData);
+    if (!validacion.valido) {
+      console.error('Errores en notificación del propietario:', validacion.errores);
+      return;
+    }
 
     const response = await fetch(
       `${process.env.EXPO_PUBLIC_API_URL}/v1/notificaciones`,
@@ -380,8 +774,14 @@ const crearNotificacionPropietario = async (reserva, datosReserva, usuarioReserv
       }
     );
 
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Error del servidor al crear notificación:', errorData);
+      return;
+    }
+
   } catch (error) {
-    console.error(error);
+    console.error('Error al crear notificación del propietario:', error.message);
   }
 };
 
@@ -399,6 +799,13 @@ const crearNotificacionUsuario = async (reserva, pago, factura, usuario, auth) =
       prioridad: 'alta',
       accion: 'ver_comprobante'
     };
+
+    
+    const validacion = await validarNotificacion(notificacionData);
+    if (!validacion.valido) {
+      console.error('Errores en notificación del usuario:', validacion.errores);
+      return;
+    }
 
     const response = await fetch(
       `${process.env.EXPO_PUBLIC_API_URL}/v1/notificaciones`,
@@ -703,7 +1110,14 @@ const MetodosPago = ({ navigation, route }) => {
     });
   };
 
-  const handleEliminarTarjeta = (metodoId, metodo) => {
+  const handleEliminarTarjeta = async (metodoId, metodo) => {
+    
+    const validacion = await validarMetodoPago(metodo);
+    if (!validacion.valido) {
+      Alert.alert('Error', `Método de pago inválido: ${validacion.errores.join(', ')}`);
+      return;
+    }
+
     if (metodo.predeterminado) {
       Alert.alert(
         'No se puede eliminar',
@@ -739,8 +1153,15 @@ const MetodosPago = ({ navigation, route }) => {
     );
   };
 
-  const handleSeleccionarTarjeta = (metodo) => {
+  const handleSeleccionarTarjeta = async (metodo) => {
     if (!modoSeleccion) return;
+
+    
+    const validacion = await validarMetodoPago(metodo);
+    if (!validacion.valido) {
+      Alert.alert('Error', `Método de pago inválido: ${validacion.errores.join(', ')}`);
+      return;
+    }
 
     const tipoDisplay = mapearTipoTarjeta(metodo);
     const ultimosDigitos = metodo.ultimosDigitos || '****';
@@ -759,7 +1180,14 @@ const MetodosPago = ({ navigation, route }) => {
     );
   };
 
-  const handleMarcarPredeterminado = (metodo) => {
+  const handleMarcarPredeterminado = async (metodo) => {
+    
+    const validacion = await validarMetodoPago(metodo);
+    if (!validacion.valido) {
+      Alert.alert('Error', `Método de pago inválido: ${validacion.errores.join(', ')}`);
+      return;
+    }
+
     const userId = usuario?.id || usuario?._id;
     const originalId = metodo._id || metodo.id;
     if (userId && originalId) {
@@ -775,7 +1203,7 @@ const MetodosPago = ({ navigation, route }) => {
 
     try {
       await new Promise(resolve => setTimeout(resolve, 2000));
-      const exitoPago = Math.random() > 0.05; 
+      const exitoPago = Math.random() > 0.05;
 
       if (!exitoPago) {
         setEstadoPago('error');
@@ -783,8 +1211,31 @@ const MetodosPago = ({ navigation, route }) => {
       }
 
       if (!modoSuscripcion && datosReserva) {
+        
+        const validacionReserva = await validarDatosReserva(datosReserva);
+        if (!validacionReserva.valido) {
+          Alert.alert(
+            'Error en datos de reserva',
+            `Errores encontrados:\n${validacionReserva.errores.join('\n')}`,
+            [{ text: 'OK', onPress: () => setEstadoPago('error') }]
+          );
+          return;
+        }
+
         const reservaParaBackend = crearPayloadReservaLimpio(datosReserva, usuario, metodo);
 
+        
+        const validacionPayload = await validarPayloadReserva(reservaParaBackend);
+        if (!validacionPayload.valido) {
+          Alert.alert(
+            'Error en payload de reserva',
+            `Errores encontrados:\n${validacionPayload.errores.join('\n')}`,
+            [{ text: 'OK', onPress: () => setEstadoPago('error') }]
+          );
+          return;
+        }
+
+        
         const erroresValidacion = validarPayloadLimpio(reservaParaBackend);
         if (erroresValidacion.length > 0) {
           Alert.alert(
@@ -824,6 +1275,18 @@ const MetodosPago = ({ navigation, route }) => {
 
           const pagoData = crearDatosPagoCompatibles(datosReserva, reservaId, usuario, metodo);
 
+          
+          const validacionPago = await validarPayloadPago(pagoData);
+          if (!validacionPago.valido) {
+            Alert.alert(
+              'Error en datos de pago',
+              `Errores:\n${validacionPago.errores.join('\n')}`,
+              [{ text: 'OK', onPress: () => setEstadoPago('error') }]
+            );
+            return;
+          }
+
+          
           const erroresPago = validarPayloadPagoBackend(pagoData);
           if (erroresPago.length > 0) {
             Alert.alert(
@@ -856,6 +1319,12 @@ const MetodosPago = ({ navigation, route }) => {
               usuario,
               datosReserva
             );
+
+            
+            const validacionFactura = await validarFactura(facturaData);
+            if (!validacionFactura.valido) {
+              throw new Error(`Datos de factura inválidos: ${validacionFactura.errores.join(', ')}`);
+            }
 
             if (!facturaData.numeroFactura || !facturaData.usuarioId || !facturaData.total) {
               throw new Error('Datos de factura incompletos');
@@ -949,7 +1418,7 @@ const MetodosPago = ({ navigation, route }) => {
               tipoReserva: reservaParaBackend.tipoReserva
             },
             pago: pagoCreado,
-            factura: facturaCreada 
+            factura: facturaCreada
           });
 
           setEstadoPago('confirmado');
@@ -965,6 +1434,10 @@ const MetodosPago = ({ navigation, route }) => {
 
       } else if (modoSuscripcion && planSuscripcion) {
         try {
+          
+          const validacionPlan = await validarPayloadPago(planSuscripcion);
+          
+
           const usuarioId = usuario?._id || usuario?.id || usuario?.userId;
 
           if (!usuario) {
@@ -983,12 +1456,23 @@ const MetodosPago = ({ navigation, route }) => {
           const fechaInicio = new Date();
 
           const suscripcionData = {
-            usuarioId: usuarioId, 
+            usuarioId: usuarioId,
             membresiaId: planId,
             fechaInicio: fechaInicio.toISOString(),
             metodoPagoId: metodo._id || metodo.id || 'default',
             renovacionAutomatica: true,
           };
+
+          
+          const validacionSuscripcion = await validarSuscripcionData(suscripcionData);
+          if (!validacionSuscripcion.valido) {
+            Alert.alert(
+              'Error en datos de suscripción',
+              `Errores:\n${validacionSuscripcion.errores.join('\n')}`,
+              [{ text: 'OK', onPress: () => setEstadoPago('error') }]
+            );
+            return;
+          }
 
           const resultadoSuscripcion = await dispatch(suscribirMembresia(suscripcionData));
 
@@ -1019,7 +1503,7 @@ const MetodosPago = ({ navigation, route }) => {
               precio: precio,
               metodo: metodo,
               usuario: {
-                id: usuarioId, 
+                id: usuarioId,
                 nombre: usuario.nombre || usuario.username || 'Usuario',
                 email: usuario.email
               },
@@ -1305,7 +1789,7 @@ const MetodosPago = ({ navigation, route }) => {
           </View>
         )}
 
-        {modoSeleccion && metodosPagoConIds.length > 0 && (
+        {modoSeleccion && metodosPagoConIds.length == 0 && (
           <View style={styles.agregarTarjetaContainer}>
             <TouchableOpacity
               style={styles.botonAgregarNueva}
@@ -1730,47 +2214,47 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   topLoadingContainer: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  paddingVertical: 12,
-  paddingHorizontal: 20,
-  backgroundColor: 'rgba(74, 144, 226, 0.1)',
-  borderBottomWidth: 1,
-  borderBottomColor: 'rgba(74, 144, 226, 0.2)',
-},
-topLoadingText: {
-  fontSize: 14,
-  color: '#4a90e2',
-  marginLeft: 8,
-  fontWeight: '500',
-  fontFamily: 'System',
-},
-progressContainer: {
-  alignItems: 'center',
-  marginTop: 30,
-},
-progressDots: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  marginBottom: 12,
-},
-dot: {
-  width: 8,
-  height: 8,
-  borderRadius: 4,
-  backgroundColor: '#e0e0e0',
-  marginHorizontal: 4,
-},
-dotActive: {
-  backgroundColor: '#4a90e2',
-  transform: [{ scale: 1.2 }],
-},
-progressText: {
-  fontSize: 12,
-  color: '#7f8c8d',
-  fontFamily: 'System',
-},
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(74, 144, 226, 0.1)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(74, 144, 226, 0.2)',
+  },
+  topLoadingText: {
+    fontSize: 14,
+    color: '#4a90e2',
+    marginLeft: 8,
+    fontWeight: '500',
+    fontFamily: 'System',
+  },
+  progressContainer: {
+    alignItems: 'center',
+    marginTop: 30,
+  },
+  progressDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#e0e0e0',
+    marginHorizontal: 4,
+  },
+  dotActive: {
+    backgroundColor: '#4a90e2',
+    transform: [{ scale: 1.2 }],
+  },
+  progressText: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    fontFamily: 'System',
+  },
 });
 
 export default MetodosPago;

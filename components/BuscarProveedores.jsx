@@ -13,12 +13,57 @@ import {
   View,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import * as Yup from 'yup';
 import {
   crearSolicitudServicio,
   filtrarProveedores,
   obtenerProveedores,
   setProveedorSeleccionado
 } from '../store/slices/proveedoresSlice';
+
+const busquedaSchema = Yup.object({
+  searchText: Yup.string()
+    .max(100, 'La búsqueda no puede tener más de 100 caracteres')
+    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s]*$/, 'Solo se permiten letras, números y espacios'),
+  
+  filtroCategoria: Yup.string()
+    .test('categoria-valida', 'Categoría no válida', function(value) {
+      const categorias = ['todos', 'limpieza', 'tecnologia', 'catering', 'seguridad', 'mantenimiento', 'eventos'];
+      return !value || categorias.includes(value);
+    }),
+  
+  filtroCalificacion: Yup.number()
+    .min(0, 'La calificación mínima es 0')
+    .max(5, 'La calificación máxima es 5'),
+  
+  filtroPrecio: Yup.string()
+    .test('precio-valido', 'Filtro de precio no válido', function(value) {
+      const precios = ['todos', 'bajo', 'medio', 'alto'];
+      return !value || precios.includes(value);
+    })
+});
+
+const solicitudSchema = Yup.object({
+  proveedorId: Yup.string()
+    .required('El ID del proveedor es requerido')
+    .min(1, 'ID de proveedor inválido'),
+  
+  espacioId: Yup.string()
+    .required('El ID del espacio es requerido')
+    .min(1, 'ID de espacio inválido'),
+  
+  mensaje: Yup.string()
+    .required('El mensaje es requerido')
+    .min(10, 'El mensaje debe tener al menos 10 caracteres')
+    .max(500, 'El mensaje no puede tener más de 500 caracteres'),
+  
+  estado: Yup.string()
+    .test('estado-valido', 'Estado no válido', function(value) {
+      const estados = ['enviada', 'pendiente', 'aceptada', 'rechazada'];
+      return !value || estados.includes(value);
+    })
+    .default('enviada')
+});
 
 const BuscarProveedores = ({ navigation, route }) => {
   const { oficina } = route.params;
@@ -36,6 +81,7 @@ const BuscarProveedores = ({ navigation, route }) => {
   const [filtroCalificacion, setFiltroCalificacion] = useState(0);
   const [filtroPrecio, setFiltroPrecio] = useState('todos');
   const [modalVisible, setModalVisible] = useState(false);
+  const [errores, setErrores] = useState({});
 
   const categorias = [
     { id: 'todos', nombre: 'Todos', icono: 'apps' },
@@ -55,15 +101,54 @@ const BuscarProveedores = ({ navigation, route }) => {
     aplicarFiltros();
   }, [filtroCategoria, filtroCalificacion, filtroPrecio, searchText]);
 
+  const validarBusqueda = async () => {
+    const datosBusqueda = {
+      searchText,
+      filtroCategoria,
+      filtroCalificacion,
+      filtroPrecio
+    };
+
+    try {
+      await busquedaSchema.validate(datosBusqueda, { abortEarly: false });
+      setErrores({});
+      return true;
+    } catch (error) {
+      const nuevosErrores = {};
+      error.inner.forEach(err => {
+        nuevosErrores[err.path] = err.message;
+      });
+      setErrores(nuevosErrores);
+      return false;
+    }
+  };
+
+  const validarSolicitud = async (solicitudData) => {
+    try {
+      await solicitudSchema.validate(solicitudData, { abortEarly: false });
+      return { isValid: true, errors: {} };
+    } catch (error) {
+      const nuevosErrores = {};
+      error.inner.forEach(err => {
+        nuevosErrores[err.path] = err.message;
+      });
+      return { isValid: false, errors: nuevosErrores };
+    }
+  };
+
   const cargarProveedores = async () => {
     try {
       await dispatch(obtenerProveedores(0, 50));
     } catch (error) {
-      console.error(error);
+      console.error('Error al cargar proveedores:', error);
+      Alert.alert('Error', 'No se pudieron cargar los proveedores');
     }
   };
 
   const aplicarFiltros = async () => {
+    const esValidoBusqueda = await validarBusqueda();
+    if (!esValidoBusqueda) return;
+
     try {
       const filtros = {};
 
@@ -81,13 +166,12 @@ const BuscarProveedores = ({ navigation, route }) => {
 
       await dispatch(filtrarProveedores(filtros));
     } catch (error) {
-      console.error(error);
+      console.error('Error al aplicar filtros:', error);
     }
   };
 
   const getProveedoresFiltrados = () => {
     let filtrados = proveedores || [];
-
 
     if (searchText) {
       filtrados = filtrados.filter(p =>
@@ -96,7 +180,6 @@ const BuscarProveedores = ({ navigation, route }) => {
         p.servicios?.some(s => s.nombre?.toLowerCase().includes(searchText.toLowerCase()))
       );
     }
-
 
     if (filtroPrecio !== 'todos') {
       filtrados = filtrados.filter(p => {
@@ -118,11 +201,86 @@ const BuscarProveedores = ({ navigation, route }) => {
   };
 
   const handleVerPerfil = (proveedor) => {
+    if (!proveedor || !proveedor._id) {
+      Alert.alert('Error', 'Proveedor no válido');
+      return;
+    }
+    
     dispatch(setProveedorSeleccionado(proveedor));
     setModalVisible(true);
   };
 
+  const handleCambioTexto = async (texto) => {
+    setSearchText(texto);
+    
+    try {
+      await busquedaSchema.validateAt('searchText', { searchText: texto });
+      setErrores(prev => ({ ...prev, searchText: null }));
+    } catch (error) {
+      setErrores(prev => ({ ...prev, searchText: error.message }));
+    }
+  };
+
+  const handleCambioCategoria = async (categoria) => {
+    setFiltroCategoria(categoria);
+    
+    try {
+      await busquedaSchema.validateAt('filtroCategoria', { filtroCategoria: categoria });
+      setErrores(prev => ({ ...prev, filtroCategoria: null }));
+    } catch (error) {
+      setErrores(prev => ({ ...prev, filtroCategoria: error.message }));
+    }
+  };
+
+  const handleCambioCalificacion = async (calificacion) => {
+    setFiltroCalificacion(calificacion);
+    
+    try {
+      await busquedaSchema.validateAt('filtroCalificacion', { filtroCalificacion: calificacion });
+      setErrores(prev => ({ ...prev, filtroCalificacion: null }));
+    } catch (error) {
+      setErrores(prev => ({ ...prev, filtroCalificacion: error.message }));
+    }
+  };
+
+  const handleCambioPrecio = async (precio) => {
+    setFiltroPrecio(precio);
+    
+    try {
+      await busquedaSchema.validateAt('filtroPrecio', { filtroPrecio: precio });
+      setErrores(prev => ({ ...prev, filtroPrecio: null }));
+    } catch (error) {
+      setErrores(prev => ({ ...prev, filtroPrecio: error.message }));
+    }
+  };
+
   const handleAgregarProveedor = async (proveedor) => {
+    if (!proveedor || !proveedor._id) {
+      Alert.alert('Error', 'Proveedor no válido');
+      return;
+    }
+
+    if (!oficina || !oficina.id) {
+      Alert.alert('Error', 'Información de oficina no válida');
+      return;
+    }
+
+    const mensaje = `Hola ${proveedor.nombre}, me interesa que ofrezcas tus servicios en mi espacio "${oficina.nombre}". ¿Podrías enviarme una propuesta?`;
+
+    const solicitudData = {
+      proveedorId: proveedor._id,
+      espacioId: oficina.id,
+      mensaje,
+      estado: 'enviada'
+    };
+
+    const validacion = await validarSolicitud(solicitudData);
+    if (!validacion.isValid) {
+      const erroresTexto = Object.values(validacion.errors).join('\n');
+      Alert.alert('Error de validación', erroresTexto);
+      return;
+    }
+
     Alert.alert(
       'Enviar solicitud',
       `¿Quieres enviar una solicitud a ${proveedor.nombre} (${proveedor.empresa}) para ofrecer servicios en "${oficina.nombre}"?`,
@@ -132,13 +290,6 @@ const BuscarProveedores = ({ navigation, route }) => {
           text: 'Enviar solicitud',
           onPress: async () => {
             try {
-              const solicitudData = {
-                proveedorId: proveedor._id,
-                espacioId: oficina.id,
-                mensaje: `Hola ${proveedor.nombre}, me interesa que ofrezcas tus servicios en mi espacio "${oficina.nombre}". ¿Podrías enviarme una propuesta?`,
-                estado: 'enviada'
-              };
-
               const result = await dispatch(crearSolicitudServicio(solicitudData));
 
               if (result.success) {
@@ -151,7 +302,7 @@ const BuscarProveedores = ({ navigation, route }) => {
                 Alert.alert('Error', 'No se pudo enviar la solicitud. Inténtalo de nuevo.');
               }
             } catch (error) {
-              console.error(error);
+              console.error('Error al enviar solicitud:', error);
               Alert.alert('Error', 'No se pudo enviar la solicitud. Inténtalo de nuevo.');
             }
           }
@@ -246,9 +397,10 @@ const BuscarProveedores = ({ navigation, route }) => {
     <TouchableOpacity
       style={[
         styles.categoriaButton,
-        filtroCategoria === categoria.id && styles.categoriaButtonActive
+        filtroCategoria === categoria.id && styles.categoriaButtonActive,
+        errores.filtroCategoria && styles.categoriaButtonError
       ]}
-      onPress={() => setFiltroCategoria(categoria.id)}
+      onPress={() => handleCambioCategoria(categoria.id)}
     >
       <Ionicons
         name={categoria.icono}
@@ -263,6 +415,17 @@ const BuscarProveedores = ({ navigation, route }) => {
       </Text>
     </TouchableOpacity>
   );
+
+  const renderErrorText = (campo) => {
+    if (errores[campo]) {
+      return (
+        <Text style={styles.errorText}>
+          {errores[campo]}
+        </Text>
+      );
+    }
+    return null;
+  };
 
   const proveedoresFiltrados = getProveedoresFiltrados();
 
@@ -301,13 +464,17 @@ const BuscarProveedores = ({ navigation, route }) => {
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#7f8c8d" style={styles.searchIcon} />
         <TextInput
-          style={styles.searchInput}
+          style={[
+            styles.searchInput,
+            errores.searchText && styles.searchInputError
+          ]}
           placeholder="Buscar por nombre, empresa o servicio..."
           placeholderTextColor="#999"
           value={searchText}
-          onChangeText={setSearchText}
+          onChangeText={handleCambioTexto}
         />
       </View>
+      {renderErrorText('searchText')}
 
       <FlatList
         data={categorias}
@@ -318,13 +485,18 @@ const BuscarProveedores = ({ navigation, route }) => {
         style={styles.categoriasContainer}
         contentContainerStyle={styles.categoriasContent}
       />
+      {renderErrorText('filtroCategoria')}
 
       <View style={styles.filtrosAdicionales}>
         <Text style={styles.filtrosTitle}>Filtros:</Text>
         <View style={styles.filtrosRow}>
           <TouchableOpacity
-            style={[styles.filtroChip, filtroCalificacion >= 4.5 && styles.filtroChipActive]}
-            onPress={() => setFiltroCalificacion(filtroCalificacion >= 4.5 ? 0 : 4.5)}
+            style={[
+              styles.filtroChip, 
+              filtroCalificacion >= 4.5 && styles.filtroChipActive,
+              errores.filtroCalificacion && styles.filtroChipError
+            ]}
+            onPress={() => handleCambioCalificacion(filtroCalificacion >= 4.5 ? 0 : 4.5)}
           >
             <Ionicons name="star" size={14} color={filtroCalificacion >= 4.5 ? '#fff' : '#f39c12'} />
             <Text style={[styles.filtroChipText, filtroCalificacion >= 4.5 && styles.filtroChipTextActive]}>
@@ -333,8 +505,12 @@ const BuscarProveedores = ({ navigation, route }) => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.filtroChip, filtroPrecio === 'bajo' && styles.filtroChipActive]}
-            onPress={() => setFiltroPrecio(filtroPrecio === 'bajo' ? 'todos' : 'bajo')}
+            style={[
+              styles.filtroChip, 
+              filtroPrecio === 'bajo' && styles.filtroChipActive,
+              errores.filtroPrecio && styles.filtroChipError
+            ]}
+            onPress={() => handleCambioPrecio(filtroPrecio === 'bajo' ? 'todos' : 'bajo')}
           >
             <Text style={[styles.filtroChipText, filtroPrecio === 'bajo' && styles.filtroChipTextActive]}>
               Hasta $100
@@ -342,14 +518,20 @@ const BuscarProveedores = ({ navigation, route }) => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.filtroChip, filtroPrecio === 'medio' && styles.filtroChipActive]}
-            onPress={() => setFiltroPrecio(filtroPrecio === 'medio' ? 'todos' : 'medio')}
+            style={[
+              styles.filtroChip, 
+              filtroPrecio === 'medio' && styles.filtroChipActive,
+              errores.filtroPrecio && styles.filtroChipError
+            ]}
+            onPress={() => handleCambioPrecio(filtroPrecio === 'medio' ? 'todos' : 'medio')}
           >
             <Text style={[styles.filtroChipText, filtroPrecio === 'medio' && styles.filtroChipTextActive]}>
               $100-150
             </Text>
           </TouchableOpacity>
         </View>
+        {renderErrorText('filtroCalificacion')}
+        {renderErrorText('filtroPrecio')}
       </View>
 
       <View style={styles.resultadosHeader}>
@@ -464,7 +646,6 @@ const BuscarProveedores = ({ navigation, route }) => {
   );
 };
 
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -488,6 +669,22 @@ const styles = StyleSheet.create({
     color: '#7f8c8d',
     marginTop: 8,
     textAlign: 'center',
+  },
+    searchInputError: {
+    borderColor: '#e74c3c',
+  },
+  categoriaButtonError: {
+    borderColor: '#e74c3c',
+  },
+  filtroChipError: {
+    borderColor: '#e74c3c',
+  },
+  errorText: {
+    color: '#e74c3c',
+    fontSize: 12,
+    marginTop: 4,
+    marginHorizontal: 20,
+    fontFamily: 'System',
   },
   retryButton: {
     backgroundColor: '#4a90e2',

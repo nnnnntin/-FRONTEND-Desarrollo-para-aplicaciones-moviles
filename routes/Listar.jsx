@@ -3,7 +3,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useSelector } from 'react-redux';
 
-import ComisionesAdmin from '../components/ComisionesAdmin';
 import GananciasProveedor from '../components/GananciasProveedor';
 import GestionGanancias from '../components/GestionGanancias';
 import GestionProveedores from '../components/GestionProveedores';
@@ -13,12 +12,10 @@ import GestionServicios from '../components/GestionServicios';
 import GestionUsuarios from '../components/GestionUsuarios';
 import Membresias from '../components/Membresias';
 import MetodosPago from '../components/MetodosPago';
-import ReportesAdmin from '../components/ReportesAdmin';
 import Reservas from '../components/Reservas';
 import ServiciosOfrecidos from '../components/ServiciosOfrecidos';
 import ServiciosProveedor from '../components/ServiciosProveedor';
 import Transacciones from '../components/Transacciones';
-import TransaccionesAdmin from '../components/TransaccionesAdmin';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -72,21 +69,6 @@ const AdminFinanzasStack = () => (
       },
     }}
   >
-    <Stack.Screen
-      name="TransaccionesAdmin"
-      component={TransaccionesAdmin}
-      options={{ title: 'Transacciones' }}
-    />
-    <Stack.Screen
-      name="ComisionesAdmin"
-      component={ComisionesAdmin}
-      options={{ title: 'Comisiones' }}
-    />
-    <Stack.Screen
-      name="ReportesAdmin"
-      component={ReportesAdmin}
-      options={{ title: 'Reportes Financieros' }}
-    />
   </Stack.Navigator>
 );
 

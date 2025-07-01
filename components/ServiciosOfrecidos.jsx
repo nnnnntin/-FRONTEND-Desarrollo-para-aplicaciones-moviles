@@ -11,64 +11,420 @@ import {
   View,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import * as yup from 'yup';
 import {
   actualizarProveedor,
   eliminarProveedor,
   obtenerProveedores
 } from '../store/slices/proveedoresSlice';
 
+const oficinaSchema = yup.object({
+  id: yup
+    .mixed()
+    .required('ID de oficina es requerido')
+    .test('id-valido', 'ID debe ser string o número', function (value) {
+      return typeof value === 'string' || typeof value === 'number';
+    }),
+
+  nombre: yup
+    .string()
+    .required('Nombre de oficina es requerido')
+    .min(3, 'El nombre debe tener al menos 3 caracteres')
+    .max(100, 'El nombre no puede exceder 100 caracteres'),
+});
+
+
+const usuarioSchema = yup.object({
+  id: yup
+    .mixed()
+    .nullable()
+    .test('id-valido', 'ID debe ser string o número', function (value) {
+      if (value === null || value === undefined) return true;
+      return typeof value === 'string' || typeof value === 'number';
+    }),
+
+  _id: yup
+    .mixed()
+    .nullable()
+    .test('id-valido', 'ID debe ser string o número', function (value) {
+      if (value === null || value === undefined) return true;
+      return typeof value === 'string' || typeof value === 'number';
+    }),
+}).test('tiene-id', 'Usuario debe tener ID', function (value) {
+  return value?.id || value?._id;
+});
+
+
+const proveedorExternoSchema = yup.object({
+  id: yup
+    .mixed()
+    .required('ID de proveedor es requerido')
+    .test('id-valido', 'ID debe ser string o número', function (value) {
+      return typeof value === 'string' || typeof value === 'number';
+    }),
+
+  nombre: yup
+    .string()
+    .required('Nombre del proveedor es requerido')
+    .min(3, 'El nombre debe tener al menos 3 caracteres')
+    .max(100, 'El nombre no puede exceder 100 caracteres')
+    .trim(),
+
+  proveedor: yup
+    .string()
+    .when('nombre', {
+      is: (nombre) => !nombre,
+      then: (schema) => schema.required('Proveedor o nombre es requerido'),
+      otherwise: (schema) => schema.nullable(),
+    }),
+
+  servicio: yup
+    .string()
+    .min(3, 'El servicio debe tener al menos 3 caracteres')
+    .max(100, 'El servicio no puede exceder 100 caracteres')
+    .nullable(),
+
+  servicios: yup
+    .array()
+    .of(yup.object({
+      nombre: yup.string().required('Nombre del servicio es requerido'),
+      id: yup.mixed().nullable().test('id-valido', 'ID debe ser string o número', function (value) {
+        if (value === null || value === undefined) return true;
+        return typeof value === 'string' || typeof value === 'number';
+      }),
+    }))
+    .nullable(),
+
+  descripcion: yup
+    .string()
+    .max(500, 'La descripción no puede exceder 500 caracteres')
+    .nullable(),
+
+  categoria: yup
+    .string()
+    .test('categoria-valida', 'Categoría no válida', function (value) {
+      if (!value) return true; 
+      const categoriasValidas = [
+        'limpieza', 'tecnologia', 'catering', 'seguridad',
+        'transporte', 'entretenimiento', 'mantenimiento'
+      ];
+      return categoriasValidas.includes(value);
+    })
+    .nullable(),
+
+  tipo: yup
+    .string()
+    .test('tipo-valido', 'Tipo no válido', function (value) {
+      if (!value) return true; 
+      const tiposValidos = [
+        'limpieza', 'tecnologia', 'catering', 'seguridad',
+        'transporte', 'entretenimiento', 'mantenimiento'
+      ];
+      return tiposValidos.includes(value);
+    })
+    .nullable(),
+
+  calificacion: yup
+    .number()
+    .min(0, 'La calificación no puede ser negativa')
+    .max(5, 'La calificación no puede exceder 5')
+    .nullable(),
+
+  rating: yup
+    .number()
+    .min(0, 'El rating no puede ser negativo')
+    .max(5, 'El rating no puede exceder 5')
+    .nullable(),
+
+  completados: yup
+    .number()
+    .min(0, 'Los trabajos completados no pueden ser negativos')
+    .integer('Debe ser un número entero')
+    .nullable(),
+
+  trabajosCompletados: yup
+    .number()
+    .min(0, 'Los trabajos completados no pueden ser negativos')
+    .integer('Debe ser un número entero')
+    .nullable(),
+
+  precio: yup
+    .number()
+    .min(0, 'El precio no puede ser negativo')
+    .max(100000, 'Precio excesivo')
+    .nullable(),
+
+  precioBase: yup
+    .number()
+    .min(0, 'El precio base no puede ser negativo')
+    .max(100000, 'Precio base excesivo')
+    .nullable(),
+
+  activo: yup
+    .boolean()
+    .required('Estado activo es requerido'),
+
+  usuarioId: yup
+    .mixed()
+    .nullable()
+    .test('id-valido', 'ID debe ser string o número', function (value) {
+      if (value === null || value === undefined) return true;
+      return typeof value === 'string' || typeof value === 'number';
+    }),
+
+  propietarioId: yup
+    .mixed()
+    .nullable()
+    .test('id-valido', 'ID debe ser string o número', function (value) {
+      if (value === null || value === undefined) return true;
+      return typeof value === 'string' || typeof value === 'number';
+    }),
+});
+
+
+const proveedoresListSchema = yup.array().of(proveedorExternoSchema);
+
+
+const categoriaSchema = yup.object({
+  id: yup
+    .string()
+    .required('ID de categoría es requerido')
+    .test('categoria-id-valida', 'Categoría ID no válida', function (value) {
+      const categoriasValidas = ['todos', 'limpieza', 'tecnologia', 'catering', 'seguridad', 'transporte', 'entretenimiento'];
+      return categoriasValidas.includes(value);
+    }),
+
+  nombre: yup
+    .string()
+    .required('Nombre de categoría es requerido')
+    .min(3, 'El nombre debe tener al menos 3 caracteres'),
+
+  icono: yup
+    .string()
+    .required('Icono de categoría es requerido')
+    .matches(/^[a-z-]+$/, 'Formato de icono inválido'),
+});
+
+
+const filtroSchema = yup.object().shape({
+  categoria: yup
+    .string()
+    .oneOf(['todos', 'limpieza', 'tecnologia', 'catering', 'seguridad', 'transporte', 'entretenimiento'])
+    .default('todos'),
+
+  activo: yup
+    .boolean()
+    .nullable(),
+
+  calificacionMinima: yup
+    .number()
+    .min(0)
+    .max(5)
+    .nullable(),
+});
+
 const ServiciosOfrecidos = ({ navigation, route }) => {
   const dispatch = useDispatch();
   const { oficina } = route.params;
 
-
+  
   const { proveedores, loading, error } = useSelector(state => state.proveedores);
   const { user } = useSelector(state => state.auth);
 
+  
   const [filtroCategoria, setFiltroCategoria] = useState('todos');
+  const [validationErrors, setValidationErrors] = useState({});
 
+  
+  const proveedoresExternos = proveedores.filter(p =>
+    p.usuarioId === user?.id || p.propietarioId === user?.id
+  );
 
-  const proveedoresExternos = proveedores.filter(p => p.usuarioId === user?.id || p.propietarioId === user?.id);
-
+  
   const categorias = [
     { id: 'todos', nombre: 'Todos', icono: 'apps' },
     { id: 'limpieza', nombre: 'Limpieza', icono: 'sparkles' },
     { id: 'tecnologia', nombre: 'Tecnología', icono: 'laptop' },
     { id: 'catering', nombre: 'Catering', icono: 'restaurant' },
-    { id: 'seguridad', nombre: 'Seguridad', icono: 'shield-checkmark' }
+    { id: 'seguridad', nombre: 'Seguridad', icono: 'shield-checkmark' },
+    { id: 'transporte', nombre: 'Transporte', icono: 'car' },
+    { id: 'entretenimiento', nombre: 'Entretenimiento', icono: 'musical-notes' }
   ];
 
-
   useEffect(() => {
+    
+    validarDatosIniciales();
     dispatch(obtenerProveedores());
   }, [dispatch]);
 
+  useEffect(() => {
+    
+    validarProveedoresExternos();
+  }, [proveedores, user]);
+
+  
+  const validarDatosIniciales = async () => {
+    try {
+      
+      await oficinaSchema.validate(oficina);
+
+      
+      await usuarioSchema.validate(user);
+
+      
+      await yup.array().of(categoriaSchema).validate(categorias);
+
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.oficina;
+        delete newErrors.usuario;
+        delete newErrors.categorias;
+        return newErrors;
+      });
+    } catch (error) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [error.path]: error.message
+      }));
+      console.warn('Error en validación inicial:', error.message);
+    }
+  };
+
+  
+  const validarProveedoresExternos = async () => {
+    if (proveedoresExternos.length === 0) return;
+
+    try {
+      await proveedoresListSchema.validate(proveedoresExternos);
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.proveedores;
+        return newErrors;
+      });
+    } catch (error) {
+      setValidationErrors(prev => ({
+        ...prev,
+        proveedores: error.message
+      }));
+      console.warn('Proveedores inválidos encontrados:', error.message);
+    }
+  };
+
+  
+  const validarProveedor = async (proveedor) => {
+    try {
+      await proveedorExternoSchema.validate(proveedor);
+      return { valido: true, errores: null };
+    } catch (error) {
+      console.warn('Proveedor inválido:', proveedor, error.message);
+      return { valido: false, errores: error.message };
+    }
+  };
+
+  
+  const validarFiltroCategoria = async (categoria) => {
+    try {
+      await filtroSchema.fields.categoria.validate(categoria);
+      return true;
+    } catch (error) {
+      setValidationErrors(prev => ({
+        ...prev,
+        filtro: error.message
+      }));
+      return false;
+    }
+  };
+
+  
+  const obtenerProveedoresValidos = () => {
+    return proveedoresExternos.filter(async (proveedor) => {
+      const validacion = await validarProveedor(proveedor);
+      if (!validacion.valido) {
+        console.warn('Proveedor inválido filtrado:', validacion.errores);
+      }
+      return validacion.valido;
+    });
+  };
+
+  
+  const obtenerDatosProveedor = (proveedor) => {
+    try {
+      return {
+        id: proveedor.id,
+        nombre: proveedor.nombre || proveedor.proveedor || 'Proveedor sin nombre',
+        servicio: proveedor.servicio ||
+          proveedor.servicios?.[0]?.nombre ||
+          'Servicio general',
+        descripcion: proveedor.descripcion || 'Proveedor de servicios profesionales',
+        calificacion: proveedor.calificacion || proveedor.rating || 0,
+        completados: proveedor.completados || proveedor.trabajosCompletados || 0,
+        precio: proveedor.precio || proveedor.precioBase || 0,
+        categoria: proveedor.categoria || proveedor.tipo || 'general',
+        activo: Boolean(proveedor.activo),
+      };
+    } catch (error) {
+      console.error('Error normalizando datos de proveedor:', error);
+      return null;
+    }
+  };
+
   const toggleProveedor = async (proveedorId) => {
     try {
+      
       const proveedor = proveedoresExternos.find(p => p.id === proveedorId);
+      if (!proveedor) {
+        Alert.alert('Error', 'Proveedor no encontrado');
+        return;
+      }
+
+      const validacion = await validarProveedor(proveedor);
+      if (!validacion.valido) {
+        Alert.alert('Error', 'No se puede modificar un proveedor inválido: ' + validacion.errores);
+        return;
+      }
+
       const proveedorActualizado = {
         ...proveedor,
         activo: !proveedor.activo
       };
 
+      
+      const validacionActualizada = await validarProveedor(proveedorActualizado);
+      if (!validacionActualizada.valido) {
+        Alert.alert('Error', 'Datos actualizados inválidos: ' + validacionActualizada.errores);
+        return;
+      }
+
       const result = await dispatch(actualizarProveedor(proveedorId, proveedorActualizado));
 
       if (result.success) {
-
         dispatch(obtenerProveedores());
       } else {
         Alert.alert('Error', result.error || 'Error al cambiar estado del proveedor');
       }
     } catch (error) {
-      console.error(error);
+      console.error('Error en toggleProveedor:', error);
       Alert.alert('Error', 'Error al cambiar estado del proveedor');
     }
   };
 
   const handleRemoveProveedor = (proveedorId) => {
+    
+    const proveedor = proveedoresExternos.find(p => p.id === proveedorId);
+    if (!proveedor) {
+      Alert.alert('Error', 'Proveedor no encontrado');
+      return;
+    }
+
+    const datosProveedor = obtenerDatosProveedor(proveedor);
+    if (!datosProveedor) {
+      Alert.alert('Error', 'No se puede procesar este proveedor');
+      return;
+    }
+
     Alert.alert(
       'Remover proveedor',
-      '¿Estás seguro de que quieres remover este proveedor de tu espacio?',
+      `¿Estás seguro de que quieres remover a "${datosProveedor.nombre}" de tu espacio?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -85,7 +441,7 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
                 Alert.alert('Error', result.error || 'Error al remover el proveedor');
               }
             } catch (error) {
-              console.error(error);
+              console.error('Error eliminando proveedor:', error);
               Alert.alert('Error', 'Error al remover el proveedor');
             }
           }
@@ -94,113 +450,196 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
     );
   };
 
-  const handleViewProfile = (proveedor) => {
+  const handleViewProfile = async (proveedor) => {
+    
+    const validacion = await validarProveedor(proveedor);
+    if (!validacion.valido) {
+      Alert.alert('Error', 'No se puede ver el perfil: datos de proveedor inválidos');
+      return;
+    }
+
     navigation.navigate('PerfilProveedor', { proveedor });
   };
 
   const handleBuscarProveedores = () => {
-    navigation.navigate('BuscarProveedores', { oficina });
+    
+    oficinaSchema.validate(oficina).then(() => {
+      navigation.navigate('BuscarProveedores', { oficina });
+    }).catch((error) => {
+      Alert.alert('Error', 'Datos de oficina inválidos: ' + error.message);
+    });
   };
 
   const handleCrearProveedor = () => {
-    navigation.navigate('CrearProveedor', { oficina });
+    
+    oficinaSchema.validate(oficina).then(() => {
+      navigation.navigate('CrearProveedor', { oficina });
+    }).catch((error) => {
+      Alert.alert('Error', 'Datos de oficina inválidos: ' + error.message);
+    });
+  };
+
+  const handleFiltroChange = async (categoria) => {
+    const esValido = await validarFiltroCategoria(categoria);
+    if (esValido) {
+      setFiltroCategoria(categoria);
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.filtro;
+        return newErrors;
+      });
+    } else {
+      Alert.alert('Error', 'Categoría de filtro no válida');
+    }
   };
 
   const getProveedoresFiltrados = () => {
+    const proveedoresValidos = obtenerProveedoresValidos();
+
     if (filtroCategoria === 'todos') {
-      return proveedoresExternos;
+      return proveedoresValidos;
     }
-    return proveedoresExternos.filter(p => p.categoria === filtroCategoria || p.tipo === filtroCategoria);
+
+    return proveedoresValidos.filter(proveedor => {
+      const datos = obtenerDatosProveedor(proveedor);
+      return datos && (
+        datos.categoria === filtroCategoria ||
+        proveedor.tipo === filtroCategoria
+      );
+    });
   };
 
-  const renderProveedor = ({ item: proveedor }) => (
-    <View style={[styles.proveedorCard, !proveedor.activo && styles.proveedorInactivo]}>
-      <View style={styles.proveedorHeader}>
-        <View style={styles.proveedorInfo}>
-          <Text style={[styles.proveedorNombre, !proveedor.activo && styles.textoInactivo]}>
-            {proveedor.nombre || proveedor.proveedor}
-          </Text>
-          <Text style={[styles.servicioNombre, !proveedor.activo && styles.textoInactivo]}>
-            {proveedor.servicio || proveedor.servicios?.[0]?.nombre || 'Servicio general'}
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={[styles.toggleButton, proveedor.activo && styles.toggleButtonActive]}
-          onPress={() => toggleProveedor(proveedor.id)}
-          disabled={loading}
-        >
-          <Ionicons
-            name={proveedor.activo ? 'checkmark' : 'close'}
-            size={20}
-            color={proveedor.activo ? '#fff' : '#7f8c8d'}
-          />
-        </TouchableOpacity>
+  
+  const ErrorText = ({ error, titulo }) => {
+    if (!error) return null;
+    return (
+      <View style={styles.errorContainer}>
+        <Ionicons name="warning" size={16} color="#e74c3c" />
+        <Text style={styles.errorText}>{titulo}: {error}</Text>
       </View>
+    );
+  };
 
-      <Text style={[styles.descripcion, !proveedor.activo && styles.textoInactivo]}>
-        {proveedor.descripcion || 'Proveedor de servicios profesionales'}
-      </Text>
+  const renderProveedor = ({ item: proveedor, index }) => {
+    const datos = obtenerDatosProveedor(proveedor);
 
-      <View style={styles.proveedorStats}>
-        <View style={styles.statItem}>
-          <Ionicons name="star" size={16} color="#f39c12" />
-          <Text style={styles.statText}>{proveedor.calificacion || proveedor.rating || 4.5}</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Ionicons name="checkmark-done" size={16} color="#27ae60" />
-          <Text style={styles.statText}>{proveedor.completados || proveedor.trabajosCompletados || 0} trabajos</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Ionicons name="pricetag" size={16} color="#4a90e2" />
-          <Text style={styles.statText}>
-            ${proveedor.precio || proveedor.precioBase || 0}/servicio
+    
+    if (!datos) {
+      return (
+        <View style={styles.proveedorInvalido}>
+          <Text style={styles.proveedorInvalidoText}>
+            Proveedor con datos inválidos (ID: {proveedor.id})
           </Text>
         </View>
+      );
+    }
+
+    return (
+      <View style={[styles.proveedorCard, !datos.activo && styles.proveedorInactivo]}>
+        <View style={styles.proveedorHeader}>
+          <View style={styles.proveedorInfo}>
+            <Text style={[styles.proveedorNombre, !datos.activo && styles.textoInactivo]}>
+              {datos.nombre}
+            </Text>
+            <Text style={[styles.servicioNombre, !datos.activo && styles.textoInactivo]}>
+              {datos.servicio}
+            </Text>
+            <Text style={styles.categoriaTag}>
+              {datos.categoria.charAt(0).toUpperCase() + datos.categoria.slice(1)}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.toggleButton, datos.activo && styles.toggleButtonActive]}
+            onPress={() => toggleProveedor(datos.id)}
+            disabled={loading}
+          >
+            <Ionicons
+              name={datos.activo ? 'checkmark' : 'close'}
+              size={20}
+              color={datos.activo ? '#fff' : '#7f8c8d'}
+            />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={[styles.descripcion, !datos.activo && styles.textoInactivo]}>
+          {datos.descripcion}
+        </Text>
+
+        <View style={styles.proveedorStats}>
+          <View style={styles.statItem}>
+            <Ionicons name="star" size={16} color="#f39c12" />
+            <Text style={styles.statText}>
+              {datos.calificacion > 0 ? datos.calificacion.toFixed(1) : 'N/A'}
+            </Text>
+          </View>
+          <View style={styles.statItem}>
+            <Ionicons name="checkmark-done" size={16} color="#27ae60" />
+            <Text style={styles.statText}>{datos.completados} trabajos</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Ionicons name="pricetag" size={16} color="#4a90e2" />
+            <Text style={styles.statText}>
+              {datos.precio > 0 ? `$${datos.precio}/servicio` : 'Consultar'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.proveedorActions}>
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={() => handleViewProfile(proveedor)}
+          >
+            <Ionicons name="person-outline" size={16} color="#4a90e2" />
+            <Text style={styles.profileButtonText}>Ver perfil</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.removeButton}
+            onPress={() => handleRemoveProveedor(datos.id)}
+          >
+            <Ionicons name="trash-outline" size={16} color="#e74c3c" />
+            <Text style={styles.removeButtonText}>Remover</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+    );
+  };
 
-      <View style={styles.proveedorActions}>
-        <TouchableOpacity
-          style={styles.profileButton}
-          onPress={() => handleViewProfile(proveedor)}
-        >
-          <Ionicons name="person-outline" size={16} color="#4a90e2" />
-          <Text style={styles.profileButtonText}>Ver perfil</Text>
-        </TouchableOpacity>
+  const renderCategoria = ({ item: categoria }) => {
+    
+    try {
+      categoriaSchema.validateSync(categoria);
+    } catch (error) {
+      console.warn('Categoría inválida:', categoria, error.message);
+      return null;
+    }
 
-        <TouchableOpacity
-          style={styles.removeButton}
-          onPress={() => handleRemoveProveedor(proveedor.id)}
-        >
-          <Ionicons name="trash-outline" size={16} color="#e74c3c" />
-          <Text style={styles.removeButtonText}>Remover</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderCategoria = ({ item: categoria }) => (
-    <TouchableOpacity
-      style={[
-        styles.categoriaButton,
-        filtroCategoria === categoria.id && styles.categoriaButtonActive
-      ]}
-      onPress={() => setFiltroCategoria(categoria.id)}
-    >
-      <Ionicons
-        name={categoria.icono}
-        size={20}
-        color={filtroCategoria === categoria.id ? '#fff' : '#4a90e2'}
-      />
-      <Text style={[
-        styles.categoriaText,
-        filtroCategoria === categoria.id && styles.categoriaTextActive
-      ]}>
-        {categoria.nombre}
-      </Text>
-    </TouchableOpacity>
-  );
+    return (
+      <TouchableOpacity
+        style={[
+          styles.categoriaButton,
+          filtroCategoria === categoria.id && styles.categoriaButtonActive
+        ]}
+        onPress={() => handleFiltroChange(categoria.id)}
+      >
+        <Ionicons
+          name={categoria.icono}
+          size={20}
+          color={filtroCategoria === categoria.id ? '#fff' : '#4a90e2'}
+        />
+        <Text style={[
+          styles.categoriaText,
+          filtroCategoria === categoria.id && styles.categoriaTextActive
+        ]}>
+          {categoria.nombre}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   const proveedoresFiltrados = getProveedoresFiltrados();
+  const proveedoresActivos = proveedoresExternos.filter(p => p.activo);
+  const proveedoresInactivos = proveedoresExternos.filter(p => !p.activo);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -222,33 +661,33 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
         </TouchableOpacity>
       </View>
 
+      {/* Mostrar errores de validación */}
+      <ErrorText error={validationErrors.oficina} titulo="Oficina" />
+      <ErrorText error={validationErrors.usuario} titulo="Usuario" />
+      <ErrorText error={validationErrors.proveedores} titulo="Proveedores" />
+      <ErrorText error={validationErrors.filtro} titulo="Filtro" />
+
       <View style={styles.infoContainer}>
         <Text style={styles.espacioNombre}>{oficina.nombre}</Text>
         <Text style={styles.infoText}>
           Gestiona los proveedores externos que ofrecen servicios en tu espacio
         </Text>
         {error && (
-          <Text style={styles.errorText}>Error: {error}</Text>
+          <Text style={styles.errorTextGeneral}>Error: {error}</Text>
         )}
       </View>
 
       <View style={styles.statsContainer}>
         <View style={styles.statContainer}>
-          <Text style={styles.statNumber}>
-            {proveedoresExternos.filter(p => p.activo).length}
-          </Text>
+          <Text style={styles.statNumber}>{proveedoresActivos.length}</Text>
           <Text style={styles.statLabel}>Activos</Text>
         </View>
         <View style={styles.statContainer}>
-          <Text style={styles.statNumber}>
-            {proveedoresExternos.filter(p => !p.activo).length}
-          </Text>
+          <Text style={styles.statNumber}>{proveedoresInactivos.length}</Text>
           <Text style={styles.statLabel}>Inactivos</Text>
         </View>
         <View style={styles.statContainer}>
-          <Text style={styles.statNumber}>
-            {proveedoresExternos.length}
-          </Text>
+          <Text style={styles.statNumber}>{proveedoresExternos.length}</Text>
           <Text style={styles.statLabel}>Total</Text>
         </View>
       </View>
@@ -278,6 +717,11 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
           <Text style={styles.emptySubtext}>
             Busca y agrega proveedores para ofrecer más servicios
           </Text>
+          {Object.keys(validationErrors).length > 0 && (
+            <Text style={styles.emptySubtext}>
+              Algunos proveedores fueron filtrados por errores de validación
+            </Text>
+          )}
           <TouchableOpacity style={styles.buscarButton} onPress={handleBuscarProveedores}>
             <Ionicons name="search" size={20} color="#fff" />
             <Text style={styles.buscarButtonText}>Buscar proveedores</Text>
@@ -290,7 +734,7 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
       ) : (
         <FlatList
           data={proveedoresFiltrados}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
           renderItem={renderProveedor}
           style={styles.lista}
           showsVerticalScrollIndicator={false}
@@ -430,6 +874,20 @@ const styles = StyleSheet.create({
   proveedorInactivo: {
     opacity: 0.6,
   },
+  proveedorInvalido: {
+    backgroundColor: '#ffeaa7',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#fdcb6e',
+  },
+  proveedorInvalidoText: {
+    fontSize: 14,
+    color: '#e17055',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   proveedorHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -448,6 +906,18 @@ const styles = StyleSheet.create({
   servicioNombre: {
     fontSize: 16,
     color: '#4a90e2',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  categoriaTag: {
+    fontSize: 11,
+    color: '#95a5a6',
+    backgroundColor: '#ecf0f1',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+    textTransform: 'uppercase',
     fontWeight: '600',
   },
   descripcion: {
@@ -525,6 +995,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#4a90e2',
     borderColor: '#4a90e2',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    fontFamily: 'System',
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -560,6 +1041,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  crearButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#4a90e2',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 12,
+    gap: 8,
+  },
+  crearButtonText: {
+    color: '#4a90e2',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   fabButton: {
     position: 'absolute',
     bottom: 20,
@@ -575,6 +1073,33 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
+  },
+
+  
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffeaa7',
+    borderLeftWidth: 4,
+    borderLeftColor: '#e74c3c',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    marginHorizontal: 20,
+    marginVertical: 2,
+    borderRadius: 6,
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#e74c3c',
+    marginLeft: 8,
+    flex: 1,
+    fontFamily: 'System',
+  },
+  errorTextGeneral: {
+    fontSize: 14,
+    color: '#e74c3c',
+    marginTop: 8,
+    fontFamily: 'System',
   },
 });
 

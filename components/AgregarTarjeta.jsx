@@ -14,6 +14,57 @@ import {
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { agregarMetodoPago } from '../store/slices/usuarioSlice';
+import * as Yup from 'yup';
+
+const tarjetaSchema = Yup.object({
+  numeroTarjeta: Yup.string()
+    .required('El número de tarjeta es requerido')
+    .test('tarjeta-valida', 'Por favor ingresa un número de tarjeta válido (16 dígitos)', function(value) {
+      if (!value) return false;
+      const numeroLimpio = value.replace(/\s/g, '');
+      return numeroLimpio.length === 16 && /^\d+$/.test(numeroLimpio);
+    }),
+  
+  cvc: Yup.string()
+    .required('El CVC es requerido')
+    .min(3, 'El CVC debe tener al menos 3 dígitos')
+    .max(4, 'El CVC no puede tener más de 4 dígitos')
+    .matches(/^\d+$/, 'El CVC solo puede contener números'),
+  
+  fechaExpiracion: Yup.string()
+    .required('La fecha de expiración es requerida')
+    .matches(/^\d{2}\/\d{2}$/, 'El formato debe ser MM/AA')
+    .test('fecha-valida', 'La tarjeta está vencida', function(value) {
+      if (!value || !value.includes('/')) return false;
+      
+      const [mes, año] = value.split('/');
+      const mesNum = parseInt(mes);
+      const añoNum = parseInt(año);
+      
+      if (mesNum < 1 || mesNum > 12) {
+        return this.createError({ message: 'El mes debe estar entre 01 y 12' });
+      }
+      
+      const fechaActual = new Date();
+      const añoCompleto = 2000 + añoNum;
+      const fechaTarjeta = new Date(añoCompleto, mesNum - 1);
+      
+      return fechaTarjeta >= fechaActual;
+    }),
+  
+  nombreTitular: Yup.string()
+    .required('El nombre del titular es requerido')
+    .min(2, 'El nombre debe tener al menos 2 caracteres')
+    .max(50, 'El nombre no puede tener más de 50 caracteres')
+    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, 'El nombre solo puede contener letras y espacios')
+    .test('nombre-valido', 'Ingresa un nombre válido', function(value) {
+      if (!value) return false;
+      const nombreTrimmed = value.trim();
+      return nombreTrimmed.length >= 2 && nombreTrimmed.split(' ').length >= 1;
+    }),
+  
+  predeterminado: Yup.boolean()
+});
 
 const AgregarTarjeta = ({ navigation, route }) => {
   const dispatch = useDispatch();
@@ -22,12 +73,12 @@ const AgregarTarjeta = ({ navigation, route }) => {
 
   const { usuarioId, onTarjetaAgregada } = route?.params || {};
 
-
   const [numeroTarjeta, setNumeroTarjeta] = useState('');
   const [cvc, setCvc] = useState('');
   const [fechaExpiracion, setFechaExpiracion] = useState('');
   const [nombreTitular, setNombreTitular] = useState('');
   const [predeterminado, setPredeterminado] = useState(false);
+  const [errores, setErrores] = useState({});
 
   const handleGoBack = () => {
     navigation.goBack();
@@ -84,53 +135,96 @@ const AgregarTarjeta = ({ navigation, route }) => {
     return null;
   };
 
-  const validarFormulario = () => {
-    const errores = [];
-
-
-    if (!numeroTarjeta || numeroTarjeta.replace(/\s/g, '').length < 16) {
-      errores.push('Por favor ingresa un número de tarjeta válido (16 dígitos)');
-    }
-
-
-    if (!cvc || cvc.length < 3) {
-      errores.push('Por favor ingresa un CVC válido (3-4 dígitos)');
-    }
-
-
-    if (!fechaExpiracion || fechaExpiracion.length < 5) {
-      errores.push('Por favor ingresa una fecha de expiración válida (MM/AA)');
-    } else {
-
-      const [mes, año] = fechaExpiracion.split('/');
-      const fechaActual = new Date();
-      const añoCompleto = 2000 + parseInt(año);
-      const fechaTarjeta = new Date(añoCompleto, parseInt(mes) - 1);
-
-      if (fechaTarjeta < fechaActual) {
-        errores.push('La tarjeta está vencida');
+  const validarCampo = async (campo, valor, todosLosDatos = null) => {
+    try {
+      if (todosLosDatos) {
+        await tarjetaSchema.validateAt(campo, todosLosDatos);
+      } else {
+        const datosTemp = {
+          numeroTarjeta,
+          cvc,
+          fechaExpiracion,
+          nombreTitular,
+          predeterminado,
+          [campo]: valor
+        };
+        await tarjetaSchema.validateAt(campo, datosTemp);
       }
-    }
-
-
-    if (!nombreTitular.trim()) {
-      errores.push('Por favor ingresa el nombre del titular');
-    }
-
-    if (errores.length > 0) {
-      Alert.alert('Error de validación', errores.join('\n'));
+      
+      setErrores(prev => ({
+        ...prev,
+        [campo]: null
+      }));
+      return true;
+    } catch (error) {
+      setErrores(prev => ({
+        ...prev,
+        [campo]: error.message
+      }));
       return false;
     }
+  };
 
-    return true;
+  const validarFormulario = async () => {
+    const datosFormulario = {
+      numeroTarjeta,
+      cvc,
+      fechaExpiracion,
+      nombreTitular,
+      predeterminado
+    };
+
+    try {
+      await tarjetaSchema.validate(datosFormulario, { abortEarly: false });
+      setErrores({});
+      return true;
+    } catch (error) {
+      const nuevosErrores = {};
+      error.inner.forEach(err => {
+        nuevosErrores[err.path] = err.message;
+      });
+      setErrores(nuevosErrores);
+      
+      const primerError = error.inner[0];
+      if (primerError) {
+        Alert.alert('Error de validación', primerError.message);
+      }
+      
+      return false;
+    }
+  };
+
+  const handleCambioNumeroTarjeta = (texto) => {
+    const numeroFormateado = formatearNumeroTarjeta(texto);
+    setNumeroTarjeta(numeroFormateado);
+    validarCampo('numeroTarjeta', numeroFormateado);
+  };
+
+  const handleCambioCVC = (texto) => {
+    const cvcFormateado = formatearCVC(texto);
+    setCvc(cvcFormateado);
+    validarCampo('cvc', cvcFormateado);
+  };
+
+  const handleCambioFecha = (texto) => {
+    const fechaFormateada = formatearFecha(texto);
+    setFechaExpiracion(fechaFormateada);
+    validarCampo('fechaExpiracion', fechaFormateada);
+  };
+
+  const handleCambioNombre = (texto) => {
+    setNombreTitular(texto);
+    validarCampo('nombreTitular', texto);
   };
 
   const handleAgregar = async () => {
-    if (!validarFormulario()) return;
+    const esValido = await validarFormulario();
+    if (!esValido) return;
 
     const tipoTarjeta = detectarTipoTarjeta(numeroTarjeta);
     const ultimosCuatroDigitos = numeroTarjeta.replace(/\s/g, '').slice(-4);
     const userId = usuarioId || usuario?.id || usuario?._id;
+    
     if (!userId) {
       return Alert.alert('Error', 'No se pudo identificar el usuario');
     }
@@ -162,11 +256,22 @@ const AgregarTarjeta = ({ navigation, route }) => {
 
     } catch (error) {
       console.error(error);
-      const mensaje = typeof err === 'string'
-        ? err
-        : err.message || JSON.stringify(err);
+      const mensaje = typeof error === 'string'
+        ? error
+        : error.message || JSON.stringify(error);
       Alert.alert('Error al agregar tarjeta', mensaje);
     }
+  };
+
+  const renderErrorText = (campo) => {
+    if (errores[campo]) {
+      return (
+        <Text style={styles.errorText}>
+          {errores[campo]}
+        </Text>
+      );
+    }
+    return null;
   };
 
   return (
@@ -202,25 +307,32 @@ const AgregarTarjeta = ({ navigation, route }) => {
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Nombre del titular</Text>
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                errores.nombreTitular && styles.inputError
+              ]}
               placeholder="Nombre como aparece en la tarjeta"
               placeholderTextColor="#bdc3c7"
               value={nombreTitular}
-              onChangeText={setNombreTitular}
+              onChangeText={handleCambioNombre}
               autoCapitalize="words"
               editable={!loadingMetodosPago}
             />
+            {renderErrorText('nombreTitular')}
           </View>
 
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Número de tarjeta</Text>
             <View style={styles.inputWithIcon}>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  errores.numeroTarjeta && styles.inputError
+                ]}
                 placeholder="1234 5678 9012 3456"
                 placeholderTextColor="#bdc3c7"
                 value={numeroTarjeta}
-                onChangeText={(texto) => setNumeroTarjeta(formatearNumeroTarjeta(texto))}
+                onChangeText={handleCambioNumeroTarjeta}
                 keyboardType="numeric"
                 maxLength={19}
                 editable={!loadingMetodosPago}
@@ -233,36 +345,45 @@ const AgregarTarjeta = ({ navigation, route }) => {
                 </View>
               )}
             </View>
+            {renderErrorText('numeroTarjeta')}
           </View>
 
           <View style={styles.rowContainer}>
             <View style={styles.halfInputContainer}>
               <Text style={styles.inputLabel}>Fecha expiración</Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  errores.fechaExpiracion && styles.inputError
+                ]}
                 placeholder="MM/AA"
                 placeholderTextColor="#bdc3c7"
                 value={fechaExpiracion}
-                onChangeText={(texto) => setFechaExpiracion(formatearFecha(texto))}
+                onChangeText={handleCambioFecha}
                 keyboardType="numeric"
                 maxLength={5}
                 editable={!loadingMetodosPago}
               />
+              {renderErrorText('fechaExpiracion')}
             </View>
 
             <View style={styles.halfInputContainer}>
               <Text style={styles.inputLabel}>CVC</Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  errores.cvc && styles.inputError
+                ]}
                 placeholder="123"
                 placeholderTextColor="#bdc3c7"
                 value={cvc}
-                onChangeText={(texto) => setCvc(formatearCVC(texto))}
+                onChangeText={handleCambioCVC}
                 keyboardType="numeric"
                 maxLength={4}
                 secureTextEntry={true}
                 editable={!loadingMetodosPago}
               />
+              {renderErrorText('cvc')}
             </View>
           </View>
 
@@ -323,6 +444,16 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+  },
+    inputError: {
+    borderColor: '#e74c3c',
+    borderWidth: 1,
+  },
+  errorText: {
+    color: '#e74c3c',
+    fontSize: 12,
+    marginTop: 4,
+    fontFamily: 'System',
   },
   backButton: {
     padding: 5,

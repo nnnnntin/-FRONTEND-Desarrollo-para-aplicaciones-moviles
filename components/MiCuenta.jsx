@@ -17,23 +17,99 @@ import {
   View,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import * as yup from 'yup';
 
 import { actualizarUsuario } from '../store/slices/usuarioSlice';
 
 const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
+
+const userProfileSchema = yup.object({
+  nombre: yup
+    .string()
+    .required('El nombre es obligatorio')
+    .min(2, 'El nombre debe tener al menos 2 caracteres')
+    .max(50, 'El nombre no puede exceder 50 caracteres')
+    .matches(/^[a-zA-ZÀ-ÿ\s]+$/, 'El nombre solo puede contener letras y espacios'),
+  
+  apellidos: yup
+    .string()
+    .max(50, 'Los apellidos no pueden exceder 50 caracteres')
+    .matches(/^[a-zA-ZÀ-ÿ\s]*$/, 'Los apellidos solo pueden contener letras y espacios'),
+  
+  email: yup
+    .string()
+    .email('Ingrese un email válido')
+    .required('El email es obligatorio'),
+  
+  telefono: yup
+    .string()
+    .matches(/^(\+598\s?)?[0-9\s\-()]{8,15}$/, 'Ingrese un teléfono válido (+598 9X XXX XXX)')
+    .nullable(),
+  
+  documentoIdentidad: yup
+    .string()
+    .min(7, 'El documento debe tener al menos 7 caracteres')
+    .max(15, 'El documento no puede exceder 15 caracteres')
+    .matches(/^[0-9A-Z\-]+$/, 'El documento solo puede contener números, letras mayúsculas y guiones')
+    .nullable(),
+  
+  calle: yup
+    .string()
+    .max(100, 'La dirección no puede exceder 100 caracteres')
+    .nullable(),
+  
+  ciudad: yup
+    .string()
+    .max(50, 'La ciudad no puede exceder 50 caracteres')
+    .matches(/^[a-zA-ZÀ-ÿ\s]*$/, 'La ciudad solo puede contener letras y espacios')
+    .nullable(),
+  
+  codigoPostal: yup
+    .string()
+    .matches(/^[0-9]{4,6}$/, 'El código postal debe tener entre 4 y 6 dígitos')
+    .nullable(),
+  
+  pais: yup
+    .string()
+    .max(50, 'El país no puede exceder 50 caracteres')
+    .matches(/^[a-zA-ZÀ-ÿ\s]*$/, 'El país solo puede contener letras y espacios')
+    .nullable(),
+  
+  password: yup
+    .string()
+    .min(8, 'La contraseña debe tener al menos 8 caracteres')
+    .max(128, 'La contraseña no puede exceder 128 caracteres')
+    .matches(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      'La contraseña debe contener al menos una minúscula, una mayúscula y un número'
+    )
+    .nullable(),
+  
+  confirmPassword: yup
+    .string()
+    .when('password', {
+      is: (password) => password && password.length > 0,
+      then: (schema) => schema
+        .required('Debe confirmar la contraseña')
+        .test('passwords-match', 'Las contraseñas deben coincidir', function(value) {
+          return value === this.parent.password;
+        }),
+      otherwise: (schema) => schema.nullable(),
+    }),
+});
+
 const MiCuenta = ({ navigation }) => {
   const dispatch = useDispatch();
 
-
   const { usuario, token, tipoUsuario } = useSelector(state => state.auth);
-
   const { loading: usuarioLoading } = useSelector(state => state.usuario);
 
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
 
   const [formData, setFormData] = useState({
     username: '',
@@ -55,18 +131,14 @@ const MiCuenta = ({ navigation }) => {
 
   useEffect(() => {
     if (usuario) {
-
       const data = {
         username: usuario.username || '',
         nombre: usuario.nombre || '',
         apellidos: usuario.apellidos || '',
         email: usuario.email || '',
-
         telefono: usuario.datosPersonales?.telefono || '',
         documentoIdentidad: usuario.datosPersonales?.documentoIdentidad || '',
-
         imagen: usuario.imagen || '',
-
         calle: usuario.direccion?.calle || '',
         ciudad: usuario.direccion?.ciudad || '',
         codigoPostal: usuario.direccion?.codigoPostal || '',
@@ -80,9 +152,66 @@ const MiCuenta = ({ navigation }) => {
     }
   }, [usuario]);
 
+  
+  const validateField = async (fieldName, value) => {
+    try {
+      await yup.reach(userProfileSchema, fieldName).validate(value);
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[fieldName];
+        return newErrors;
+      });
+      return true;
+    } catch (error) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [fieldName]: error.message
+      }));
+      return false;
+    }
+  };
+
+  
+  const validateForm = async (data) => {
+    try {
+      await userProfileSchema.validate(data, { abortEarly: false });
+      setValidationErrors({});
+      return true;
+    } catch (error) {
+      const errors = {};
+      error.inner.forEach(err => {
+        errors[err.path] = err.message;
+      });
+      setValidationErrors(errors);
+      return false;
+    }
+  };
+
+  
+  const handleInputChange = (fieldName, value) => {
+    if (!isEditing) return;
+    
+    setEditData(prev => ({ ...prev, [fieldName]: value }));
+    
+    
+    const timeoutId = setTimeout(() => {
+      validateField(fieldName, value);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  };
+
   const handleEdit = async () => {
     if (isEditing) {
+      
+      const isValid = await validateForm(editData);
+      
+      if (!isValid) {
+        Alert.alert('Error de validación', 'Por favor corrige los errores en el formulario');
+        return;
+      }
 
+      
       if (!editData.nombre.trim() || !editData.email.trim()) {
         Alert.alert('Error', 'El nombre y email son obligatorios');
         return;
@@ -101,17 +230,14 @@ const MiCuenta = ({ navigation }) => {
       try {
         setIsLoading(true);
 
-
         const updateData = {
           nombre: editData.nombre.trim(),
           apellidos: editData.apellidos.trim(),
         };
 
-
         if (editData.imagen) {
           updateData.imagen = editData.imagen;
         }
-
 
         const datosPersonales = {};
         if (editData.telefono.trim()) datosPersonales.telefono = editData.telefono.trim();
@@ -120,7 +246,6 @@ const MiCuenta = ({ navigation }) => {
         if (Object.keys(datosPersonales).length > 0) {
           updateData.datosPersonales = datosPersonales;
         }
-
 
         const direccion = {};
         if (editData.calle.trim()) direccion.calle = editData.calle.trim();
@@ -132,11 +257,9 @@ const MiCuenta = ({ navigation }) => {
           updateData.direccion = direccion;
         }
 
-
         if (editData.password) {
           updateData.password = editData.password;
         }
-
 
         const result = await dispatch(actualizarUsuario({
           usuarioId: usuario.id || usuario._id,
@@ -144,7 +267,6 @@ const MiCuenta = ({ navigation }) => {
         }));
 
         if (actualizarUsuario.fulfilled.match(result)) {
-
           const updatedFormData = {
             ...editData,
             password: '',
@@ -152,6 +274,7 @@ const MiCuenta = ({ navigation }) => {
           };
           setFormData(updatedFormData);
           setEditData(updatedFormData);
+          setValidationErrors({});
 
           setIsEditing(false);
           Alert.alert('Éxito', 'Perfil actualizado correctamente');
@@ -167,12 +290,14 @@ const MiCuenta = ({ navigation }) => {
       }
     } else {
       setEditData({ ...formData });
+      setValidationErrors({});
       setIsEditing(true);
     }
   };
 
   const handleCancel = () => {
     setEditData({ ...formData });
+    setValidationErrors({});
     setIsEditing(false);
   };
 
@@ -207,20 +332,20 @@ const MiCuenta = ({ navigation }) => {
   };
 
   const uploadToCloudinary = async (imageUri) => {
-    const formData = new FormData();
+    const formDataCloudinary = new FormData();
 
-    formData.append('file', {
+    formDataCloudinary.append('file', {
       uri: imageUri,
       name: 'profile_image.jpeg',
       type: 'image/jpeg'
     });
 
-    formData.append('upload_preset', UPLOAD_PRESET);
+    formDataCloudinary.append('upload_preset', UPLOAD_PRESET);
 
     try {
       const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
         method: 'POST',
-        body: formData
+        body: formDataCloudinary
       });
 
       const data = await response.json();
@@ -251,7 +376,6 @@ const MiCuenta = ({ navigation }) => {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const cloudinaryUrl = await uploadToCloudinary(result.assets[0].uri);
-
 
         await updateProfileImage(cloudinaryUrl);
 
@@ -285,7 +409,6 @@ const MiCuenta = ({ navigation }) => {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const cloudinaryUrl = await uploadToCloudinary(result.assets[0].uri);
 
-
         await updateProfileImage(cloudinaryUrl);
 
         setEditData(prev => ({ ...prev, imagen: cloudinaryUrl }));
@@ -303,7 +426,6 @@ const MiCuenta = ({ navigation }) => {
 
   const updateProfileImage = async (imageUrl) => {
     try {
-
       const result = await dispatch(actualizarUsuario({
         usuarioId: usuario.id || usuario._id,
         datosActualizacion: { imagen: imageUrl }
@@ -397,6 +519,12 @@ const MiCuenta = ({ navigation }) => {
     );
   };
 
+  
+  const ErrorText = ({ error }) => {
+    if (!error) return null;
+    return <Text style={styles.errorText}>{error}</Text>;
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor="#f8f9fa" barStyle="dark-content" />
@@ -441,22 +569,33 @@ const MiCuenta = ({ navigation }) => {
               <View style={styles.halfInputContainer}>
                 <Text style={styles.label}>Nombre *</Text>
                 <TextInput
-                  style={[styles.input, !isEditing && styles.inputDisabled]}
+                  style={[
+                    styles.input, 
+                    !isEditing && styles.inputDisabled,
+                    validationErrors.nombre && styles.inputError
+                  ]}
                   value={isEditing ? editData.nombre : formData.nombre}
-                  onChangeText={(text) => isEditing && setEditData({ ...editData, nombre: text })}
+                  onChangeText={(text) => handleInputChange('nombre', text)}
                   editable={isEditing}
                   placeholder="Tu nombre"
                 />
+                <ErrorText error={validationErrors.nombre} />
               </View>
+              
               <View style={styles.halfInputContainer}>
                 <Text style={styles.label}>Apellidos</Text>
                 <TextInput
-                  style={[styles.input, !isEditing && styles.inputDisabled]}
+                  style={[
+                    styles.input, 
+                    !isEditing && styles.inputDisabled,
+                    validationErrors.apellidos && styles.inputError
+                  ]}
                   value={isEditing ? editData.apellidos : formData.apellidos}
-                  onChangeText={(text) => isEditing && setEditData({ ...editData, apellidos: text })}
+                  onChangeText={(text) => handleInputChange('apellidos', text)}
                   editable={isEditing}
                   placeholder="Tus apellidos"
                 />
+                <ErrorText error={validationErrors.apellidos} />
               </View>
             </View>
 
@@ -479,23 +618,34 @@ const MiCuenta = ({ navigation }) => {
               <View style={styles.halfInputContainer}>
                 <Text style={styles.label}>Teléfono</Text>
                 <TextInput
-                  style={[styles.input, !isEditing && styles.inputDisabled]}
+                  style={[
+                    styles.input, 
+                    !isEditing && styles.inputDisabled,
+                    validationErrors.telefono && styles.inputError
+                  ]}
                   value={isEditing ? editData.telefono : formData.telefono}
-                  onChangeText={(text) => isEditing && setEditData({ ...editData, telefono: text })}
+                  onChangeText={(text) => handleInputChange('telefono', text)}
                   editable={isEditing}
                   placeholder="+598 9X XXX XXX"
                   keyboardType="phone-pad"
                 />
+                <ErrorText error={validationErrors.telefono} />
               </View>
+              
               <View style={styles.halfInputContainer}>
                 <Text style={styles.label}>Documento</Text>
                 <TextInput
-                  style={[styles.input, !isEditing && styles.inputDisabled]}
+                  style={[
+                    styles.input, 
+                    !isEditing && styles.inputDisabled,
+                    validationErrors.documentoIdentidad && styles.inputError
+                  ]}
                   value={isEditing ? editData.documentoIdentidad : formData.documentoIdentidad}
-                  onChangeText={(text) => isEditing && setEditData({ ...editData, documentoIdentidad: text })}
+                  onChangeText={(text) => handleInputChange('documentoIdentidad', text)}
                   editable={isEditing}
                   placeholder="C.I. o Pasaporte"
                 />
+                <ErrorText error={validationErrors.documentoIdentidad} />
               </View>
             </View>
 
@@ -504,47 +654,68 @@ const MiCuenta = ({ navigation }) => {
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Calle y número</Text>
               <TextInput
-                style={[styles.input, !isEditing && styles.inputDisabled]}
+                style={[
+                  styles.input, 
+                  !isEditing && styles.inputDisabled,
+                  validationErrors.calle && styles.inputError
+                ]}
                 value={isEditing ? editData.calle : formData.calle}
-                onChangeText={(text) => isEditing && setEditData({ ...editData, calle: text })}
+                onChangeText={(text) => handleInputChange('calle', text)}
                 editable={isEditing}
                 placeholder="Av. 18 de Julio 1234"
               />
+              <ErrorText error={validationErrors.calle} />
             </View>
 
             <View style={styles.rowContainer}>
               <View style={styles.halfInputContainer}>
                 <Text style={styles.label}>Ciudad</Text>
                 <TextInput
-                  style={[styles.input, !isEditing && styles.inputDisabled]}
+                  style={[
+                    styles.input, 
+                    !isEditing && styles.inputDisabled,
+                    validationErrors.ciudad && styles.inputError
+                  ]}
                   value={isEditing ? editData.ciudad : formData.ciudad}
-                  onChangeText={(text) => isEditing && setEditData({ ...editData, ciudad: text })}
+                  onChangeText={(text) => handleInputChange('ciudad', text)}
                   editable={isEditing}
                   placeholder="Montevideo"
                 />
+                <ErrorText error={validationErrors.ciudad} />
               </View>
+              
               <View style={styles.halfInputContainer}>
                 <Text style={styles.label}>Código Postal</Text>
                 <TextInput
-                  style={[styles.input, !isEditing && styles.inputDisabled]}
+                  style={[
+                    styles.input, 
+                    !isEditing && styles.inputDisabled,
+                    validationErrors.codigoPostal && styles.inputError
+                  ]}
                   value={isEditing ? editData.codigoPostal : formData.codigoPostal}
-                  onChangeText={(text) => isEditing && setEditData({ ...editData, codigoPostal: text })}
+                  onChangeText={(text) => handleInputChange('codigoPostal', text)}
                   editable={isEditing}
                   placeholder="11000"
                   keyboardType="numeric"
                 />
+                <ErrorText error={validationErrors.codigoPostal} />
               </View>
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>País</Text>
               <TextInput
-                style={[styles.input, !isEditing && styles.inputDisabled]}
+                style={[
+                  styles.input, 
+                  !isEditing && styles.inputDisabled,
+                  validationErrors.pais && styles.inputError
+                ]}
                 value={isEditing ? editData.pais : formData.pais}
-                onChangeText={(text) => isEditing && setEditData({ ...editData, pais: text })}
+                onChangeText={(text) => handleInputChange('pais', text)}
                 editable={isEditing}
                 placeholder="Uruguay"
               />
+              <ErrorText error={validationErrors.pais} />
             </View>
 
             {isEditing && (
@@ -554,23 +725,31 @@ const MiCuenta = ({ navigation }) => {
                 <View style={styles.inputContainer}>
                   <Text style={styles.label}>Nueva contraseña</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[
+                      styles.input,
+                      validationErrors.password && styles.inputError
+                    ]}
                     value={editData.password}
-                    onChangeText={(text) => setEditData({ ...editData, password: text })}
-                    placeholder="Mínimo 8 caracteres"
+                    onChangeText={(text) => handleInputChange('password', text)}
+                    placeholder="Mínimo 8 caracteres (mayúscula, minúscula y número)"
                     secureTextEntry
                   />
+                  <ErrorText error={validationErrors.password} />
                 </View>
 
                 <View style={styles.inputContainer}>
                   <Text style={styles.label}>Confirmar nueva contraseña</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[
+                      styles.input,
+                      validationErrors.confirmPassword && styles.inputError
+                    ]}
                     value={editData.confirmPassword}
-                    onChangeText={(text) => setEditData({ ...editData, confirmPassword: text })}
+                    onChangeText={(text) => handleInputChange('confirmPassword', text)}
                     placeholder="Repite la nueva contraseña"
                     secureTextEntry
                   />
+                  <ErrorText error={validationErrors.confirmPassword} />
                 </View>
               </>
             )}
@@ -615,6 +794,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+    inputError: {
+    borderColor: '#e74c3c',
+    borderWidth: 2,
+  },
+  
+  errorText: {
+    fontSize: 12,
+    color: '#e74c3c',
+    marginTop: 4,
+    fontFamily: 'System',
   },
   header: {
     flexDirection: 'row',

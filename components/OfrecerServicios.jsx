@@ -14,10 +14,41 @@ import {
   View,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import * as Yup from 'yup';
 import {
   crearSolicitudServicio,
   obtenerServiciosPorProveedor
 } from '../store/slices/proveedoresSlice';
+
+
+const propuestaSchema = Yup.object({
+  mensaje: Yup.string()
+    .trim()
+    .min(10, 'El mensaje debe tener al menos 10 caracteres')
+    .max(500, 'El mensaje no puede exceder 500 caracteres')
+    .required('El mensaje es obligatorio'),
+  
+  precioEspecial: Yup.string()
+    .matches(/^\d*\.?\d*$/, 'Ingrese un precio válido')
+    .test('precio-valido', 'El precio debe ser mayor a 0', function(value) {
+      if (!value || value === '') return true; 
+      const precio = parseFloat(value);
+      return !isNaN(precio) && precio > 0;
+    })
+    .test('precio-maximo', 'El precio no puede exceder $99,999', function(value) {
+      if (!value || value === '') return true;
+      const precio = parseFloat(value);
+      return precio <= 99999;
+    }),
+  
+  disponibilidad: Yup.string()
+    .trim()
+    .max(300, 'La disponibilidad no puede exceder 300 caracteres'),
+  
+  condicionesEspeciales: Yup.string()
+    .trim()
+    .max(500, 'Las condiciones especiales no pueden exceder 500 caracteres')
+});
 
 const OfrecerServicios = ({ navigation, route }) => {
   const { oficina } = route.params;
@@ -33,6 +64,7 @@ const OfrecerServicios = ({ navigation, route }) => {
     disponibilidad: '',
     condicionesEspeciales: ''
   });
+  const [errores, setErrores] = useState({});
 
   useEffect(() => {
     if (datosUsuario?._id) {
@@ -56,25 +88,49 @@ const OfrecerServicios = ({ navigation, route }) => {
       disponibilidad: 'Disponible de lunes a viernes, horarios flexibles',
       condicionesEspeciales: ''
     });
+    setErrores({});
     setModalVisible(true);
   };
 
-  const handleEnviarPropuesta = async () => {
-    if (!propuesta.mensaje.trim()) {
-      Alert.alert('Error', 'El mensaje es obligatorio');
-      return;
-    }
-
+  const validarCampo = async (campo, valor) => {
     try {
+      await propuestaSchema.validateAt(campo, { [campo]: valor });
+      setErrores(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[campo];
+        return newErrors;
+      });
+    } catch (error) {
+      setErrores(prev => ({
+        ...prev,
+        [campo]: error.message
+      }));
+    }
+  };
+
+  const handleInputChange = (campo, valor) => {
+    setPropuesta(prev => ({ ...prev, [campo]: valor }));
+    
+    validarCampo(campo, valor);
+  };
+
+  const handleEnviarPropuesta = async () => {
+    try {
+      
+      await propuestaSchema.validate(propuesta, { abortEarly: false });
+      setErrores({});
+
       const solicitudData = {
         proveedorId: datosUsuario._id,
         espacioId: oficina.id,
         servicioId: servicioSeleccionado._id,
         propuesta: {
-          mensaje: propuesta.mensaje,
-          precioOfrecido: parseFloat(propuesta.precioEspecial) || servicioSeleccionado.precio,
-          disponibilidad: propuesta.disponibilidad,
-          condicionesEspeciales: propuesta.condicionesEspeciales
+          mensaje: propuesta.mensaje.trim(),
+          precioOfrecido: propuesta.precioEspecial ? 
+            parseFloat(propuesta.precioEspecial) : 
+            servicioSeleccionado.precio,
+          disponibilidad: propuesta.disponibilidad.trim(),
+          condicionesEspeciales: propuesta.condicionesEspeciales.trim()
         },
         estado: 'pendiente'
       };
@@ -97,8 +153,20 @@ const OfrecerServicios = ({ navigation, route }) => {
         Alert.alert('Error', 'No se pudo enviar la propuesta. Inténtalo de nuevo.');
       }
     } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Ocurrió un error al enviar la propuesta');
+      if (error.name === 'ValidationError') {
+        const validationErrors = {};
+        error.inner.forEach(err => {
+          validationErrors[err.path] = err.message;
+        });
+        setErrores(validationErrors);
+        
+        
+        const primerError = error.inner[0]?.message || 'Por favor revisa los campos del formulario';
+        Alert.alert('Error de validación', primerError);
+      } else {
+        console.error(error);
+        Alert.alert('Error', 'Ocurrió un error al enviar la propuesta');
+      }
     }
   };
 
@@ -190,18 +258,6 @@ const OfrecerServicios = ({ navigation, route }) => {
           </Text>
         </View>
 
-        <View style={styles.proveedorInfo}>
-          <View style={styles.proveedorHeader}>
-            <View style={styles.proveedorAvatar}>
-              <Ionicons name="person" size={24} color="#fff" />
-            </View>
-            <View style={styles.proveedorDetails}>
-              <Text style={styles.proveedorNombre}>{datosUsuario?.nombre || 'Tu nombre'}</Text>
-              <Text style={styles.proveedorTipo}>Proveedor de servicios</Text>
-            </View>
-          </View>
-        </View>
-
         <View style={styles.serviciosSection}>
           <Text style={styles.sectionTitle}>Mis servicios disponibles</Text>
 
@@ -248,7 +304,10 @@ const OfrecerServicios = ({ navigation, route }) => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Enviar propuesta</Text>
               <TouchableOpacity
-                onPress={() => setModalVisible(false)}
+                onPress={() => {
+                  setModalVisible(false);
+                  setErrores({});
+                }}
                 style={styles.modalCloseButton}
               >
                 <Ionicons name="close" size={24} color="#2c3e50" />
@@ -266,24 +325,34 @@ const OfrecerServicios = ({ navigation, route }) => {
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>Mensaje personalizado *</Text>
                     <TextInput
-                      style={styles.textArea}
+                      style={[styles.textArea, errores.mensaje && styles.inputError]}
                       value={propuesta.mensaje}
-                      onChangeText={(text) => setPropuesta({ ...propuesta, mensaje: text })}
+                      onChangeText={(text) => handleInputChange('mensaje', text)}
                       placeholder="Escribe un mensaje personalizado para el propietario del espacio"
                       multiline
                       numberOfLines={4}
+                      maxLength={500}
                     />
+                    {errores.mensaje && (
+                      <Text style={styles.errorText}>{errores.mensaje}</Text>
+                    )}
+                    <Text style={styles.charCount}>
+                      {propuesta.mensaje.length}/500
+                    </Text>
                   </View>
 
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>Precio especial (opcional)</Text>
                     <TextInput
-                      style={styles.input}
+                      style={[styles.input, errores.precioEspecial && styles.inputError]}
                       value={propuesta.precioEspecial}
-                      onChangeText={(text) => setPropuesta({ ...propuesta, precioEspecial: text })}
+                      onChangeText={(text) => handleInputChange('precioEspecial', text)}
                       placeholder="Precio especial para este espacio"
                       keyboardType="numeric"
                     />
+                    {errores.precioEspecial && (
+                      <Text style={styles.errorText}>{errores.precioEspecial}</Text>
+                    )}
                     <Text style={styles.helpText}>
                       Deja el precio original o ofrece un descuento especial
                     </Text>
@@ -292,25 +361,39 @@ const OfrecerServicios = ({ navigation, route }) => {
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>Disponibilidad</Text>
                     <TextInput
-                      style={styles.textArea}
+                      style={[styles.textArea, errores.disponibilidad && styles.inputError]}
                       value={propuesta.disponibilidad}
-                      onChangeText={(text) => setPropuesta({ ...propuesta, disponibilidad: text })}
+                      onChangeText={(text) => handleInputChange('disponibilidad', text)}
                       placeholder="Describe tu disponibilidad para este servicio"
                       multiline
                       numberOfLines={3}
+                      maxLength={300}
                     />
+                    {errores.disponibilidad && (
+                      <Text style={styles.errorText}>{errores.disponibilidad}</Text>
+                    )}
+                    <Text style={styles.charCount}>
+                      {propuesta.disponibilidad.length}/300
+                    </Text>
                   </View>
 
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>Condiciones especiales</Text>
                     <TextInput
-                      style={styles.textArea}
+                      style={[styles.textArea, errores.condicionesEspeciales && styles.inputError]}
                       value={propuesta.condicionesEspeciales}
-                      onChangeText={(text) => setPropuesta({ ...propuesta, condicionesEspeciales: text })}
+                      onChangeText={(text) => handleInputChange('condicionesEspeciales', text)}
                       placeholder="Requisitos especiales, descuentos, paquetes, etc."
                       multiline
                       numberOfLines={3}
+                      maxLength={500}
                     />
+                    {errores.condicionesEspeciales && (
+                      <Text style={styles.errorText}>{errores.condicionesEspeciales}</Text>
+                    )}
+                    <Text style={styles.charCount}>
+                      {propuesta.condicionesEspeciales.length}/500
+                    </Text>
                   </View>
                 </>
               )}
@@ -319,7 +402,10 @@ const OfrecerServicios = ({ navigation, route }) => {
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.cancelModalButton}
-                onPress={() => setModalVisible(false)}
+                onPress={() => {
+                  setModalVisible(false);
+                  setErrores({});
+                }}
               >
                 <Text style={styles.cancelModalButtonText}>Cancelar</Text>
               </TouchableOpacity>

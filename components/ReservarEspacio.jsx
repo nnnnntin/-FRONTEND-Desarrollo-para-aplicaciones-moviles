@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import {
   Alert,
+  Image,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -12,36 +13,355 @@ import {
   View,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import * as yup from 'yup';
 import { obtenerServiciosPorEspacio } from '../store/slices/proveedoresSlice';
+
+
+
+const reservaSchema = yup.object({
+  fecha: yup
+    .string()
+    .required('La fecha es obligatoria')
+    .matches(
+      /^\d{4}-\d{2}-\d{2}$/,
+      'Formato de fecha inválido (debe ser YYYY-MM-DD)'
+    )
+    .test('fecha-futura', 'La fecha no puede ser en el pasado', function(value) {
+      if (!value) return false;
+      const fechaSeleccionada = new Date(value);
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      return fechaSeleccionada >= hoy;
+    })
+    .test('fecha-valida', 'Fecha inválida', function(value) {
+      if (!value) return false;
+      const fecha = new Date(value);
+      return !isNaN(fecha.getTime());
+    }),
+
+  horaInicio: yup
+    .string()
+    .required('La hora de inicio es obligatoria')
+    .matches(
+      /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
+      'Formato de hora inválido (debe ser HH:MM en formato 24h)'
+    )
+    .test('hora-trabajo', 'Hora fuera del horario de trabajo (06:00 - 18:00)', function(value) {
+      if (!value) return false;
+      const [horas, minutos] = value.split(':').map(Number);
+      const minutosTotal = horas * 60 + minutos;
+      return minutosTotal >= 360 && minutosTotal <= 1080; 
+    }),
+
+  horaFin: yup
+    .string()
+    .required('La hora de fin es obligatoria')
+    .matches(
+      /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
+      'Formato de hora inválido (debe ser HH:MM en formato 24h)'
+    )
+    .test('hora-trabajo', 'Hora fuera del horario de trabajo (06:00 - 18:00)', function(value) {
+      if (!value) return false;
+      const [horas, minutos] = value.split(':').map(Number);
+      const minutosTotal = horas * 60 + minutos;
+      return minutosTotal >= 360 && minutosTotal <= 1080; 
+    })
+    .test('hora-posterior', 'La hora de fin debe ser posterior a la hora de inicio', function(value) {
+      const horaInicio = this.parent.horaInicio;
+      if (!value || !horaInicio) return false;
+      
+      const [hI, mI] = horaInicio.split(':').map(Number);
+      const [hF, mF] = value.split(':').map(Number);
+      
+      const minutosInicio = hI * 60 + mI;
+      const minutosFin = hF * 60 + mF;
+      
+      return minutosFin > minutosInicio;
+    })
+    .test('duracion-minima', 'La reserva debe ser de al menos 1 hora', function(value) {
+      const horaInicio = this.parent.horaInicio;
+      if (!value || !horaInicio) return false;
+      
+      const [hI, mI] = horaInicio.split(':').map(Number);
+      const [hF, mF] = value.split(':').map(Number);
+      
+      const minutosInicio = hI * 60 + mI;
+      const minutosFin = hF * 60 + mF;
+      
+      return (minutosFin - minutosInicio) >= 60; 
+    }),
+
+  cantidadPersonas: yup
+    .number()
+    .required('La cantidad de personas es obligatoria')
+    .min(1, 'Debe haber al menos 1 persona')
+    .integer('La cantidad debe ser un número entero')
+    .test('capacidad-maxima', 'Excede la capacidad máxima del espacio', function(value) {
+      const capacidad = this.options.context?.capacidad || 1;
+      return value <= capacidad;
+    }),
+});
+
+
+const servicioSchema = yup.object({
+  id: yup
+    .mixed()
+    .required('ID del servicio es requerido')
+    .test('id-valido', 'ID debe ser string o número', function(value) {
+      return typeof value === 'string' || typeof value === 'number';
+    }),
+  
+  nombre: yup
+    .string()
+    .required('Nombre del servicio es requerido')
+    .min(3, 'El nombre debe tener al menos 3 caracteres')
+    .max(100, 'El nombre no puede exceder 100 caracteres'),
+  
+  precio: yup
+    .number()
+    .required('El precio es requerido')
+    .min(0, 'El precio no puede ser negativo'),
+  
+  unidadPrecio: yup
+    .string()
+    .test('unidad-precio-valida', 'Unidad de precio no válida', function(value) {
+      if (!value) return true; 
+      const unidadesValidas = ['fijo', 'persona', 'hora'];
+      return unidadesValidas.includes(value);
+    })
+    .default('fijo'),
+  
+  disponible: yup
+    .boolean()
+    .default(true),
+});
+
+
+const espacioSchema = yup.object({
+  id: yup
+    .mixed()
+    .required('ID del espacio es requerido')
+    .test('id-valido', 'ID debe ser string o número', function(value) {
+      return typeof value === 'string' || typeof value === 'number';
+    }),
+  
+  nombre: yup
+    .string()
+    .required('Nombre del espacio es requerido')
+    .min(3, 'El nombre debe tener al menos 3 caracteres')
+    .max(100, 'El nombre no puede exceder 100 caracteres'),
+  
+  precio: yup
+    .number()
+    .required('El precio es requerido')
+    .min(0, 'El precio no puede ser negativo'),
+  
+  capacidad: yup
+    .number()
+    .required('La capacidad es requerida')
+    .min(1, 'La capacidad debe ser al menos 1')
+    .max(1000, 'Capacidad excesiva'),
+  
+  descripcion: yup
+    .string()
+    .max(1000, 'La descripción no puede exceder 1000 caracteres'),
+  
+  imagen: yup
+    .string()
+    .url('URL de imagen inválida')
+    .nullable(),
+});
+
+
+const procesoReservaSchema = yup.object({
+  espacio: espacioSchema,
+  datosReserva: reservaSchema,
+  serviciosSeleccionados: yup.array().of(servicioSchema),
+  precioTotal: yup
+    .number()
+    .min(0, 'El precio total no puede ser negativo')
+    .required('El precio total es requerido'),
+});
 
 const ReservarEspacio = ({ navigation, route }) => {
   const dispatch = useDispatch();
   const { espacio } = route.params;
 
-
+  
   const { serviciosPorEspacio, loading } = useSelector(state => state.proveedores);
   const serviciosAdicionales = serviciosPorEspacio[espacio.id] || [];
 
+  
   const [mostrarDetalles, setMostrarDetalles] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
 
+  
   const hoyISO = new Date().toISOString().split('T')[0];
-  const [fechaInput, setFechaInput] = useState(hoyISO);
-  const [horaInicioInput, setHoraInicioInput] = useState('09:00');
-  const [horaFinInput, setHoraFinInput] = useState('17:00');
+  const [datosReserva, setDatosReserva] = useState({
+    fecha: hoyISO,
+    horaInicio: '09:00',
+    horaFin: '17:00',
+    cantidadPersonas: 1,
+  });
 
-  const [cantidadPersonas, setCantidadPersonas] = useState(1);
   const [serviciosSeleccionados, setServiciosSeleccionados] = useState([]);
 
-
   useEffect(() => {
+    
+    validarEspacio();
+    
     if (espacio.id) {
       dispatch(obtenerServiciosPorEspacio(espacio.id));
     }
   }, [dispatch, espacio.id]);
 
+  useEffect(() => {
+    
+    validarServicios();
+  }, [serviciosAdicionales]);
+
+  
+  const validarEspacio = async () => {
+    try {
+      await espacioSchema.validate(espacio);
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.espacio;
+        return newErrors;
+      });
+    } catch (error) {
+      setValidationErrors(prev => ({
+        ...prev,
+        espacio: error.message
+      }));
+      Alert.alert('Error', 'Datos del espacio inválidos: ' + error.message);
+    }
+  };
+
+  
+  const validarServicios = async () => {
+    if (serviciosAdicionales.length === 0) return;
+
+    try {
+      await yup.array().of(servicioSchema).validate(serviciosAdicionales);
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.servicios;
+        return newErrors;
+      });
+    } catch (error) {
+      setValidationErrors(prev => ({
+        ...prev,
+        servicios: error.message
+      }));
+      console.warn('Servicios inválidos encontrados:', error.message);
+    }
+  };
+
+  
+  const updateDatosReserva = (field, value) => {
+    setDatosReserva(prev => ({ ...prev, [field]: value }));
+    
+    
+    const timeoutId = setTimeout(() => {
+      validateReservaField(field, value);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  };
+
+  
+  const validateReservaField = async (fieldName, value) => {
+    try {
+      const contexto = { capacidad: espacio.capacidad };
+      await yup.reach(reservaSchema, fieldName).validate(value, { context: contexto });
+      
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[fieldName];
+        return newErrors;
+      });
+      
+      return true;
+    } catch (error) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [fieldName]: error.message
+      }));
+      return false;
+    }
+  };
+
+  
+  const validarReservaCompleta = async () => {
+    try {
+      const contexto = { capacidad: espacio.capacidad };
+      await reservaSchema.validate(datosReserva, { 
+        abortEarly: false,
+        context: contexto 
+      });
+      
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        ['fecha', 'horaInicio', 'horaFin', 'cantidadPersonas'].forEach(field => {
+          delete newErrors[field];
+        });
+        return newErrors;
+      });
+      
+      return true;
+    } catch (error) {
+      const errors = {};
+      error.inner.forEach(err => {
+        errors[err.path] = err.message;
+      });
+      setValidationErrors(prev => ({ ...prev, ...errors }));
+      return false;
+    }
+  };
+
+  
+  const validacionesAdicionales = () => {
+    const errores = {};
+
+    
+    const esFinDeSemana = () => {
+      const fecha = new Date(datosReserva.fecha);
+      const diaSemana = fecha.getDay();
+      return diaSemana === 0 || diaSemana === 6; 
+    };
+
+    if (esFinDeSemana()) {
+      errores.fecha = 'Este espacio no está disponible los fines de semana';
+    }
+
+    
+    const [hI] = datosReserva.horaInicio.split(':').map(Number);
+    const [hF] = datosReserva.horaFin.split(':').map(Number);
+    
+    if (hI <= 12 && hF >= 13) {
+      errores.horaFin = 'La reserva no puede incluir el horario de almuerzo (12:00 - 13:00)';
+    }
+
+    if (Object.keys(errores).length > 0) {
+      setValidationErrors(prev => ({ ...prev, ...errores }));
+      return false;
+    }
+
+    return true;
+  };
+
   const handleGoBack = () => navigation.goBack();
 
-  const toggleServicio = servicio => {
+  const toggleServicio = async (servicio) => {
+    
+    try {
+      await servicioSchema.validate(servicio);
+    } catch (error) {
+      Alert.alert('Error', 'Servicio inválido: ' + error.message);
+      return;
+    }
+
     setServiciosSeleccionados(prev => {
       const existe = prev.find(s => s.id === servicio.id);
       if (existe) return prev.filter(s => s.id !== servicio.id);
@@ -50,79 +370,135 @@ const ReservarEspacio = ({ navigation, route }) => {
   };
 
   const calcularPrecioTotal = () => {
-    const precioBase = parseFloat(espacio.precio);
-    const precioServicios = serviciosSeleccionados.reduce((tot, s) => {
-      return tot + (s.unidadPrecio === 'persona'
-        ? s.precio * cantidadPersonas
-        : s.precio);
-    }, 0);
-    return precioBase + precioServicios;
+    try {
+      const precioBase = parseFloat(espacio.precio);
+      if (isNaN(precioBase) || precioBase < 0) {
+        throw new Error('Precio base inválido');
+      }
+
+      const precioServicios = serviciosSeleccionados.reduce((total, servicio) => {
+        const precio = parseFloat(servicio.precio);
+        if (isNaN(precio) || precio < 0) {
+          console.warn('Precio de servicio inválido:', servicio);
+          return total;
+        }
+
+        return total + (servicio.unidadPrecio === 'persona'
+          ? precio * datosReserva.cantidadPersonas
+          : precio);
+      }, 0);
+
+      return precioBase + precioServicios;
+    } catch (error) {
+      console.error('Error calculando precio total:', error);
+      return 0;
+    }
   };
 
-  const handleReservar = () => {
+  const validarDisponibilidad = () => {
+    
+    
+    
+    const fecha = new Date(datosReserva.fecha);
+    const diaSemana = fecha.getDay();
+    
+    
+    if (diaSemana === 1) {
+      return false;
+    }
+    
+    return true;
+  };
+
+  const handleReservar = async () => {
     if (!mostrarDetalles) {
+      
+      const espacioValido = await validarEspacio();
+      if (!espacioValido) {
+        Alert.alert('Error', 'Los datos del espacio no son válidos');
+        return;
+      }
+      
       setMostrarDetalles(true);
       return;
     }
 
-    if (cantidadPersonas > espacio.capacidad) {
-      Alert.alert('Error', `La capacidad máxima es de ${espacio.capacidad} personas`);
+    
+    const reservaValida = await validarReservaCompleta();
+    const validacionesExtra = validacionesAdicionales();
+    
+    if (!reservaValida || !validacionesExtra) {
+      Alert.alert('Error de validación', 'Por favor corrige los errores en el formulario');
       return;
     }
 
-    const parts = fechaInput.split('-').map(n => parseInt(n, 10));
-    if (parts.length !== 3) {
-      Alert.alert('Error', 'Formato de fecha inválido (debe ser YYYY-MM-DD)');
-      return;
-    }
-    const [year, month, day] = parts;
-    const [hI, mI] = horaInicioInput.split(':').map(n => parseInt(n, 10));
-    const [hF, mF] = horaFinInput.split(':').map(n => parseInt(n, 10));
-
-    const inicio = new Date(year, month - 1, day, hI, mI);
-    const fin = new Date(year, month - 1, day, hF, mF);
-
-    if (isNaN(inicio) || isNaN(fin)) {
-      Alert.alert('Error', 'Hora inválida (debe ser HH:MM en 24h)');
-      return;
-    }
-    if (fin <= inicio) {
-      Alert.alert('Error', 'La hora de fin debe ser posterior a la hora de inicio');
-      return;
-    }
-
-    const disponible = true;
-    if (!disponible) {
+    
+    if (!validarDisponibilidad()) {
       Alert.alert('No disponible', 'Este espacio no está disponible en el horario seleccionado');
       return;
     }
 
-    const precioTotal = calcularPrecioTotal();
-    Alert.alert(
-      'Confirmar reserva',
-      `¿Confirmar reserva por $${precioTotal.toFixed(2)}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          onPress: () => {
-            navigation.navigate('MetodosPago', {
-              modoSeleccion: true,
-              oficina: espacio,
-              precio: precioTotal.toFixed(2),
-              datosReserva: {
-                fecha: fechaInput,
-                horaInicio: horaInicioInput,
-                horaFin: horaFinInput,
-                cantidadPersonas,
-                serviciosAdicionales: serviciosSeleccionados
-              }
-            });
+    try {
+      
+      const precioTotal = calcularPrecioTotal();
+      
+      const procesoCompleto = {
+        espacio,
+        datosReserva,
+        serviciosSeleccionados,
+        precioTotal
+      };
+
+      await procesoReservaSchema.validate(procesoCompleto);
+
+      Alert.alert(
+        'Confirmar reserva',
+        `¿Confirmar reserva por $${precioTotal.toFixed(2)}?`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Confirmar',
+            onPress: () => {
+              navigation.navigate('MetodosPago', {
+                modoSeleccion: true,
+                oficina: espacio,
+                precio: precioTotal.toFixed(2),
+                datosReserva: {
+                  ...datosReserva,
+                  serviciosAdicionales: serviciosSeleccionados
+                }
+              });
+            }
           }
-        }
-      ]
-    );
+        ]
+      );
+
+    } catch (error) {
+      console.error('Error en validación final:', error);
+      Alert.alert('Error', 'Error en los datos de la reserva: ' + error.message);
+    }
   };
+
+  
+  const obtenerServiciosValidos = () => {
+    return serviciosAdicionales.filter(servicio => {
+      try {
+        servicioSchema.validateSync(servicio);
+        return true;
+      } catch (error) {
+        console.warn('Servicio inválido filtrado:', servicio, error.message);
+        return false;
+      }
+    });
+  };
+
+  
+  const ErrorText = ({ error }) => {
+    if (!error) return null;
+    return <Text style={styles.errorText}>{error}</Text>;
+  };
+
+  const serviciosValidos = obtenerServiciosValidos();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -136,10 +512,27 @@ const ReservarEspacio = ({ navigation, route }) => {
         <View style={styles.placeholder} />
       </View>
 
+      {/* Mostrar errores de validación del espacio */}
+      {validationErrors.espacio && (
+        <View style={styles.errorContainer}>
+          <Ionicons name="warning" size={16} color="#e74c3c" />
+          <Text style={styles.errorContainerText}>Espacio: {validationErrors.espacio}</Text>
+        </View>
+      )}
+
+      {validationErrors.servicios && (
+        <View style={styles.errorContainer}>
+          <Ionicons name="warning" size={16} color="#e74c3c" />
+          <Text style={styles.errorContainerText}>Servicios: {validationErrors.servicios}</Text>
+        </View>
+      )}
+
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.imageContainer}>
           <Image
-            source={{ uri: espacio.imagen || 'https://images.unsplash.com/photo-1497366216548-37526070297c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80' }}
+            source={{ 
+              uri: espacio.imagen || 'https://images.unsplash.com/photo-1497366216548-37526070297c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80' 
+            }}
             style={styles.espacioImage}
             resizeMode="cover"
           />
@@ -195,14 +588,14 @@ const ReservarEspacio = ({ navigation, route }) => {
               <Text style={styles.detalleValue}>
                 Límite: máx {espacio.capacidad} pers{'\n'}
                 Horario: 06:00 - 18:00{'\n'}
-                Lun - Dom
+                Lun - Vie (fines de semana cerrado)
               </Text>
             </View>
           </View>
 
           <View style={styles.precioSection}>
             <Text style={styles.precioLabel}>Precio</Text>
-            <Text style={styles.precioValue}>{espacio.precio}USD</Text>
+            <Text style={styles.precioValue}>${espacio.precio} USD</Text>
           </View>
         </View>
 
@@ -213,33 +606,43 @@ const ReservarEspacio = ({ navigation, route }) => {
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Fecha (YYYY-MM-DD)</Text>
               <TextInput
-                style={styles.input}
-                value={fechaInput}
-                onChangeText={setFechaInput}
+                style={[
+                  styles.input,
+                  validationErrors.fecha && styles.inputError
+                ]}
+                value={datosReserva.fecha}
+                onChangeText={(value) => updateDatosReserva('fecha', value)}
                 placeholder="2025-06-20"
               />
+              <ErrorText error={validationErrors.fecha} />
             </View>
 
             <View style={styles.horasContainer}>
               <View style={styles.horaInput}>
                 <Text style={styles.inputLabel}>Hora inicio</Text>
                 <TextInput
-                  style={styles.input}
-                  value={horaInicioInput}
-                  onChangeText={setHoraInicioInput}
+                  style={[
+                    styles.input,
+                    validationErrors.horaInicio && styles.inputError
+                  ]}
+                  value={datosReserva.horaInicio}
+                  onChangeText={(value) => updateDatosReserva('horaInicio', value)}
                   placeholder="09:00"
-                  keyboardType="numeric"
                 />
+                <ErrorText error={validationErrors.horaInicio} />
               </View>
               <View style={styles.horaInput}>
                 <Text style={styles.inputLabel}>Hora fin</Text>
                 <TextInput
-                  style={styles.input}
-                  value={horaFinInput}
-                  onChangeText={setHoraFinInput}
+                  style={[
+                    styles.input,
+                    validationErrors.horaFin && styles.inputError
+                  ]}
+                  value={datosReserva.horaFin}
+                  onChangeText={(value) => updateDatosReserva('horaFin', value)}
                   placeholder="17:00"
-                  keyboardType="numeric"
                 />
+                <ErrorText error={validationErrors.horaFin} />
               </View>
             </View>
 
@@ -248,42 +651,45 @@ const ReservarEspacio = ({ navigation, route }) => {
               <View style={styles.cantidadContainer}>
                 <TouchableOpacity
                   style={styles.cantidadButton}
-                  onPress={() => setCantidadPersonas(Math.max(1, cantidadPersonas - 1))}
+                  onPress={() => updateDatosReserva('cantidadPersonas', Math.max(1, datosReserva.cantidadPersonas - 1))}
                 >
                   <Ionicons name="remove" size={24} color="#4a90e2" />
                 </TouchableOpacity>
-                <Text style={styles.cantidadText}>{cantidadPersonas}</Text>
+                <Text style={styles.cantidadText}>{datosReserva.cantidadPersonas}</Text>
                 <TouchableOpacity
                   style={styles.cantidadButton}
-                  onPress={() => setCantidadPersonas(Math.min(espacio.capacidad, cantidadPersonas + 1))}
+                  onPress={() => updateDatosReserva('cantidadPersonas', Math.min(espacio.capacidad, datosReserva.cantidadPersonas + 1))}
                 >
                   <Ionicons name="add" size={24} color="#4a90e2" />
                 </TouchableOpacity>
               </View>
+              <ErrorText error={validationErrors.cantidadPersonas} />
             </View>
 
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Servicios adicionales</Text>
               {loading ? (
                 <Text style={styles.loadingText}>Cargando servicios...</Text>
+              ) : serviciosValidos.length === 0 ? (
+                <Text style={styles.noServiciosText}>No hay servicios adicionales disponibles</Text>
               ) : (
-                serviciosAdicionales.map(s => (
+                serviciosValidos.map(servicio => (
                   <TouchableOpacity
-                    key={s.id}
+                    key={servicio.id}
                     style={[
                       styles.servicioItem,
-                      serviciosSeleccionados.some(x => x.id === s.id) && styles.servicioItemActive
+                      serviciosSeleccionados.some(s => s.id === servicio.id) && styles.servicioItemActive
                     ]}
-                    onPress={() => toggleServicio(s)}
+                    onPress={() => toggleServicio(servicio)}
                   >
                     <View style={styles.servicioInfo}>
-                      <Text style={styles.servicioNombre}>{s.nombre}</Text>
+                      <Text style={styles.servicioNombre}>{servicio.nombre}</Text>
                       <Text style={styles.servicioPrecio}>
-                        ${s.precio}/{s.unidadPrecio}
+                        ${servicio.precio}/{servicio.unidadPrecio}
                       </Text>
                     </View>
                     <Ionicons
-                      name={serviciosSeleccionados.some(x => x.id === s.id) ? 'checkbox' : 'square-outline'}
+                      name={serviciosSeleccionados.some(s => s.id === servicio.id) ? 'checkbox' : 'square-outline'}
                       size={24}
                       color="#4a90e2"
                     />
@@ -299,13 +705,13 @@ const ReservarEspacio = ({ navigation, route }) => {
                   <Text style={styles.resumenLabel}>Precio base</Text>
                   <Text style={styles.resumenValue}>${espacio.precio}</Text>
                 </View>
-                {serviciosSeleccionados.map(s => (
-                  <View key={s.id} style={styles.resumenItem}>
+                {serviciosSeleccionados.map(servicio => (
+                  <View key={servicio.id} style={styles.resumenItem}>
                     <Text style={styles.resumenLabel}>
-                      {s.nombre}{s.unidadPrecio === 'persona' && ` (x${cantidadPersonas})`}
+                      {servicio.nombre}{servicio.unidadPrecio === 'persona' && ` (x${datosReserva.cantidadPersonas})`}
                     </Text>
                     <Text style={styles.resumenValue}>
-                      ${s.unidadPrecio === 'persona' ? s.precio * cantidadPersonas : s.precio}
+                      ${servicio.unidadPrecio === 'persona' ? servicio.precio * datosReserva.cantidadPersonas : servicio.precio}
                     </Text>
                   </View>
                 ))}
@@ -504,6 +910,10 @@ const styles = StyleSheet.create({
     borderColor: '#e1e5e9',
     fontSize: 16,
   },
+  inputError: {
+    borderColor: '#e74c3c',
+    borderWidth: 2,
+  },
   horasContainer: {
     flexDirection: 'row',
     gap: 15,
@@ -564,6 +974,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#7f8c8d',
     marginTop: 2,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    textAlign: 'center',
+    padding: 20,
+    fontStyle: 'italic',
+  },
+  noServiciosText: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    textAlign: 'center',
+    padding: 20,
+    fontStyle: 'italic',
   },
   resumenSection: {
     backgroundColor: '#f8f9fa',
@@ -627,7 +1051,34 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 30,
-  }
+  },
+  
+  
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffeaa7',
+    borderLeftWidth: 4,
+    borderLeftColor: '#e74c3c',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    marginHorizontal: 20,
+    marginVertical: 5,
+    borderRadius: 8,
+  },
+  errorContainerText: {
+    fontSize: 14,
+    color: '#e74c3c',
+    marginLeft: 8,
+    flex: 1,
+    fontFamily: 'System',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#e74c3c',
+    marginTop: 4,
+    fontFamily: 'System',
+  },
 });
 
 export default ReservarEspacio;

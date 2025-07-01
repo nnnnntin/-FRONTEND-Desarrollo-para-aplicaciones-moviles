@@ -14,12 +14,71 @@ import {
   View,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import * as Yup from 'yup';
 import {
   actualizarServicioAdicional,
   eliminarServicioAdicional,
   obtenerServiciosPorProveedor,
   toggleServicioAdicional
 } from '../store/slices/proveedoresSlice';
+
+const servicioEditSchema = Yup.object({
+  nombre: Yup.string()
+    .required('El nombre del servicio es obligatorio')
+    .min(3, 'El nombre debe tener al menos 3 caracteres')
+    .max(100, 'El nombre no puede exceder 100 caracteres')
+    .trim(),
+  descripcion: Yup.string()
+    .max(500, 'La descripción no puede exceder 500 caracteres')
+    .trim(),
+  precio: Yup.number()
+    .required('El precio es obligatorio')
+    .positive('El precio debe ser un número positivo')
+    .max(999999, 'El precio no puede exceder $999,999')
+    .typeError('El precio debe ser un número válido'),
+  unidadPrecio: Yup.string()
+    .test('unidad-precio-valida', 'Unidad de precio no válida', function(value) {
+      const unidadesValidas = ['por_uso', 'por_hora', 'por_persona', 'por_dia'];
+      return unidadesValidas.includes(value);
+    })
+    .required('La unidad de precio es obligatoria'),
+  tiempoAnticipacion: Yup.number()
+    .min(0, 'El tiempo de anticipación debe ser mayor o igual a 0')
+    .max(8760, 'El tiempo de anticipación no puede exceder 8760 horas (1 año)')
+    .integer('El tiempo de anticipación debe ser un número entero')
+    .typeError('El tiempo de anticipación debe ser un número válido'),
+  requiereAprobacion: Yup.boolean()
+});
+
+
+const servicioSchema = Yup.object({
+  _id: Yup.string().required('ID del servicio es requerido'),
+  nombre: Yup.string().required('Nombre del servicio es requerido'),
+  descripcion: Yup.string(),
+  tipo: Yup.string().required('Tipo de servicio es requerido'),
+  precio: Yup.number().positive('El precio debe ser positivo').required('Precio es requerido'),
+  unidadPrecio: Yup.string()
+    .test('unidad-precio-valida', 'Unidad de precio no válida', function(value) {
+      if (!value) return true; 
+      const unidadesValidas = ['por_uso', 'por_hora', 'por_persona', 'por_dia'];
+      return unidadesValidas.includes(value);
+    }),
+  activo: Yup.boolean().required('Estado activo es requerido'),
+  calificacion: Yup.number().min(0).max(5),
+  trabajosCompletados: Yup.number().min(0),
+  trabajosPendientes: Yup.number().min(0),
+  solicitudesPendientes: Yup.number().min(0),
+  tiempoAnticipacion: Yup.number().min(0),
+  requiereAprobacion: Yup.boolean()
+});
+
+
+const estadisticasSchema = Yup.object({
+  activos: Yup.number().min(0).required(),
+  pausados: Yup.number().min(0).required(),
+  totalTrabajos: Yup.number().min(0).required(),
+  totalSolicitudes: Yup.number().min(0).required()
+});
 
 const ServiciosProveedor = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -33,6 +92,7 @@ const ServiciosProveedor = ({ navigation }) => {
   const [modoEdicion, setModoEdicion] = useState(false);
   const [formData, setFormData] = useState({});
   const [loadingLocal, setLoadingLocal] = useState(false);
+  const [erroresValidacion, setErroresValidacion] = useState({});
 
   const categorias = {
     'catering': { color: '#e74c3c', icono: 'restaurant' },
@@ -41,6 +101,60 @@ const ServiciosProveedor = ({ navigation }) => {
     'parking': { color: '#2ecc71', icono: 'car' },
     'impresion': { color: '#f39c12', icono: 'print' },
     'otro': { color: '#95a5a6', icono: 'ellipse' }
+  };
+
+  
+  const validarServicios = (servicios) => {
+    try {
+      if (!Array.isArray(servicios)) {
+        console.warn('Los servicios no son un array válido');
+        return [];
+      }
+
+      return servicios.filter(servicio => {
+        try {
+          servicioSchema.validateSync(servicio);
+          return true;
+        } catch (error) {
+          console.warn(`Servicio inválido filtrado:`, error.message, servicio);
+          return false;
+        }
+      });
+    } catch (error) {
+      console.error('Error al validar servicios:', error);
+      return [];
+    }
+  };
+
+  
+  const validarEstadisticas = (stats) => {
+    try {
+      estadisticasSchema.validateSync(stats);
+      return stats;
+    } catch (error) {
+      console.warn('Estadísticas inválidas, usando valores por defecto:', error.message);
+      return { activos: 0, pausados: 0, totalTrabajos: 0, totalSolicitudes: 0 };
+    }
+  };
+
+  
+  const validarFormulario = async (datos) => {
+    try {
+      await servicioEditSchema.validate(datos, { abortEarly: false });
+      setErroresValidacion({});
+      return true;
+    } catch (error) {
+      const errores = {};
+      if (error.inner) {
+        error.inner.forEach(err => {
+          errores[err.path] = err.message;
+        });
+      } else {
+        errores.general = error.message;
+      }
+      setErroresValidacion(errores);
+      return false;
+    }
   };
 
   useEffect(() => {
@@ -74,27 +188,47 @@ const ServiciosProveedor = ({ navigation }) => {
   };
 
   const handleEditarServicio = (servicio) => {
-    setServicioSeleccionado(servicio);
-    setFormData({
-      nombre: servicio.nombre || '',
-      descripcion: servicio.descripcion || '',
-      precio: servicio.precio?.toString() || '',
-      unidadPrecio: servicio.unidadPrecio || 'por_uso',
-      tiempoAnticipacion: servicio.tiempoAnticipacion?.toString() || '',
-      requiereAprobacion: servicio.requiereAprobacion || false
-    });
-    setModoEdicion(true);
-    setModalVisible(true);
+    try {
+      
+      servicioSchema.validateSync(servicio);
+      
+      setServicioSeleccionado(servicio);
+      setFormData({
+        nombre: servicio.nombre || '',
+        descripcion: servicio.descripcion || '',
+        precio: servicio.precio?.toString() || '',
+        unidadPrecio: servicio.unidadPrecio || 'por_uso',
+        tiempoAnticipacion: servicio.tiempoAnticipacion?.toString() || '',
+        requiereAprobacion: servicio.requiereAprobacion || false
+      });
+      setModoEdicion(true);
+      setModalVisible(true);
+      setErroresValidacion({});
+    } catch (error) {
+      Alert.alert('Error', 'Datos del servicio inválidos: ' + error.message);
+    }
   };
 
   const handleVerDetalles = (servicio) => {
-    setServicioSeleccionado(servicio);
-    setModoEdicion(false);
-    setModalVisible(true);
+    try {
+      
+      servicioSchema.validateSync(servicio);
+      
+      setServicioSeleccionado(servicio);
+      setModoEdicion(false);
+      setModalVisible(true);
+    } catch (error) {
+      Alert.alert('Error', 'Datos del servicio inválidos: ' + error.message);
+    }
   };
 
   const handleToggleEstado = async (servicioId, estadoActual) => {
     try {
+      
+      if (!servicioId || typeof servicioId !== 'string') {
+        throw new Error('ID de servicio inválido');
+      }
+
       const nuevoEstado = !estadoActual;
       const result = await dispatch(toggleServicioAdicional({ 
         id: servicioId, 
@@ -109,60 +243,71 @@ const ServiciosProveedor = ({ navigation }) => {
       }
     } catch (error) {
       console.error(error);
-      Alert.alert('Error', 'Ocurrió un error al cambiar el estado');
+      Alert.alert('Error', 'Ocurrió un error al cambiar el estado: ' + error.message);
     }
   };
 
   const handleEliminarServicio = (servicioId) => {
-    Alert.alert(
-      'Eliminar servicio',
-      '¿Estás seguro de que quieres eliminar este servicio? Esta acción no se puede deshacer.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const result = await dispatch(eliminarServicioAdicional(servicioId));
-              
-              if (eliminarServicioAdicional.fulfilled.match(result)) {
-                await cargarServicios();
-                Alert.alert('Éxito', 'Servicio eliminado correctamente');
-              } else {
-                Alert.alert('Error', result.payload || 'No se pudo eliminar el servicio');
+    try {
+      
+      if (!servicioId || typeof servicioId !== 'string') {
+        throw new Error('ID de servicio inválido');
+      }
+
+      Alert.alert(
+        'Eliminar servicio',
+        '¿Estás seguro de que quieres eliminar este servicio? Esta acción no se puede deshacer.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Eliminar',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const result = await dispatch(eliminarServicioAdicional(servicioId));
+                
+                if (eliminarServicioAdicional.fulfilled.match(result)) {
+                  await cargarServicios();
+                  Alert.alert('Éxito', 'Servicio eliminado correctamente');
+                } else {
+                  Alert.alert('Error', result.payload || 'No se pudo eliminar el servicio');
+                }
+              } catch (error) {
+                console.error(error);
+                Alert.alert('Error', 'Ocurrió un error al eliminar el servicio');
               }
-            } catch (error) {
-              console.error(error);
-              Alert.alert('Error', 'Ocurrió un error al eliminar el servicio');
             }
           }
-        }
-      ]
-    );
+        ]
+      );
+    } catch (error) {
+      Alert.alert('Error', 'ID de servicio inválido: ' + error.message);
+    }
   };
 
   const handleGuardarEdicion = async () => {
-    if (!formData.nombre?.trim() || !formData.precio?.trim()) {
-      Alert.alert('Error', 'Nombre y precio son obligatorios');
-      return;
-    }
-
-    const precio = parseFloat(formData.precio);
-    if (isNaN(precio) || precio < 0) {
-      Alert.alert('Error', 'El precio debe ser un número válido mayor o igual a 0');
-      return;
-    }
-
     try {
+      
+      const esValido = await validarFormulario(formData);
+      
+      if (!esValido) {
+        
+        const primerError = Object.values(erroresValidacion)[0];
+        Alert.alert('Error de validación', primerError);
+        return;
+      }
+
       const servicioActualizado = {
         nombre: formData.nombre.trim(),
         descripcion: formData.descripcion?.trim() || '',
-        precio: precio,
+        precio: parseFloat(formData.precio),
         unidadPrecio: formData.unidadPrecio,
         tiempoAnticipacion: formData.tiempoAnticipacion ? parseInt(formData.tiempoAnticipacion) : 0,
         requiereAprobacion: formData.requiereAprobacion
       };
+
+      
+      await servicioEditSchema.validate(servicioActualizado);
 
       const result = await dispatch(actualizarServicioAdicional({
         id: servicioSeleccionado._id,
@@ -173,44 +318,50 @@ const ServiciosProveedor = ({ navigation }) => {
         setModalVisible(false);
         await cargarServicios();
         Alert.alert('Éxito', 'Servicio actualizado correctamente');
+        setErroresValidacion({});
       } else {
         Alert.alert('Error', result.payload || 'No se pudo actualizar el servicio');
       }
     } catch (error) {
       console.error(error);
-      Alert.alert('Error', 'Ocurrió un error al actualizar el servicio');
+      Alert.alert('Error', 'Error en la validación: ' + error.message);
     }
   };
 
   const getServiciosFiltrados = () => {
-    if (!serviciosProveedor || !Array.isArray(serviciosProveedor)) {
-      return [];
-    }
+    try {
+      const serviciosValidados = validarServicios(serviciosProveedor || []);
 
-    switch (tabActiva) {
-      case 'activos':
-        const activos = serviciosProveedor.filter(s => s.activo === true);
-        return activos;
-      case 'pausados':
-        const pausados = serviciosProveedor.filter(s => s.activo === false);
-        return pausados;
-      case 'todos':
-      default:
-        return serviciosProveedor;
+      switch (tabActiva) {
+        case 'activos':
+          return serviciosValidados.filter(s => s.activo === true);
+        case 'pausados':
+          return serviciosValidados.filter(s => s.activo === false);
+        case 'todos':
+        default:
+          return serviciosValidados;
+      }
+    } catch (error) {
+      console.error('Error al filtrar servicios:', error);
+      return [];
     }
   };
 
   const getEstadisticas = () => {
-    if (!serviciosProveedor || !Array.isArray(serviciosProveedor)) {
-      return { activos: 0, pausados: 0, totalTrabajos: 0, totalSolicitudes: 0 };
+    try {
+      const serviciosValidados = validarServicios(serviciosProveedor || []);
+
+      const activos = serviciosValidados.filter(s => s.activo === true).length;
+      const pausados = serviciosValidados.filter(s => s.activo === false).length;
+      const totalTrabajos = serviciosValidados.reduce((sum, s) => sum + (s.trabajosCompletados || 0), 0);
+      const totalSolicitudes = serviciosValidados.reduce((sum, s) => sum + (s.solicitudesPendientes || 0), 0);
+
+      const stats = { activos, pausados, totalTrabajos, totalSolicitudes };
+      return validarEstadisticas(stats);
+    } catch (error) {
+      console.error('Error al calcular estadísticas:', error);
+      return validarEstadisticas({ activos: 0, pausados: 0, totalTrabajos: 0, totalSolicitudes: 0 });
     }
-
-    const activos = serviciosProveedor.filter(s => s.activo === true).length;
-    const pausados = serviciosProveedor.filter(s => s.activo === false).length;
-    const totalTrabajos = serviciosProveedor.reduce((sum, s) => sum + (s.trabajosCompletados || 0), 0);
-    const totalSolicitudes = serviciosProveedor.reduce((sum, s) => sum + (s.solicitudesPendientes || 0), 0);
-
-    return { activos, pausados, totalTrabajos, totalSolicitudes };
   };
 
   const estadisticas = getEstadisticas();
@@ -218,129 +369,137 @@ const ServiciosProveedor = ({ navigation }) => {
   const isLoading = loading || loadingLocal;
 
   const renderServicio = ({ item: servicio }) => {
-    const categoria = categorias[servicio.tipo] || { color: '#7f8c8d', icono: 'ellipse' };
+    try {
+      
+      servicioSchema.validateSync(servicio);
+      
+      const categoria = categorias[servicio.tipo] || { color: '#7f8c8d', icono: 'ellipse' };
 
-    return (
-      <View style={[
-        styles.servicioCard,
-        !servicio.activo && styles.servicioCardPausado
-      ]}>
-        <View style={styles.servicioHeader}>
-          <View style={[styles.categoriaIcon, { backgroundColor: categoria.color }]}>
-            <Ionicons name={categoria.icono} size={20} color="#fff" />
+      return (
+        <View style={[
+          styles.servicioCard,
+          !servicio.activo && styles.servicioCardPausado
+        ]}>
+          <View style={styles.servicioHeader}>
+            <View style={[styles.categoriaIcon, { backgroundColor: categoria.color }]}>
+              <Ionicons name={categoria.icono} size={20} color="#fff" />
+            </View>
+            <View style={styles.servicioInfo}>
+              <Text style={[
+                styles.servicioNombre,
+                !servicio.activo && styles.textoPausado
+              ]}>
+                {servicio.nombre}
+              </Text>
+              <Text style={styles.servicioCategoria}>{servicio.tipo}</Text>
+            </View>
+            <View style={styles.servicioEstado}>
+              <View style={[
+                styles.estadoBadge,
+                { backgroundColor: servicio.activo ? '#27ae60' : '#f39c12' }
+              ]}>
+                <Text style={styles.estadoText}>
+                  {servicio.activo ? 'Activo' : 'Pausado'}
+                </Text>
+              </View>
+            </View>
           </View>
-          <View style={styles.servicioInfo}>
-            <Text style={[
-              styles.servicioNombre,
-              !servicio.activo && styles.textoPausado
-            ]}>
-              {servicio.nombre}
-            </Text>
-            <Text style={styles.servicioCategoria}>{servicio.tipo}</Text>
+
+          <Text style={[
+            styles.servicioDescripcion,
+            !servicio.activo && styles.textoPausado
+          ]}>
+            {servicio.descripcion}
+          </Text>
+
+          <View style={styles.servicioStats}>
+            <View style={styles.statItem}>
+              <Ionicons name="star" size={16} color="#f39c12" />
+              <Text style={styles.statText}>{servicio.calificacion || 0}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Ionicons name="checkmark-done" size={16} color="#27ae60" />
+              <Text style={styles.statText}>{servicio.trabajosCompletados || 0}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Ionicons name="time" size={16} color="#4a90e2" />
+              <Text style={styles.statText}>{servicio.trabajosPendientes || 0}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Ionicons name="mail" size={16} color="#9b59b6" />
+              <Text style={styles.statText}>{servicio.solicitudesPendientes || 0}</Text>
+            </View>
           </View>
-          <View style={styles.servicioEstado}>
-            <View style={[
-              styles.estadoBadge,
-              { backgroundColor: servicio.activo ? '#27ae60' : '#f39c12' }
-            ]}>
-              <Text style={styles.estadoText}>
-                {servicio.activo ? 'Activo' : 'Pausado'}
+
+          <View style={styles.servicioDetalles}>
+            <View style={styles.detalleItem}>
+              <Ionicons name="pricetag" size={16} color="#27ae60" />
+              <Text style={styles.detalleText}>
+                ${servicio.precio} {servicio.unidadPrecio && `(${servicio.unidadPrecio.replace('_', ' ')})`}
               </Text>
             </View>
+            {servicio.tiempoAnticipacion && (
+              <View style={styles.detalleItem}>
+                <Ionicons name="clock" size={16} color="#7f8c8d" />
+                <Text style={styles.detalleText}>{servicio.tiempoAnticipacion}h anticipación</Text>
+              </View>
+            )}
+            {servicio.requiereAprobacion && (
+              <View style={styles.detalleItem}>
+                <Ionicons name="checkmark-circle" size={16} color="#e67e22" />
+                <Text style={styles.detalleText}>Requiere aprobación</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.servicioActions}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleVerDetalles(servicio)}
+            >
+              <Ionicons name="eye-outline" size={16} color="#4a90e2" />
+              <Text style={styles.actionButtonText}>Ver</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleEditarServicio(servicio)}
+            >
+              <Ionicons name="create-outline" size={16} color="#4a90e2" />
+              <Text style={styles.actionButtonText}>Editar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.toggleButton]}
+              onPress={() => handleToggleEstado(servicio._id, servicio.activo)}
+            >
+              <Ionicons
+                name={servicio.activo ? 'pause' : 'play'}
+                size={16}
+                color={servicio.activo ? '#f39c12' : '#27ae60'}
+              />
+              <Text style={[
+                styles.actionButtonText,
+                { color: servicio.activo ? '#f39c12' : '#27ae60' }
+              ]}>
+                {servicio.activo ? 'Pausar' : 'Activar'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.deleteButton]}
+              onPress={() => handleEliminarServicio(servicio._id)}
+            >
+              <Ionicons name="trash-outline" size={16} color="#e74c3c" />
+              <Text style={[styles.actionButtonText, { color: '#e74c3c' }]}>Eliminar</Text>
+            </TouchableOpacity>
           </View>
         </View>
-
-        <Text style={[
-          styles.servicioDescripcion,
-          !servicio.activo && styles.textoPausado
-        ]}>
-          {servicio.descripcion}
-        </Text>
-
-        <View style={styles.servicioStats}>
-          <View style={styles.statItem}>
-            <Ionicons name="star" size={16} color="#f39c12" />
-            <Text style={styles.statText}>{servicio.calificacion || 0}</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Ionicons name="checkmark-done" size={16} color="#27ae60" />
-            <Text style={styles.statText}>{servicio.trabajosCompletados || 0}</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Ionicons name="time" size={16} color="#4a90e2" />
-            <Text style={styles.statText}>{servicio.trabajosPendientes || 0}</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Ionicons name="mail" size={16} color="#9b59b6" />
-            <Text style={styles.statText}>{servicio.solicitudesPendientes || 0}</Text>
-          </View>
-        </View>
-
-        <View style={styles.servicioDetalles}>
-          <View style={styles.detalleItem}>
-            <Ionicons name="pricetag" size={16} color="#27ae60" />
-            <Text style={styles.detalleText}>
-              ${servicio.precio} {servicio.unidadPrecio && `(${servicio.unidadPrecio.replace('_', ' ')})`}
-            </Text>
-          </View>
-          {servicio.tiempoAnticipacion && (
-            <View style={styles.detalleItem}>
-              <Ionicons name="clock" size={16} color="#7f8c8d" />
-              <Text style={styles.detalleText}>{servicio.tiempoAnticipacion}h anticipación</Text>
-            </View>
-          )}
-          {servicio.requiereAprobacion && (
-            <View style={styles.detalleItem}>
-              <Ionicons name="checkmark-circle" size={16} color="#e67e22" />
-              <Text style={styles.detalleText}>Requiere aprobación</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.servicioActions}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleVerDetalles(servicio)}
-          >
-            <Ionicons name="eye-outline" size={16} color="#4a90e2" />
-            <Text style={styles.actionButtonText}>Ver</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleEditarServicio(servicio)}
-          >
-            <Ionicons name="create-outline" size={16} color="#4a90e2" />
-            <Text style={styles.actionButtonText}>Editar</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, styles.toggleButton]}
-            onPress={() => handleToggleEstado(servicio._id, servicio.activo)}
-          >
-            <Ionicons
-              name={servicio.activo ? 'pause' : 'play'}
-              size={16}
-              color={servicio.activo ? '#f39c12' : '#27ae60'}
-            />
-            <Text style={[
-              styles.actionButtonText,
-              { color: servicio.activo ? '#f39c12' : '#27ae60' }
-            ]}>
-              {servicio.activo ? 'Pausar' : 'Activar'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, styles.deleteButton]}
-            onPress={() => handleEliminarServicio(servicio._id)}
-          >
-            <Ionicons name="trash-outline" size={16} color="#e74c3c" />
-            <Text style={[styles.actionButtonText, { color: '#e74c3c' }]}>Eliminar</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
+      );
+    } catch (error) {
+      console.warn('Servicio con datos inválidos no renderizado:', error.message);
+      return null;
+    }
   };
 
   useEffect(() => {
@@ -474,7 +633,10 @@ const ServiciosProveedor = ({ navigation }) => {
                 {modoEdicion ? 'Editar servicio' : 'Detalles del servicio'}
               </Text>
               <TouchableOpacity
-                onPress={() => setModalVisible(false)}
+                onPress={() => {
+                  setModalVisible(false);
+                  setErroresValidacion({});
+                }}
                 style={styles.modalCloseButton}
               >
                 <Ionicons name="close" size={24} color="#2c3e50" />
@@ -489,46 +651,90 @@ const ServiciosProveedor = ({ navigation }) => {
                       <View style={styles.inputGroup}>
                         <Text style={styles.inputLabel}>Nombre del servicio</Text>
                         <TextInput
-                          style={styles.input}
+                          style={[
+                            styles.input,
+                            erroresValidacion.nombre && styles.inputError
+                          ]}
                           value={formData.nombre}
-                          onChangeText={(text) => setFormData({ ...formData, nombre: text })}
+                          onChangeText={(text) => {
+                            setFormData({ ...formData, nombre: text });
+                            if (erroresValidacion.nombre) {
+                              setErroresValidacion({ ...erroresValidacion, nombre: null });
+                            }
+                          }}
                           placeholder="Ej: Limpieza de oficinas"
                         />
+                        {erroresValidacion.nombre && (
+                          <Text style={styles.errorText}>{erroresValidacion.nombre}</Text>
+                        )}
                       </View>
 
                       <View style={styles.inputGroup}>
                         <Text style={styles.inputLabel}>Descripción</Text>
                         <TextInput
-                          style={styles.textArea}
+                          style={[
+                            styles.textArea,
+                            erroresValidacion.descripcion && styles.inputError
+                          ]}
                           value={formData.descripcion}
-                          onChangeText={(text) => setFormData({ ...formData, descripcion: text })}
+                          onChangeText={(text) => {
+                            setFormData({ ...formData, descripcion: text });
+                            if (erroresValidacion.descripcion) {
+                              setErroresValidacion({ ...erroresValidacion, descripcion: null });
+                            }
+                          }}
                           multiline
                           numberOfLines={4}
                           placeholder="Describe tu servicio en detalle..."
                         />
+                        {erroresValidacion.descripcion && (
+                          <Text style={styles.errorText}>{erroresValidacion.descripcion}</Text>
+                        )}
                       </View>
 
                       <View style={styles.rowInputs}>
                         <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
                           <Text style={styles.inputLabel}>Precio (USD)</Text>
                           <TextInput
-                            style={styles.input}
+                            style={[
+                              styles.input,
+                              erroresValidacion.precio && styles.inputError
+                            ]}
                             value={formData.precio}
-                            onChangeText={(text) => setFormData({ ...formData, precio: text })}
+                            onChangeText={(text) => {
+                              setFormData({ ...formData, precio: text });
+                              if (erroresValidacion.precio) {
+                                setErroresValidacion({ ...erroresValidacion, precio: null });
+                              }
+                            }}
                             keyboardType="numeric"
                             placeholder="0.00"
                           />
+                          {erroresValidacion.precio && (
+                            <Text style={styles.errorText}>{erroresValidacion.precio}</Text>
+                          )}
                         </View>
 
                         <View style={[styles.inputGroup, { flex: 1, marginLeft: 10 }]}>
                           <Text style={styles.inputLabel}>Tiempo anticipación (horas)</Text>
                           <TextInput
-                            style={styles.input}
+                            style={[
+                              styles.input,
+                              erroresValidacion.tiempoAnticipacion && styles.inputError
+                            ]}
                             value={formData.tiempoAnticipacion}
-                            onChangeText={(text) => setFormData({ ...formData, tiempoAnticipacion: text })}
+                            onChangeText={(text) => {
+                              setFormData({ ...formData, tiempoAnticipacion: text });
+                              if (erroresValidacion.tiempoAnticipacion) {
+                                setErroresValidacion({ ...erroresValidacion, tiempoAnticipacion: null });
+                              }
+                            }}
                             keyboardType="numeric"
                             placeholder="24"
                           />
+                          {erroresValidacion.tiempoAnticipacion && (
+                            <Text style={styles.errorText}>{erroresValidacion.tiempoAnticipacion}</Text>
+                          )}
                         </View>
                       </View>
 
@@ -553,6 +759,9 @@ const ServiciosProveedor = ({ navigation }) => {
                             </TouchableOpacity>
                           ))}
                         </ScrollView>
+                        {erroresValidacion.unidadPrecio && (
+                          <Text style={styles.errorText}>{erroresValidacion.unidadPrecio}</Text>
+                        )}
                       </View>
 
                       <View style={styles.checkboxContainer}>
@@ -567,6 +776,9 @@ const ServiciosProveedor = ({ navigation }) => {
                           />
                           <Text style={styles.checkboxText}>Requiere aprobación previa</Text>
                         </TouchableOpacity>
+                        {erroresValidacion.requiereAprobacion && (
+                          <Text style={styles.errorText}>{erroresValidacion.requiereAprobacion}</Text>
+                        )}
                       </View>
                     </>
                   ) : (
@@ -638,7 +850,10 @@ const ServiciosProveedor = ({ navigation }) => {
                 <>
                   <TouchableOpacity
                     style={styles.cancelButton}
-                    onPress={() => setModalVisible(false)}
+                    onPress={() => {
+                      setModalVisible(false);
+                      setErroresValidacion({});
+                    }}
                   >
                     <Text style={styles.cancelButtonText}>Cancelar</Text>
                   </TouchableOpacity>
@@ -1183,6 +1398,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#4a90e2',
     gap: 8,
+  },
+    inputError: {
+    borderColor: '#e74c3c',
+    borderWidth: 2,
+  },
+  errorText: {
+    color: '#e74c3c',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
   },
   cancelButtonText: {
     fontSize: 16,
