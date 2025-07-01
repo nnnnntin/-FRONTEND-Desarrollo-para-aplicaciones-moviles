@@ -16,6 +16,7 @@ export const obtenerUsuarios = createAsyncThunk(
       );
 
       const data = await response.json();
+      console.log('Usuarios obtenidos:', data);
 
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al obtener usuarios');
@@ -83,6 +84,7 @@ export const actualizarUsuario = createAsyncThunk(
         return rejectWithValue(errMsg);
       }
 
+      console.log('Usuario actualizado:', data);  
       // Si tu backend envía { data: usuario }, devuélvelo así:
       return data?.data ?? data;   // ← el usuario actualizado
     } catch (err) {
@@ -651,19 +653,27 @@ const usuarioSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(actualizarUsuario.fulfilled, (state, action) => {
-        state.loading = false;
+    .addCase(actualizarUsuario.fulfilled, (state, action) => {
+  state.loading = false;
 
-        const index = state.usuarios.findIndex(u => (u.id || u._id) === (action.payload.id || action.payload._id));
-        if (index !== -1) {
-          state.usuarios[index] = action.payload;
-        }
+  const updatedUser = action.payload;
+  const updatedId = updatedUser.id || updatedUser._id;
 
-        if (state.usuarioSeleccionado && (state.usuarioSeleccionado.id || state.usuarioSeleccionado._id) === (action.payload.id || action.payload._id)) {
-          state.usuarioSeleccionado = action.payload;
-        }
-      })
-      .addCase(actualizarUsuario.rejected, (state, action) => {
+  // Actualizar en la lista
+  const index = state.usuarios.findIndex(
+    u => (u.id || u._id) === updatedId
+  );
+  if (index !== -1) {
+    state.usuarios[index] = updatedUser;
+  }
+
+  // Actualizar si está seleccionado
+  const selectedId = state.usuarioSeleccionado?.id || state.usuarioSeleccionado?._id;
+  if (selectedId === updatedId) {
+    state.usuarioSeleccionado = updatedUser;
+  }
+})
+.addCase(actualizarUsuario.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })

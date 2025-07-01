@@ -83,7 +83,7 @@ const capitalize = txt =>
    await dispatch(obtenerUsuarios({ skip: 0, limit: 100 }));
   };
 
-console.log('Usuarios cargados:', usuarios);
+
   const usuariosMapeados = usuarios.map(user => ({
     id: user._id || user.id,
     nombre: user.nombre + (user.apellidos ? ' ' + user.apellidos : ''),
@@ -178,6 +178,7 @@ const handleCambiarEstado = (usuario, nuevoEstado) => {
               })
             ).unwrap();
 
+            
             // 2️⃣  feedback
             Alert.alert('Éxito', 'Estado actualizado correctamente');
 

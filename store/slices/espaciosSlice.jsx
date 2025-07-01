@@ -48,7 +48,6 @@ export const obtenerEspacios = createAsyncThunk(
       );
 
       const data = await response.json();
-
       if (!response.ok) {
         return rejectWithValue(data.message || `Error HTTP ${response.status}: Error al obtener espacios`);
       }
@@ -298,7 +297,7 @@ export const cargarTodosLosEspacios = createAsyncThunk(
         } else {
         }
       });
-
+       console.log('Resultados exitosos:', successfulResults);
       return successfulResults;
     } catch (error) {
       console.error(error);

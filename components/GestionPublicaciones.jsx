@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-
+import { useSelector } from 'react-redux';
 const GestionPublicaciones = ({ navigation }) => {
   const [tabActiva, setTabActiva] = useState('todas');
   const [busqueda, setBusqueda] = useState('');
@@ -21,118 +21,43 @@ const GestionPublicaciones = ({ navigation }) => {
   const [publicacionSeleccionada, setPublicacionSeleccionada] = useState(null);
   const [modalEditar, setModalEditar] = useState(false);
 
-  const [publicaciones, setPublicaciones] = useState([
-    {
-      id: 1,
-      nombre: "Oficina Panorámica 'Skyview'",
-      tipo: 'oficina',
-      propietario: 'Cliente Demo',
-      email: 'demo@empresa.com',
-      estado: 'activa',
-      precio: 1200,
-      capacidad: 8,
-      direccion: 'Montevideo, Ciudad Vieja',
-      fechaPublicacion: '2024-01-15',
-      reservasTotal: 145,
-      ingresosGenerados: 45600,
-      calificacion: 4.8,
-      servicios: ['wifi', 'cafe', 'seguridad'],
-      ultimaReserva: '2025-06-18',
-      comisionesGeneradas: 4560
-    },
-    {
-      id: 2,
-      nombre: "Oficina 'El mirador'",
-      tipo: 'oficina',
-      propietario: 'Cliente Demo',
-      email: 'demo@empresa.com',
-      estado: 'activa',
-      precio: 1500,
-      capacidad: 12,
-      direccion: 'Montevideo, Pocitos',
-      fechaPublicacion: '2024-01-20',
-      reservasTotal: 89,
-      ingresosGenerados: 32400,
-      calificacion: 4.9,
-      servicios: ['wifi', 'cafe', 'parking'],
-      ultimaReserva: '2025-06-17',
-      comisionesGeneradas: 3240
-    },
-    {
-      id: 3,
-      nombre: "Oficina 'Centro'",
-      tipo: 'oficina',
-      propietario: 'Otro Cliente',
-      email: 'otro@empresa.com',
-      estado: 'pausada',
-      precio: 900,
-      capacidad: 6,
-      direccion: 'Montevideo, Centro',
-      fechaPublicacion: '2024-02-10',
-      reservasTotal: 56,
-      ingresosGenerados: 18900,
-      calificacion: 4.5,
-      servicios: ['wifi', 'seguridad'],
-      ultimaReserva: '2025-05-20',
-      comisionesGeneradas: 1890,
-      razonPausa: 'Renovaciones en curso'
-    },
-    {
-      id: 4,
-      nombre: "Espacio Coworking",
-      tipo: 'espacio',
-      propietario: 'Spaces Inc',
-      email: 'info@spaces.com',
-      estado: 'pendiente',
-      precio: 50,
-      capacidad: 1,
-      direccion: 'Montevideo, Cordón',
-      fechaPublicacion: '2025-06-15',
-      documentosPendientes: ['Habilitación municipal', 'Seguro del espacio']
-    },
-    {
-      id: 5,
-      nombre: "Sala de Reuniones Premium",
-      tipo: 'sala',
-      propietario: 'Business Center',
-      email: 'contact@business.com',
-      estado: 'reportada',
-      precio: 200,
-      capacidad: 20,
-      direccion: 'Montevideo, Carrasco',
-      fechaPublicacion: '2024-03-01',
-      reservasTotal: 234,
-      ingresosGenerados: 67800,
-      calificacion: 3.2,
-      servicios: ['wifi', 'proyector', 'pizarra'],
-      ultimaReserva: '2025-06-10',
-      comisionesGeneradas: 6780,
-      reportes: [
-        { fecha: '2025-06-05', motivo: 'Equipamiento defectuoso', usuario: 'juan@email.com' },
-        { fecha: '2025-06-08', motivo: 'Limpieza deficiente', usuario: 'maria@email.com' }
-      ]
-    }
-  ]);
+  const {
+    espaciosFiltrados = [],
+    filtroTipo = 'todos',
+    textoBusqueda = '',
+    loading = false,
+    error = null,
+    refreshing = false
+  } = useSelector(state => state.espacios || {});
+console.log('Espacios filtrados:', espaciosFiltrados);
+  const capitalize = txt =>
+  typeof txt === 'string' && txt.length
+    ? txt[0].toUpperCase() + txt.slice(1)
+    : '';
+
 
   const estadisticas = {
-    total: publicaciones.length,
-    activas: publicaciones.filter(p => p.estado === 'activa').length,
-    pausadas: publicaciones.filter(p => p.estado === 'pausada').length,
-    pendientes: publicaciones.filter(p => p.estado === 'pendiente').length,
-    reportadas: publicaciones.filter(p => p.estado === 'reportada').length,
-    ingresosTotal: publicaciones.reduce((sum, p) => sum + (p.ingresosGenerados || 0), 0),
-    comisionesTotal: publicaciones.reduce((sum, p) => sum + (p.comisionesGeneradas || 0), 0)
+    total: espaciosFiltrados.length,
+    activas: espaciosFiltrados.filter(p => p.estado === 'activa').length,
+    oficina: espaciosFiltrados.filter(p => p.tipo === 'oficina').length,
+    escritorio: espaciosFiltrados.filter(p => p.estado === 'escritorio').length,
+    espacio: espaciosFiltrados.filter(p => p.tipo === 'espacio').length,
+    pendientes: espaciosFiltrados.filter(p => p.tipo === 'pendiente').length,
+    sala: espaciosFiltrados.filter(p => p.tipo === 'sala').length,
+    reportadas: espaciosFiltrados.filter(p => p.estado === 'reportada').length,
+    ingresosTotal: espaciosFiltrados.reduce((sum, p) => sum + (p.ingresosGenerados || 0), 0),
+    comisionesTotal: espaciosFiltrados.reduce((sum, p) => sum + (p.comisionesGeneradas || 0), 0)
   };
 
   const getPublicacionesFiltradas = () => {
-    let filtradas = publicaciones;
+    let filtradas = espaciosFiltrados;
 
     if (tabActiva !== 'todas') {
       filtradas = filtradas.filter(p => {
-        if (tabActiva === 'activas') return p.estado === 'activa';
-        if (tabActiva === 'pausadas') return p.estado === 'pausada';
-        if (tabActiva === 'pendientes') return p.estado === 'pendiente';
-        if (tabActiva === 'reportadas') return p.estado === 'reportada';
+        if (tabActiva === 'oficina') return p.estado === 'oficina';
+        if (tabActiva === 'espacio') return p.estado === 'espacio';
+        if (tabActiva === 'escritorio') return p.estado === 'escritorio';
+        if (tabActiva === 'sala') return p.estado === 'sala';
         return true;
       });
     }
@@ -312,21 +237,21 @@ const GestionPublicaciones = ({ navigation }) => {
           </View>
           <View style={styles.estatItem}>
             <Text style={[styles.estatNumero, { color: '#27ae60' }]}>
-              {estadisticas.activas}
+              {estadisticas.oficina}
             </Text>
-            <Text style={styles.estatLabel}>Activas</Text>
+            <Text style={styles.estatLabel}>oficina</Text>
           </View>
           <View style={styles.estatItem}>
             <Text style={[styles.estatNumero, { color: '#3498db' }]}>
-              {estadisticas.pendientes}
+              {estadisticas.escritorio}
             </Text>
-            <Text style={styles.estatLabel}>Pendientes</Text>
+            <Text style={styles.estatLabel}>escritorio</Text>
           </View>
           <View style={styles.estatItem}>
             <Text style={[styles.estatNumero, { color: '#e74c3c' }]}>
-              {estadisticas.reportadas}
+              {estadisticas.sala}
             </Text>
-            <Text style={styles.estatLabel}>Reportadas</Text>
+            <Text style={styles.estatLabel}>sala</Text>
           </View>
         </View>
         <View style={styles.estadisticasFinancieras}>
@@ -351,7 +276,7 @@ const GestionPublicaciones = ({ navigation }) => {
         style={styles.tabsContainer}
         contentContainerStyle={styles.tabsContent}
       >
-        {['todas', 'activas', 'pausadas', 'pendientes', 'reportadas'].map(tab => (
+        {['todas', 'oficina', 'espacio', 'escritorio', 'sala'].map(tab => (
           <TouchableOpacity
             key={tab}
             style={[styles.tab, tabActiva === tab && styles.tabActive]}
@@ -405,7 +330,7 @@ const GestionPublicaciones = ({ navigation }) => {
                       color={getTipoColor(publicacionSeleccionada.tipo)}
                     />
                     <Text style={styles.modalTipoText}>
-                      {publicacionSeleccionada.tipo.charAt(0).toUpperCase() + publicacionSeleccionada.tipo.slice(1)}
+                       {capitalize(publicacionSeleccionada.tipo)}
                     </Text>
                   </View>
 
@@ -425,7 +350,8 @@ const GestionPublicaciones = ({ navigation }) => {
                       styles.modalEstadoText,
                       { color: getEstadoInfo(publicacionSeleccionada.estado).color }
                     ]}>
-                      {publicacionSeleccionada.estado.charAt(0).toUpperCase() + publicacionSeleccionada.estado.slice(1)}
+                       {capitalize(publicacionSeleccionada.estado)}
+
                     </Text>
                   </View>
                 </View>
