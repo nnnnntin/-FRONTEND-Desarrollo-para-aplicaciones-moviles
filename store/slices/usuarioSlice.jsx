@@ -58,33 +58,39 @@ export const obtenerUsuarioPorId = createAsyncThunk(
 
 export const actualizarUsuario = createAsyncThunk(
   'usuario/actualizar',
-  async ({ usuarioId, datosActualizacion }, { getState, rejectWithValue }) => {
+  async ({ usuarioId, datosActualizacion }, { getState, rejectWithValue, signal }) => {
     try {
       const { auth } = getState();
-      const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/v1/usuarios/${usuarioId}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${auth.token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(datosActualizacion),
-        }
-      );
+      const url = `${process.env.EXPO_PUBLIC_API_URL}/v1/usuarios/${usuarioId}`;
 
-      const data = await response.json();
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(datosActualizacion),
+        signal,                 // 👈  permite cancelar
+      });
+
+      // ⚠️  204/205 no traen cuerpo
+      const hasBody = ![204, 205].includes(response.status);
+      const data = hasBody ? await response.json() : null;
 
       if (!response.ok) {
-        return rejectWithValue(data.message || 'Error al actualizar usuario');
+        const errMsg =
+          data?.message || data?.error || `Error ${response.status}`;
+        return rejectWithValue(errMsg);
       }
 
-      return data;
-    } catch (error) {
-      return rejectWithValue('Error de conexión');
+      // Si tu backend envía { data: usuario }, devuélvelo así:
+      return data?.data ?? data;   // ← el usuario actualizado
+    } catch (err) {
+      return rejectWithValue(err.message || 'Error de conexión');
     }
   }
 );
+
 
 export const eliminarUsuario = createAsyncThunk(
   'usuario/eliminar',

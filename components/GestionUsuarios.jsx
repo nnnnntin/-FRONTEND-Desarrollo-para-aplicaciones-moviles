@@ -74,18 +74,22 @@ const GestionUsuarios = ({ navigation }) => {
     }
   };
 
+const capitalize = txt =>
+  typeof txt === 'string' && txt.length
+    ? txt[0].toUpperCase() + txt.slice(1)
+    : '';
 
-  const cargarUsuarios = () => {
-    dispatch(obtenerUsuarios({ skip: 0, limit: 100 }));
+  const cargarUsuarios = async () => {
+   await dispatch(obtenerUsuarios({ skip: 0, limit: 100 }));
   };
 
-
+console.log('Usuarios cargados:', usuarios);
   const usuariosMapeados = usuarios.map(user => ({
     id: user._id || user.id,
     nombre: user.nombre + (user.apellidos ? ' ' + user.apellidos : ''),
     email: user.email,
     username: user.username,
-    tipo: user.tipoUsuario,
+    tipo: user.tipoUsuario || 'usuario',
     estado: user.activo ? 'activo' : 'suspendido',
     fechaRegistro: new Date(user.createdAt).toLocaleDateString(),
     ultimoAcceso: new Date(user.updatedAt).toLocaleDateString(),
@@ -152,47 +156,50 @@ const GestionUsuarios = ({ navigation }) => {
     setModalDetalles(true);
   };
 
+const handleCambiarEstado = (usuario, nuevoEstado) => {
+  const estadoActivo = nuevoEstado === 'activo';
 
-  const handleCambiarEstado = async (usuario, nuevoEstado) => {
-    const estadoActivo = nuevoEstado === 'activo';
+  Alert.alert(
+    'Cambiar estado',
+    `¿Cambiar estado de ${usuario.nombre} a ${nuevoEstado}?`,
+    [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Confirmar',
+        onPress: async () => {
+          try {
+            setIsUpdating(true);
 
-    Alert.alert(
-      'Cambiar estado',
-      `¿Estás seguro de cambiar el estado de ${usuario.nombre} a ${nuevoEstado}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          onPress: async () => {
-            try {
-              setIsUpdating(true);
-
-
-              const result = await dispatch(actualizarUsuario({
+            // 1️⃣  despacha y unwrap
+            await dispatch(
+              actualizarUsuario({
                 usuarioId: usuario.id,
-                datosActualizacion: { activo: estadoActivo }
-              }));
+                datosActualizacion: { activo: estadoActivo },
+              })
+            ).unwrap();
 
-              if (actualizarUsuario.fulfilled.match(result)) {
-                Alert.alert('Éxito', 'Estado actualizado correctamente');
+            // 2️⃣  feedback
+            Alert.alert('Éxito', 'Estado actualizado correctamente');
 
-                cargarUsuarios();
-              } else {
-                throw new Error(result.payload || 'Error al actualizar usuario');
-              }
-            } catch (error) {
-              console.error(error);
-              Alert.alert('Error', 'No se pudo actualizar el estado del usuario');
-            } finally {
-              setIsUpdating(false);
-            }
+             // 🔄 2) actualizo el usuario del modal (opcional)
+            dispatch(seleccionarUsuario({
+              ...usuario,
+              estado: nuevoEstado,
+              activo: estadoActivo
+            }));
+          } catch (err) {
+            console.error(err);
+            Alert.alert('Error', err.message || 'No se pudo actualizar');
+          } finally {
+            setIsUpdating(false);
           }
-        }
-      ]
-    );
-  };
+        },
+      },
+    ]
+  );
+};
 
-
+ 
   const handleCambiarRol = async (usuario, nuevoRol) => {
     Alert.alert(
       'Cambiar rol',
@@ -294,12 +301,12 @@ const GestionUsuarios = ({ navigation }) => {
           <View style={styles.usuarioMeta}>
             <View style={[styles.tipoBadge, { backgroundColor: getTipoColor(item.tipo) + '20' }]}>
               <Text style={[styles.tipoText, { color: getTipoColor(item.tipo) }]}>
-                {item.tipo.charAt(0).toUpperCase() + item.tipo.slice(1)}
+                {capitalize(item.tipo)}
               </Text>
             </View>
             <View style={[styles.estadoBadge, { backgroundColor: getEstadoColor(item.estado) + '20' }]}>
               <Text style={[styles.estadoText, { color: getEstadoColor(item.estado) }]}>
-                {item.estado.charAt(0).toUpperCase() + item.estado.slice(1)}
+                {capitalize(item.estado)}
               </Text>
             </View>
             {item.verificado && (
@@ -335,12 +342,12 @@ const GestionUsuarios = ({ navigation }) => {
             <View style={styles.modalBadges}>
               <View style={[styles.tipoBadge, { backgroundColor: getTipoColor(usuarioSeleccionado.tipo) + '20' }]}>
                 <Text style={[styles.tipoText, { color: getTipoColor(usuarioSeleccionado.tipo) }]}>
-                  {usuarioSeleccionado.tipo.charAt(0).toUpperCase() + usuarioSeleccionado.tipo.slice(1)}
+                  {capitalize(usuarioSeleccionado.tipo)}
                 </Text>
               </View>
               <View style={[styles.estadoBadge, { backgroundColor: getEstadoColor(usuarioSeleccionado.estado) + '20' }]}>
                 <Text style={[styles.estadoText, { color: getEstadoColor(usuarioSeleccionado.estado) }]}>
-                  {usuarioSeleccionado.estado.charAt(0).toUpperCase() + usuarioSeleccionado.estado.slice(1)}
+                  {capitalize(usuarioSeleccionado.estado)}
                 </Text>
               </View>
             </View>
@@ -404,7 +411,7 @@ const GestionUsuarios = ({ navigation }) => {
         )}
 
         <View style={styles.modalAcciones}>
-          <View style={styles.accionesSection}>
+    {/*       <View style={styles.accionesSection}>
             <Text style={styles.accionesTitle}>Cambiar tipo de usuario</Text>
             <View style={styles.rolesContainer}>
               {['usuario', 'cliente', 'proveedor', 'administrador'].map(tipo => (
@@ -422,7 +429,7 @@ const GestionUsuarios = ({ navigation }) => {
                     styles.rolButtonText,
                     usuarioSeleccionado.tipo === tipo && styles.rolButtonTextActive
                   ]}>
-                    {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                    {capitalize(tipo)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -447,13 +454,13 @@ const GestionUsuarios = ({ navigation }) => {
                     styles.rolButtonText,
                     usuarioSeleccionado.rol === rol && styles.rolButtonTextActive
                   ]}>
-                    {rol.charAt(0).toUpperCase() + rol.slice(1)}
+                    {capitalize(rol)}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
-
+*/}
           <View style={styles.accionesSection}>
             <Text style={styles.accionesTitle}>Acciones</Text>
             <View style={styles.botonesContainer}>
@@ -574,7 +581,7 @@ const GestionUsuarios = ({ navigation }) => {
             onPress={() => setTabActiva(tab)}
           >
             <Text style={[styles.tabText, tabActiva === tab && styles.tabTextActive]}>
-              {tab === 'todos' ? 'Todos' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'todos' ? 'Todos' : capitalize(tab)}
             </Text>
           </TouchableOpacity>
         ))}
