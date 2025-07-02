@@ -247,15 +247,71 @@ export const agregarMetodoPago = createAsyncThunk(
     try {
       const { auth } = getState();
 
-      const bodyPayload = {
-        tipo: 'tarjeta_credito',
-        numero: metodoPago.numeroTarjeta.replace(/\s/g, ''),
-        titular: metodoPago.nombreTitular,
-        fechaVencimiento: metodoPago.fechaExpiracion,
-        cvc: metodoPago.cvc,
-        predeterminado: metodoPago.predeterminado || false,
-        ...(metodoPago.marca && { marca: metodoPago.marca }),
+      if (!usuarioId) {
+        return rejectWithValue('ID de usuario requerido');
+      }
+
+      if (!auth?.token) {
+        return rejectWithValue('Token de autenticación requerido');
+      }
+
+      const detectarMarcaTarjeta = (numero) => {
+        const numeroLimpio = numero.replace(/\s/g, '');
+        if (numeroLimpio.startsWith('4')) return 'visa';
+        if (numeroLimpio.startsWith('5') || 
+            (numeroLimpio.startsWith('2') && 
+             parseInt(numeroLimpio.substring(0, 4)) >= 2221 && 
+             parseInt(numeroLimpio.substring(0, 4)) <= 2720)) return 'mastercard';
+        if (numeroLimpio.startsWith('34') || numeroLimpio.startsWith('37')) return 'american_express';
+        if (numeroLimpio.startsWith('6')) return 'discover';
+        return 'otro';
       };
+
+      const bodyPayload = {
+        predeterminado: Boolean(metodoPago.predeterminado || false),
+        tipo: 'tarjeta_credito', 
+        numero: metodoPago.numeroTarjeta.replace(/\s/g, ''), 
+        titular: metodoPago.nombreTitular.trim(), 
+        fechaVencimiento: metodoPago.fechaExpiracion, 
+        cvc: metodoPago.cvc,
+        marca: detectarMarcaTarjeta(metodoPago.numeroTarjeta)
+      };
+
+      const validarPayload = (payload) => {
+        const errores = [];
+        
+        if (!payload.numero || !/^\d{13,19}$/.test(payload.numero)) {
+          errores.push('El número de tarjeta debe tener entre 13 y 19 dígitos');
+        }
+        
+        if (!payload.titular || payload.titular.length < 2 || payload.titular.length > 100) {
+          errores.push('El titular debe tener entre 2 y 100 caracteres');
+        }
+        
+        if (!payload.fechaVencimiento || !/^(0[1-9]|1[0-2])\/\d{2}$/.test(payload.fechaVencimiento)) {
+          errores.push('La fecha de vencimiento debe tener el formato MM/AA');
+        }
+        
+        if (!payload.cvc || !/^\d{3,4}$/.test(payload.cvc)) {
+          errores.push('El CVC debe tener 3 o 4 dígitos');
+        }
+        
+        if (!['tarjeta_credito', 'tarjeta_debito'].includes(payload.tipo)) {
+          errores.push('El tipo debe ser tarjeta_credito o tarjeta_debito');
+        }
+        
+        if (!['visa', 'mastercard', 'american_express', 'discover', 'otro'].includes(payload.marca)) {
+          errores.push('La marca debe ser una de las válidas');
+        }
+        
+        return errores;
+      };
+
+      const erroresValidacion = validarPayload(bodyPayload);
+      if (erroresValidacion.length > 0) {
+        console.error('Errores de validación del payload:', erroresValidacion);
+        return rejectWithValue(`Datos inválidos: ${erroresValidacion.join(', ')}`);
+      }
 
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/usuarios/${usuarioId}/metodos-pago`,
@@ -270,21 +326,104 @@ export const agregarMetodoPago = createAsyncThunk(
       );
 
       if (!response.ok) {
-        const errorData = await response.json();
-        return rejectWithValue(errorData.message || 'Error al agregar método de pago');
+        let errorData;
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            errorData = await response.json();
+          } catch (parseError) {
+            console.error('Error parsing JSON response:', parseError);
+            errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
+          }
+        } else {
+          const textResponse = await response.text();
+          console.error('Non-JSON response:', textResponse);
+          errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
+        }
+
+        console.error('Error response:', errorData);
+        
+        const errorMessage = errorData.details 
+          ? `Error de validación: ${JSON.stringify(errorData.details)}`
+          : errorData.message || 
+            errorData.error || 
+            errorData.msg || 
+            `Error del servidor: ${response.status} ${response.statusText}`;
+        
+        return rejectWithValue(errorMessage);
       }
 
       const result = await response.json();
 
-      return Array.isArray(result.usuario.metodoPago)
-        ? result.usuario.metodoPago
-        : [];
+      if (!result.usuario) {
+        console.error('Response missing usuario field:', result);
+        return rejectWithValue('Respuesta del servidor inválida: falta campo usuario');
+      }
+
+      const metodosPago = Array.isArray(result.usuario.metodoPago) ? result.usuario.metodoPago : [];
+
+      return metodosPago;
+
     } catch (error) {
-      console.error(error);
-      return rejectWithValue('Error de conexión');
+      console.error('Network or parsing error in agregarMetodoPago:', error);
+      
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        return rejectWithValue('Error de conexión: Verifica tu conexión a internet');
+      }
+      
+      if (error.name === 'AbortError') {
+        return rejectWithValue('Solicitud cancelada: Tiempo de espera agotado');
+      }
+
+      return rejectWithValue(`Error de red: ${error.message}`);
     }
   }
 );
+
+const validarDatosMetodoPago = (metodoPagoData) => {
+  const errores = [];
+  
+  if (!metodoPagoData.numeroTarjeta) {
+    errores.push('Número de tarjeta es requerido');
+  } else {
+    const numeroLimpio = metodoPagoData.numeroTarjeta.replace(/\s/g, '');
+    if (!/^\d{13,19}$/.test(numeroLimpio)) {
+      errores.push('Número de tarjeta debe tener entre 13 y 19 dígitos');
+    }
+  }
+  
+  if (!metodoPagoData.nombreTitular) {
+    errores.push('Nombre del titular es requerido');
+  } else {
+    const titular = metodoPagoData.nombreTitular.trim();
+    if (titular.length < 2 || titular.length > 100) {
+      errores.push('Nombre del titular debe tener entre 2 y 100 caracteres');
+    }
+  }
+  
+  if (!metodoPagoData.fechaExpiracion) {
+    errores.push('Fecha de expiración es requerida');
+  } else if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(metodoPagoData.fechaExpiracion)) {
+    errores.push('Formato de fecha inválido (debe ser MM/AA con mes 01-12)');
+  } else {
+    const [mes, año] = metodoPagoData.fechaExpiracion.split('/');
+    const fechaActual = new Date();
+    const fechaTarjeta = new Date(2000 + parseInt(año), parseInt(mes) - 1);
+    
+    if (fechaTarjeta < fechaActual) {
+      errores.push('La tarjeta está vencida');
+    }
+  }
+  
+  if (!metodoPagoData.cvc) {
+    errores.push('CVC es requerido');
+  } else if (!/^\d{3,4}$/.test(metodoPagoData.cvc)) {
+    errores.push('CVC debe tener exactamente 3 o 4 dígitos');
+  }
+  
+  return errores;
+};
 
 export const eliminarMetodoPago = createAsyncThunk(
   'usuario/eliminarMetodoPago',

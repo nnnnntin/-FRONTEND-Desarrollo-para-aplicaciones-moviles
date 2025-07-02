@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,27 +13,25 @@ import {
   View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { agregarMetodoPago } from '../store/slices/usuarioSlice';
 import * as Yup from 'yup';
+import { agregarMetodoPago, clearErrorMetodosPago } from '../store/slices/usuarioSlice';
 
 const tarjetaSchema = Yup.object({
   numeroTarjeta: Yup.string()
     .required('El número de tarjeta es requerido')
-    .test('tarjeta-valida', 'Por favor ingresa un número de tarjeta válido (16 dígitos)', function(value) {
+    .test('tarjeta-valida', 'El número de tarjeta debe tener entre 13 y 19 dígitos', function(value) {
       if (!value) return false;
       const numeroLimpio = value.replace(/\s/g, '');
-      return numeroLimpio.length === 16 && /^\d+$/.test(numeroLimpio);
+      return /^\d{13,19}$/.test(numeroLimpio);
     }),
   
   cvc: Yup.string()
     .required('El CVC es requerido')
-    .min(3, 'El CVC debe tener al menos 3 dígitos')
-    .max(4, 'El CVC no puede tener más de 4 dígitos')
-    .matches(/^\d+$/, 'El CVC solo puede contener números'),
+    .matches(/^\d{3,4}$/, 'El CVC debe tener exactamente 3 o 4 dígitos'),
   
   fechaExpiracion: Yup.string()
     .required('La fecha de expiración es requerida')
-    .matches(/^\d{2}\/\d{2}$/, 'El formato debe ser MM/AA')
+    .matches(/^(0[1-9]|1[0-2])\/\d{2}$/, 'El formato debe ser MM/AA con mes válido (01-12)')
     .test('fecha-valida', 'La tarjeta está vencida', function(value) {
       if (!value || !value.includes('/')) return false;
       
@@ -55,21 +53,76 @@ const tarjetaSchema = Yup.object({
   nombreTitular: Yup.string()
     .required('El nombre del titular es requerido')
     .min(2, 'El nombre debe tener al menos 2 caracteres')
-    .max(50, 'El nombre no puede tener más de 50 caracteres')
-    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, 'El nombre solo puede contener letras y espacios')
-    .test('nombre-valido', 'Ingresa un nombre válido', function(value) {
-      if (!value) return false;
-      const nombreTrimmed = value.trim();
-      return nombreTrimmed.length >= 2 && nombreTrimmed.split(' ').length >= 1;
-    }),
+    .max(100, 'El nombre no puede tener más de 100 caracteres')
+    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, 'El nombre solo puede contener letras y espacios'),
   
   predeterminado: Yup.boolean()
 });
 
+const validarDatosMetodoPago = (metodoPagoData) => {
+  const errores = [];
+  
+  if (!metodoPagoData.numeroTarjeta) {
+    errores.push('Número de tarjeta es requerido');
+  } else {
+    const numeroLimpio = metodoPagoData.numeroTarjeta.replace(/\s/g, '');
+    if (numeroLimpio.length !== 16 || !/^\d+$/.test(numeroLimpio)) {
+      errores.push('Número de tarjeta debe tener 16 dígitos');
+    }
+  }
+  
+  if (!metodoPagoData.nombreTitular || metodoPagoData.nombreTitular.trim().length < 2) {
+    errores.push('Nombre del titular debe tener al menos 2 caracteres');
+  }
+  
+  if (!metodoPagoData.fechaExpiracion) {
+    errores.push('Fecha de expiración es requerida');
+  } else if (!/^\d{2}\/\d{2}$/.test(metodoPagoData.fechaExpiracion)) {
+    errores.push('Formato de fecha inválido (debe ser MM/AA)');
+  } else {
+    const [mes, año] = metodoPagoData.fechaExpiracion.split('/');
+    const fechaActual = new Date();
+    const fechaTarjeta = new Date(2000 + parseInt(año), parseInt(mes) - 1);
+    
+    if (fechaTarjeta < fechaActual) {
+      errores.push('La tarjeta está vencida');
+    }
+  }
+  
+  if (!metodoPagoData.cvc) {
+    errores.push('CVC es requerido');
+  } else if (metodoPagoData.cvc.length < 3 || metodoPagoData.cvc.length > 4) {
+    errores.push('CVC debe tener 3 o 4 dígitos');
+  } else if (!/^\d+$/.test(metodoPagoData.cvc)) {
+    errores.push('CVC solo puede contener números');
+  }
+  
+  return errores;
+};
+
+const verificarConectividad = async () => {
+  try {
+    const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/health`, {
+      method: 'GET',
+      timeout: 5000
+    });
+    
+    if (response.ok) {
+      return true;
+    } else {
+      return false;
+    }
+  } catch (error) {
+    return false;
+  }
+};
+
 const AgregarTarjeta = ({ navigation, route }) => {
   const dispatch = useDispatch();
   const loadingMetodosPago = useSelector(state => state.usuario.loadingMetodosPago);
+  const errorMetodosPago = useSelector(state => state.usuario.errorMetodosPago);
   const usuario = useSelector(state => state.auth.usuario);
+  const auth = useSelector(state => state.auth);
 
   const { usuarioId, onTarjetaAgregada } = route?.params || {};
 
@@ -79,6 +132,21 @@ const AgregarTarjeta = ({ navigation, route }) => {
   const [nombreTitular, setNombreTitular] = useState('');
   const [predeterminado, setPredeterminado] = useState(false);
   const [errores, setErrores] = useState({});
+
+  useEffect(() => {
+    if (errorMetodosPago) {
+      console.log('Error previo en métodos pago:', errorMetodosPago);
+    }
+  }, [usuario, usuarioId, auth?.token, loadingMetodosPago, errorMetodosPago]);
+
+  useEffect(() => {
+    limpiarErrores();
+  }, []);
+
+  const limpiarErrores = () => {
+    setErrores({});
+    dispatch(clearErrorMetodosPago());
+  };
 
   const handleGoBack = () => {
     navigation.goBack();
@@ -217,50 +285,134 @@ const AgregarTarjeta = ({ navigation, route }) => {
     validarCampo('nombreTitular', texto);
   };
 
-  const handleAgregar = async () => {
-    const esValido = await validarFormulario();
-    if (!esValido) return;
+ const handleAgregar = async () => {
+  const esValido = await validarFormulario();
+  if (!esValido) return;
 
-    const tipoTarjeta = detectarTipoTarjeta(numeroTarjeta);
-    const ultimosCuatroDigitos = numeroTarjeta.replace(/\s/g, '').slice(-4);
-    const userId = usuarioId || usuario?.id || usuario?._id;
-    
-    if (!userId) {
-      return Alert.alert('Error', 'No se pudo identificar el usuario');
-    }
+  const metodoPagoData = {
+    numeroTarjeta: numeroTarjeta,
+    cvc,
+    fechaExpiracion,
+    nombreTitular: nombreTitular.trim(),
+    predeterminado,
+    marca: detectarTipoTarjeta(numeroTarjeta),
+  };
 
-    const metodoPagoData = {
-      numeroTarjeta: numeroTarjeta.replace(/\s/g, ''),
-      cvc,
-      fechaExpiracion,
-      nombreTitular: nombreTitular.trim(),
-      predeterminado,
-      marca: tipoTarjeta,
-    };
+  const erroresValidacion = validarDatosMetodoPago(metodoPagoData);
+  if (erroresValidacion.length > 0) {
+    Alert.alert(
+      'Error de validación', 
+      erroresValidacion.join('\n'),
+      [{ text: 'OK' }]
+    );
+    return;
+  }
 
-    try {
-      const payload = await dispatch(
-        agregarMetodoPago({ usuarioId: userId, metodoPago: metodoPagoData })
-      ).unwrap();
+  const tipoTarjeta = detectarTipoTarjeta(numeroTarjeta);
+  const ultimosCuatroDigitos = numeroTarjeta.replace(/\s/g, '').slice(-4);
+  const userId = usuarioId || usuario?.id || usuario?._id;
+  
+  if (!userId) {
+    return Alert.alert('Error', 'No se pudo identificar el usuario');
+  }
 
-      Alert.alert(
-        'Tarjeta Agregada',
-        `${(tipoTarjeta || 'Tarjeta').toUpperCase()} •••• ${ultimosCuatroDigitos} ha sido agregada exitosamente`,
-        [{
-          text: 'OK', onPress: () => {
-            if (onTarjetaAgregada) onTarjetaAgregada();
-            navigation.goBack();
+  const fechaRegex = /^(0[1-9]|1[0-2])\/\d{2}$/;
+  if (!fechaRegex.test(fechaExpiracion)) {
+    Alert.alert(
+      'Error de formato',
+      'La fecha debe estar en formato MM/AA con mes válido (01-12)',
+      [{ text: 'OK' }]
+    );
+    return;
+  }
+
+  try {
+    const payload = await dispatch(
+      agregarMetodoPago({ usuarioId: userId, metodoPago: metodoPagoData })
+    ).unwrap();
+
+    Alert.alert(
+      'Tarjeta Agregada',
+      `${(tipoTarjeta || 'Tarjeta').toUpperCase()} •••• ${ultimosCuatroDigitos} ha sido agregada exitosamente`,
+      [{
+        text: 'OK', onPress: () => {
+          if (onTarjetaAgregada) {
+            onTarjetaAgregada();
           }
-        }]
-      );
+          navigation.goBack();
+        }
+      }]
+    );
 
-    } catch (error) {
-      console.error(error);
-      const mensaje = typeof error === 'string'
-        ? error
-        : error.message || JSON.stringify(error);
-      Alert.alert('Error al agregar tarjeta', mensaje);
+  } catch (error) {
+    console.error('=== ERROR AL AGREGAR TARJETA ===');
+    console.error('Error type:', typeof error);
+    console.error('Error content:', error);
+    
+    let mensaje = 'Error desconocido al agregar la tarjeta';
+    
+    if (typeof error === 'string') {
+      if (error.includes('Error de validación')) {
+        mensaje = error;
+      } else if (error.includes('fetch') || error.includes('network')) {
+        mensaje = 'Error de conexión. Verifica tu conexión a internet e intenta nuevamente.';
+      } else if (error.includes('401') || error.includes('Unauthorized')) {
+        mensaje = 'Sesión expirada. Por favor inicia sesión nuevamente.';
+      } else if (error.includes('400') || error.includes('Bad Request')) {
+        mensaje = 'Datos de tarjeta inválidos. Verifica la información ingresada.';
+      } else if (error.includes('500') || error.includes('Internal Server Error')) {
+        mensaje = 'Error del servidor. Intenta nuevamente en unos minutos.';
+      } else {
+        mensaje = error;
+      }
+    } else if (error?.message) {
+      mensaje = error.message;
     }
+    
+    Alert.alert(
+      'Error al agregar tarjeta', 
+      mensaje,
+      [
+        { 
+          text: 'Reintentar', 
+          onPress: () => {
+            handleAgregar(); 
+          }
+        },
+        { 
+          text: 'Cancelar', 
+          style: 'cancel',
+          onPress: () => {
+            console.log('Usuario canceló después del error');
+          }
+        }
+      ]
+    );
+  }
+};
+
+  const handleAgregarConVerificacion = async () => {
+    const hayConectividad = await verificarConectividad();
+    
+    if (!hayConectividad) {
+      Alert.alert(
+        'Sin conexión',
+        'No se puede conectar con el servidor. Verifica tu conexión a internet.',
+        [
+          { 
+            text: 'Reintentar', 
+            onPress: () => handleAgregarConVerificacion()
+          },
+          { 
+            text: 'Cancelar', 
+            style: 'cancel'
+          }
+        ]
+      );
+      return;
+    }
+    
+    handleAgregar();
   };
 
   const renderErrorText = (campo) => {
@@ -403,9 +555,17 @@ const AgregarTarjeta = ({ navigation, route }) => {
             </Text>
           </TouchableOpacity>
 
+          {errorMetodosPago && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorGeneralText}>
+                {errorMetodosPago}
+              </Text>
+            </View>
+          )}
+
           <TouchableOpacity
             style={[styles.agregarButton, loadingMetodosPago && styles.agregarButtonDisabled]}
-            onPress={handleAgregar}
+            onPress={handleAgregar} 
             disabled={loadingMetodosPago}
           >
             {loadingMetodosPago ? (
@@ -414,13 +574,6 @@ const AgregarTarjeta = ({ navigation, route }) => {
               <Text style={styles.agregarButtonText}>Agregar Tarjeta</Text>
             )}
           </TouchableOpacity>
-
-          <View style={styles.securityNote}>
-            <Ionicons name="shield-checkmark" size={20} color="#27ae60" />
-            <Text style={styles.securityNoteText}>
-              Tus datos están protegidos con encriptación de grado bancario
-            </Text>
-          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -445,7 +598,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
   },
-    inputError: {
+  inputError: {
     borderColor: '#e74c3c',
     borderWidth: 1,
   },
@@ -453,6 +606,19 @@ const styles = StyleSheet.create({
     color: '#e74c3c',
     fontSize: 12,
     marginTop: 4,
+    fontFamily: 'System',
+  },
+  errorContainer: {
+    backgroundColor: '#ffebee',
+    borderLeftWidth: 4,
+    borderLeftColor: '#e74c3c',
+    padding: 12,
+    marginBottom: 16,
+    borderRadius: 4,
+  },
+  errorGeneralText: {
+    color: '#e74c3c',
+    fontSize: 14,
     fontFamily: 'System',
   },
   backButton: {
