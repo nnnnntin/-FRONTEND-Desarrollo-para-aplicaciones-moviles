@@ -37,7 +37,7 @@ export const obtenerReservas = createAsyncThunk(
     try {
       const { auth } = getState();
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/v1/reservas?skip=${skip}&limit=${limit}&populate=entidadReservada`,
+        `${process.env.EXPO_PUBLIC_API_URL}/v1/reservas`,
         {
           headers: {
             Authorization: `Bearer ${auth.token}`,
@@ -268,8 +268,7 @@ export const cancelarReserva = createAsyncThunk(
           },
           body: JSON.stringify({
             reservaId,
-            motivo,
-            fechaCancelacion: new Date().toISOString()
+            motivo
           }),
         }
       );

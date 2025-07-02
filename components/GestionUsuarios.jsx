@@ -32,13 +32,10 @@ const GestionUsuarios = ({ navigation }) => {
   const dispatch = useDispatch();
   const { token, usuario: usuarioLogueado } = useSelector(state => state.auth);
   const {
-    usuarios,
-    usuarioSeleccionado,
-    loading,
-    error,
-    loadingDetalle,
-    pagination
-  } = useSelector(state => state.usuario);
+    reservas,
+    reservaSeleccionada,
+    
+  } = useSelector(state => state.reservas);
 
 
   const [tabActiva, setTabActiva] = useState('todos');

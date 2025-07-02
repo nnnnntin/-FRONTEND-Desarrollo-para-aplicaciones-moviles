@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Modal,
@@ -13,6 +14,8 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { cancelarReserva, confirmarReserva, obtenerReservas, selectErrorReservas, selectLoadingReservas, selectReservas } from '../store/slices/reservasSlice'; // ejemplo de ruta
 
 const GestionReservas = ({ navigation }) => {
   const [tabActiva, setTabActiva] = useState('todas');
@@ -20,113 +23,36 @@ const GestionReservas = ({ navigation }) => {
   const [modalDetalle, setModalDetalle] = useState(false);
   const [reservaSeleccionada, setReservaSeleccionada] = useState(null);
   const [modalFiltros, setModalFiltros] = useState(false);
+  const dispatch = useDispatch(); 
+  const reservas = useSelector(selectReservas);
+  const loadingReservas = useSelector(selectLoadingReservas);
+  const errorReservas   = useSelector(selectErrorReservas);
 
-  const [reservas] = useState([
-    {
-      id: 'RES001',
-      espacio: 'Oficina Skyview',
-      tipoEspacio: 'oficina',
-      cliente: 'Juan Pérez',
-      emailCliente: 'juan@email.com',
-      propietario: 'Cliente Demo',
-      fechaInicio: '2025-06-25',
-      fechaFin: '2025-06-27',
-      horario: '09:00 - 18:00',
-      dias: 3,
-      precioTotal: 3600,
-      comision: 360,
-      estado: 'confirmada',
-      metodoPago: 'Tarjeta de crédito',
-      serviciosAdicionales: ['Limpieza diaria', 'Café premium'],
-      fechaCreacion: '2025-06-20 10:30'
-    },
-    {
-      id: 'RES002',
-      espacio: 'Sala de Reuniones Premium',
-      tipoEspacio: 'sala',
-      cliente: 'María González',
-      emailCliente: 'maria@empresa.com',
-      propietario: 'Business Center',
-      fechaInicio: '2025-06-22',
-      fechaFin: '2025-06-22',
-      horario: '14:00 - 18:00',
-      dias: 1,
-      precioTotal: 200,
-      comision: 20,
-      estado: 'pendiente',
-      metodoPago: 'Transferencia',
-      serviciosAdicionales: ['Proyector', 'Catering'],
-      fechaCreacion: '2025-06-19 15:45'
-    },
-    {
-      id: 'RES003',
-      espacio: 'Oficina El Mirador',
-      tipoEspacio: 'oficina',
-      cliente: 'Carlos Rodríguez',
-      emailCliente: 'carlos@startup.com',
-      propietario: 'Cliente Demo',
-      fechaInicio: '2025-06-20',
-      fechaFin: '2025-06-21',
-      horario: '09:00 - 18:00',
-      dias: 2,
-      precioTotal: 3000,
-      comision: 300,
-      estado: 'cancelada',
-      metodoPago: 'Tarjeta de crédito',
-      motivoCancelacion: 'Cambio de planes del cliente',
-      fechaCancelacion: '2025-06-18',
-      reembolso: 2700,
-      fechaCreacion: '2025-06-15 11:20'
-    },
-    {
-      id: 'RES004',
-      espacio: 'Espacio Coworking',
-      tipoEspacio: 'espacio',
-      cliente: 'Ana Martínez',
-      emailCliente: 'ana@freelance.com',
-      propietario: 'Spaces Inc',
-      fechaInicio: '2025-06-21',
-      fechaFin: '2025-06-21',
-      horario: '08:00 - 20:00',
-      dias: 1,
-      precioTotal: 50,
-      comision: 5,
-      estado: 'en_curso',
-      metodoPago: 'PayPal',
-      serviciosAdicionales: [],
-      fechaCreacion: '2025-06-18 09:00'
-    },
-    {
-      id: 'RES005',
-      espacio: 'Oficina Centro',
-      tipoEspacio: 'oficina',
-      cliente: 'Empresa XYZ',
-      emailCliente: 'contacto@xyz.com',
-      propietario: 'Otro Cliente',
-      fechaInicio: '2025-06-15',
-      fechaFin: '2025-06-19',
-      horario: '09:00 - 18:00',
-      dias: 5,
-      precioTotal: 4500,
-      comision: 450,
-      estado: 'completada',
-      metodoPago: 'Transferencia',
-      serviciosAdicionales: ['Parking', 'Seguridad 24h'],
-      calificacion: 5,
-      comentario: 'Excelente espacio, muy recomendado',
-      fechaCreacion: '2025-06-10 14:30'
-    }
-  ]);
+useEffect(() => {
+  // al montar el componente traigo las 50 primeras (ajusta a tu gusto)
+  dispatch(obtenerReservas({ skip: 0, limit: 50 }));
+}, [dispatch]);
+  
 
-  const estadisticas = {
-    total: reservas.length,
-    confirmadas: reservas.filter(r => r.estado === 'confirmada').length,
-    pendientes: reservas.filter(r => r.estado === 'pendiente').length,
-    canceladas: reservas.filter(r => r.estado === 'cancelada').length,
-    completadas: reservas.filter(r => r.estado === 'completada').length,
-    ingresosTotales: reservas.reduce((sum, r) => sum + (r.estado !== 'cancelada' ? r.precioTotal : 0), 0),
-    comisionesTotales: reservas.reduce((sum, r) => sum + (r.estado !== 'cancelada' ? r.comision : 0), 0)
+
+  const estadisticas = useMemo(() => {
+  const base = {
+    total: 0, confirmadas: 0, pendientes: 0,
+    canceladas: 0, completadas: 0,
+    ingresosTotales: 0, comisionesTotales: 0,
   };
+
+  return reservas.reduce((acc, r) => {
+    acc.total += 1;
+    acc[r.estado] = (acc[r.estado] ?? 0) + 1;
+    if (r.estado !== 'cancelada') {
+      acc.ingresosTotales   += r.precioTotal   ?? 0;
+      acc.comisionesTotales += r.comision      ?? 0;
+    }
+    return acc;
+  }, base);
+}, [reservas]);
+
 
   const getEstadoInfo = (estado) => {
     switch (estado) {
@@ -160,7 +86,7 @@ const GestionReservas = ({ navigation }) => {
 
   const getReservasFiltradas = () => {
     let filtradas = reservas;
-
+    console.log('reservas', reservas);
     if (tabActiva !== 'todas') {
       filtradas = filtradas.filter(r => r.estado === tabActiva);
     }
@@ -179,43 +105,44 @@ const GestionReservas = ({ navigation }) => {
 
   const handleVerDetalle = (reserva) => {
     setReservaSeleccionada(reserva);
+    console.log('reserva seleccionada', reserva);
     setModalDetalle(true);
   };
 
-  const handleCancelarReserva = (reserva) => {
-    Alert.alert(
-      'Cancelar reserva',
-      '¿Estás seguro de cancelar esta reserva? Se procesará el reembolso correspondiente.',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Sí, cancelar',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert('Éxito', 'Reserva cancelada y reembolso procesado');
-            setModalDetalle(false);
-          }
+const handleCancelarReserva = (reserva) => {
+  Alert.alert(
+    'Cancelar reserva',
+    '¿Estás seguro de cancelar esta reserva? Se procesará el reembolso correspondiente.',
+    [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Sí, cancelar',
+        style: 'destructive',
+        onPress: () => {
+          dispatch(cancelarReserva({ reservaId: reserva.id, motivo: 'Cancelada desde app' }));
+          setModalDetalle(false);
         }
-      ]
-    );
-  };
+      }
+    ]
+  );
+};
 
   const handleConfirmarReserva = (reserva) => {
-    Alert.alert(
-      'Confirmar reserva',
-      '¿Confirmar esta reserva?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          onPress: () => {
-            Alert.alert('Éxito', 'Reserva confirmada');
-            setModalDetalle(false);
-          }
+  Alert.alert(
+    'Confirmar reserva',
+    '¿Confirmar esta reserva?',
+    [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Confirmar',
+        onPress: () => {
+          dispatch(confirmarReserva({ reservaId: reserva.id, datosPago: {/* lo que toque */} }));
+          setModalDetalle(false);
         }
-      ]
-    );
-  };
+      }
+    ]
+  );
+};
 
   const handleContactarUsuario = (email, tipo) => {
     Alert.alert(
@@ -230,7 +157,7 @@ const GestionReservas = ({ navigation }) => {
 
   const renderReserva = ({ item }) => {
     const estadoInfo = getEstadoInfo(item.estado);
-    const tipoInfo = getTipoEspacioInfo(item.tipoEspacio);
+    const tipoInfo = getTipoEspacioInfo(item.entidadReservada.tipo);
 
     return (
       <TouchableOpacity
@@ -239,7 +166,7 @@ const GestionReservas = ({ navigation }) => {
       >
         <View style={styles.reservaHeader}>
           <View style={styles.reservaIdContainer}>
-            <Text style={styles.reservaId}>#{item.id}</Text>
+            <Text style={styles.reservaId}>#{item._id}</Text>
             <View style={[styles.estadoBadge, { backgroundColor: estadoInfo.color + '20' }]}>
               <Ionicons name={estadoInfo.icono} size={14} color={estadoInfo.color} />
               <Text style={[styles.estadoText, { color: estadoInfo.color }]}>
@@ -247,7 +174,7 @@ const GestionReservas = ({ navigation }) => {
               </Text>
             </View>
           </View>
-          <Text style={styles.reservaFechaCreacion}>{item.fechaCreacion}</Text>
+          <Text style={styles.reservaFechaCreacion}>{item.createdAt}</Text>
         </View>
 
         <View style={styles.reservaContent}>
@@ -256,36 +183,50 @@ const GestionReservas = ({ navigation }) => {
               <Ionicons name={tipoInfo.icono} size={20} color={tipoInfo.color} />
             </View>
             <View style={styles.espacioDetalles}>
-              <Text style={styles.espacioNombre}>{item.espacio}</Text>
-              <Text style={styles.propietario}>Por: {item.propietario}</Text>
+              <Text style={styles.espacioNombre}>{item.proposito}</Text>
+              <Text style={styles.propietario}>Por: {item.usuarioId.nombre}</Text>
             </View>
           </View>
 
           <View style={styles.reservaDetalles}>
             <View style={styles.detalleRow}>
               <Ionicons name="person" size={14} color="#4a90e2" />
-              <Text style={styles.clienteNombre}>{item.cliente}</Text>
+              <Text style={styles.clienteNombre}>{item.usuarioId.nombre}</Text>
             </View>
             <View style={styles.detalleRow}>
               <Ionicons name="calendar" size={14} color="#7f8c8d" />
               <Text style={styles.fechas}>
-                {item.fechaInicio} {item.dias > 1 ? `al ${item.fechaFin}` : ''} ({item.dias} día{item.dias > 1 ? 's' : ''})
+                {new Date(item.fechaInicio).toLocaleDateString('es-UY', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
+                  {item.dias > 1 && (
+                    <>
+                      {' al '}
+                      {new Date(item.fechaFin).toLocaleDateString('es-UY', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </>
+                  )}
+                  {' '}({item.dias} día{item.dias > 1 ? 's' : ''})
               </Text>
             </View>
             <View style={styles.detalleRow}>
               <Ionicons name="time" size={14} color="#7f8c8d" />
-              <Text style={styles.horario}>{item.horario}</Text>
+           <Text style={styles.horario}>
+                    {item.horaInicio} a {item.horaFin}
+          </Text>
+
             </View>
           </View>
 
           <View style={styles.reservaFooter}>
             <View style={styles.montosContainer}>
               <Text style={styles.montoLabel}>Total:</Text>
-              <Text style={styles.montoValue}>${item.precioTotal}</Text>
-            </View>
-            <View style={styles.montosContainer}>
-              <Text style={styles.comisionLabel}>Comisión:</Text>
-              <Text style={styles.comisionValue}>${item.comision}</Text>
+              <Text style={styles.comisionValue}>${item.precioTotal}</Text>
             </View>
           </View>
         </View>
@@ -370,10 +311,16 @@ const GestionReservas = ({ navigation }) => {
       <FlatList
         data={getReservasFiltradas()}
         renderItem={renderReserva}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
         style={styles.lista}
         contentContainerStyle={styles.listaContent}
       />
+      {loadingReservas && <ActivityIndicator size="large" color="#4a90e2" />}
+      {errorReservas   && (
+        <Text style={{ color: '#e74c3c', textAlign: 'center', marginVertical: 10 }}>
+          {errorReservas}
+        </Text>
+      )}
 
       <Modal
         visible={modalDetalle}
@@ -396,7 +343,7 @@ const GestionReservas = ({ navigation }) => {
             {reservaSeleccionada && (
               <ScrollView style={styles.modalContent}>
                 <View style={styles.modalIdSection}>
-                  <Text style={styles.modalReservaId}>#{reservaSeleccionada.id}</Text>
+                  <Text style={styles.modalReservaId}>{reservaSeleccionada.nombre}</Text>
                   <View style={[
                     styles.modalEstadoBadge,
                     { backgroundColor: getEstadoInfo(reservaSeleccionada.estado).color + '20' }
@@ -420,24 +367,28 @@ const GestionReservas = ({ navigation }) => {
                   <View style={styles.modalEspacioCard}>
                     <View style={[
                       styles.modalTipoIcon,
-                      { backgroundColor: getTipoEspacioInfo(reservaSeleccionada.tipoEspacio).color + '20' }
+                      { backgroundColor: getTipoEspacioInfo(reservaSeleccionada.entidadReservada.tipo).color + '20' }
                     ]}>
                       <Ionicons
-                        name={getTipoEspacioInfo(reservaSeleccionada.tipoEspacio).icono}
+                        name={getTipoEspacioInfo(reservaSeleccionada.entidadReservada.tipo).icono}
                         size={24}
-                        color={getTipoEspacioInfo(reservaSeleccionada.tipoEspacio).color}
+                        color={getTipoEspacioInfo(reservaSeleccionada.entidadReservada.tipo).color}
                       />
                     </View>
-                    <View style={styles.modalEspacioInfo}>
-                      <Text style={styles.modalEspacioNombre}>{reservaSeleccionada.espacio}</Text>
+                    
+                  <View style={styles.modalEspacioInfo}>
+                      <Text style={styles.modalEspacioNombre}>{reservaSeleccionada.proposito}</Text>
+                      {/*
                       <TouchableOpacity
-                        onPress={() => handleContactarUsuario(reservaSeleccionada.propietario, 'propietario')}
+                        onPress={() => handleContactarUsuario(reservaSeleccionada.usuarioId.email, 'propietario')}
                       >
                         <Text style={styles.modalPropietario}>
-                          Propietario: {reservaSeleccionada.propietario}
+                          Propietario: {reservaSeleccionada.usuarioId.nombre}
                         </Text>
                       </TouchableOpacity>
+                          */}
                     </View>
+                
                   </View>
                 </View>
 
@@ -445,12 +396,12 @@ const GestionReservas = ({ navigation }) => {
                   <Text style={styles.modalSeccionTitle}>Información del cliente</Text>
                   <TouchableOpacity
                     style={styles.modalClienteCard}
-                    onPress={() => handleContactarUsuario(reservaSeleccionada.emailCliente, 'cliente')}
+                    onPress={() => handleContactarUsuario(reservaSeleccionada.usuarioId.email, 'cliente')}
                   >
                     <Ionicons name="person-circle" size={40} color="#4a90e2" />
                     <View style={styles.modalClienteInfo}>
-                      <Text style={styles.modalClienteNombre}>{reservaSeleccionada.cliente}</Text>
-                      <Text style={styles.modalClienteEmail}>{reservaSeleccionada.emailCliente}</Text>
+                      <Text style={styles.modalClienteNombre}>{reservaSeleccionada.usuarioId.nombre}</Text>
+                      <Text style={styles.modalClienteEmail}>{reservaSeleccionada.usuarioId.email}</Text>
                     </View>
                     <Ionicons name="mail" size={20} color="#4a90e2" />
                   </TouchableOpacity>
@@ -461,23 +412,29 @@ const GestionReservas = ({ navigation }) => {
                   <View style={styles.modalDetalle}>
                     <Ionicons name="calendar" size={16} color="#4a90e2" />
                     <Text style={styles.modalDetalleText}>
-                      {reservaSeleccionada.fechaInicio}
-                      {reservaSeleccionada.dias > 1 ? ` al ${reservaSeleccionada.fechaFin}` : ''}
+                      {new Date(reservaSeleccionada.fechaInicio).toLocaleDateString('es-UY', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                      })}
+                      {reservaSeleccionada.dias > 1 && (
+                        <>
+                          {' al '}
+                          {new Date(reservaSeleccionada.fechaFin).toLocaleDateString('es-UY', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                          })}
+                        </>
+                      )}
                     </Text>
+
                   </View>
                   <View style={styles.modalDetalle}>
                     <Ionicons name="time" size={16} color="#4a90e2" />
-                    <Text style={styles.modalDetalleText}>{reservaSeleccionada.horario}</Text>
-                  </View>
-                  <View style={styles.modalDetalle}>
-                    <Ionicons name="today" size={16} color="#4a90e2" />
                     <Text style={styles.modalDetalleText}>
-                      {reservaSeleccionada.dias} día{reservaSeleccionada.dias > 1 ? 's' : ''}
+                       {reservaSeleccionada.horaInicio} a {reservaSeleccionada.horaFin}
                     </Text>
-                  </View>
-                  <View style={styles.modalDetalle}>
-                    <Ionicons name="card" size={16} color="#4a90e2" />
-                    <Text style={styles.modalDetalleText}>{reservaSeleccionada.metodoPago}</Text>
                   </View>
                 </View>
 
@@ -499,22 +456,8 @@ const GestionReservas = ({ navigation }) => {
                   <View style={styles.modalFinanzas}>
                     <View style={styles.finanzaItem}>
                       <Text style={styles.finanzaLabel}>Precio total</Text>
-                      <Text style={styles.finanzaValue}>${reservaSeleccionada.precioTotal}</Text>
+                       <Text style={[styles.finanzaValue, { color: '#27ae60' }]}>${reservaSeleccionada.precioTotal}</Text>
                     </View>
-                    <View style={styles.finanzaItem}>
-                      <Text style={styles.finanzaLabel}>Comisión plataforma</Text>
-                      <Text style={[styles.finanzaValue, { color: '#27ae60' }]}>
-                        ${reservaSeleccionada.comision}
-                      </Text>
-                    </View>
-                    {reservaSeleccionada.reembolso && (
-                      <View style={styles.finanzaItem}>
-                        <Text style={styles.finanzaLabel}>Reembolso</Text>
-                        <Text style={[styles.finanzaValue, { color: '#e74c3c' }]}>
-                          ${reservaSeleccionada.reembolso}
-                        </Text>
-                      </View>
-                    )}
                   </View>
                 </View>
 
