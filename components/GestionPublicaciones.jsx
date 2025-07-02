@@ -13,13 +13,24 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { actualizarEspacio, eliminarEspacio } from '../store/slices/espaciosSlice';
+
 const GestionPublicaciones = ({ navigation }) => {
   const [tabActiva, setTabActiva] = useState('todas');
   const [busqueda, setBusqueda] = useState('');
   const [modalDetalles, setModalDetalles] = useState(false);
   const [publicacionSeleccionada, setPublicacionSeleccionada] = useState(null);
   const [modalEditar, setModalEditar] = useState(false);
+  const dispatch = useDispatch();
+const [form, setForm] = useState({
+  nombre: '',
+  direccion: '',
+  precio: '',
+  capacidad: '',
+  // …cualquier otro campo editable
+});
+
 
   const {
     espaciosFiltrados = [],
@@ -29,7 +40,9 @@ const GestionPublicaciones = ({ navigation }) => {
     error = null,
     refreshing = false
   } = useSelector(state => state.espacios || {});
-console.log('Espacios filtrados:', espaciosFiltrados);
+
+  
+
   const capitalize = txt =>
   typeof txt === 'string' && txt.length
     ? txt[0].toUpperCase() + txt.slice(1)
@@ -38,26 +51,23 @@ console.log('Espacios filtrados:', espaciosFiltrados);
 
   const estadisticas = {
     total: espaciosFiltrados.length,
-    activas: espaciosFiltrados.filter(p => p.estado === 'activa').length,
     oficina: espaciosFiltrados.filter(p => p.tipo === 'oficina').length,
-    escritorio: espaciosFiltrados.filter(p => p.estado === 'escritorio').length,
+    escritorio: espaciosFiltrados.filter(p => p.tipo === 'escritorio').length,
     espacio: espaciosFiltrados.filter(p => p.tipo === 'espacio').length,
-    pendientes: espaciosFiltrados.filter(p => p.tipo === 'pendiente').length,
     sala: espaciosFiltrados.filter(p => p.tipo === 'sala').length,
-    reportadas: espaciosFiltrados.filter(p => p.estado === 'reportada').length,
     ingresosTotal: espaciosFiltrados.reduce((sum, p) => sum + (p.ingresosGenerados || 0), 0),
     comisionesTotal: espaciosFiltrados.reduce((sum, p) => sum + (p.comisionesGeneradas || 0), 0)
   };
 
   const getPublicacionesFiltradas = () => {
     let filtradas = espaciosFiltrados;
-
+  
     if (tabActiva !== 'todas') {
       filtradas = filtradas.filter(p => {
-        if (tabActiva === 'oficina') return p.estado === 'oficina';
-        if (tabActiva === 'espacio') return p.estado === 'espacio';
-        if (tabActiva === 'escritorio') return p.estado === 'escritorio';
-        if (tabActiva === 'sala') return p.estado === 'sala';
+        if (tabActiva === 'oficina') return p.tipo === 'oficina';
+        if (tabActiva === 'espacio') return p.tipo === 'espacio';
+        if (tabActiva === 'escritorio') return p.tipo === 'escritorio';
+        if (tabActiva === 'sala') return p.tipo === 'sala';
         return true;
       });
     }
@@ -85,56 +95,81 @@ console.log('Espacios filtrados:', espaciosFiltrados);
 
   const getEstadoInfo = (estado) => {
     switch (estado) {
-      case 'activa': return { color: '#27ae60', icono: 'checkmark-circle' };
-      case 'pausada': return { color: '#f39c12', icono: 'pause-circle' };
-      case 'pendiente': return { color: '#3498db', icono: 'time' };
-      case 'reportada': return { color: '#e74c3c', icono: 'warning' };
+      case 'disponible': return { color: '#27ae60', icono: 'checkmark-circle' };
+      case 'espacio': return { color: '#f39c12', icono: 'pause-circle' };
+      case 'sala': return { color: '#3498db', icono: 'time' };
+      case 'escritorio': return { color: '#e74c3c', icono: 'warning' };
       default: return { color: '#7f8c8d', icono: 'help-circle' };
     }
   };
 
+  const handleGuardarCambios = async () => {
+  // 1. VALIDACIONES BÁSICAS
+  if (!form.nombre.trim()) {
+    Alert.alert('Error', 'El nombre es obligatorio');
+    return;
+  }
+  if (!form.precio.trim() || isNaN(form.precio)) {
+    Alert.alert('Error', 'El precio debe ser un número');
+    return;
+  }
+
+  // 2. OBJETO CON LOS CAMPOS A ACTUALIZAR
+  const datosActualizados = {
+    nombre: form.nombre.trim(),
+    capacidad: Number(form.capacidad || 0),
+    // ➜ añade otros campos si tu API los acepta (servicios, descripción, etc.)
+  };
+
+  try {
+    // 3. DISPATCH AL THUNK
+    await dispatch(
+      actualizarEspacio({
+        id: publicacionSeleccionada.id,        // <-- ID del espacio
+        tipo: publicacionSeleccionada.tipo,    // <-- 'oficina' | 'espacio' | …
+        datosActualizados,
+      })
+    ).unwrap(); // .unwrap() lanza si el thunk devuelve rejectWithValue
+
+    // 4. ÉXITO
+    setModalEditar(false);
+    Alert.alert('Éxito', 'El espacio fue actualizado correctamente');
+  } catch (error) {
+    // 5. ERROR
+    console.error('Error al actualizar el espacio:', error);
+    Alert.alert('Error', error || 'No se pudo actualizar el espacio');
+  }
+};
+
   const handleVerDetalles = (publicacion) => {
     setPublicacionSeleccionada(publicacion);
+    console.log('Detalles de la publicación:', publicacion);
     setModalDetalles(true);
   };
 
-  const handleCambiarEstado = (publicacion, nuevoEstado) => {
-    Alert.alert(
-      'Cambiar estado',
-      `¿Cambiar el estado de "${publicacion.nombre}" a ${nuevoEstado}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          onPress: () => {
-            setPublicaciones(prev => prev.map(p =>
-              p.id === publicacion.id ? { ...p, estado: nuevoEstado } : p
-            ));
-            Alert.alert('Éxito', 'Estado actualizado correctamente');
-          }
-        }
-      ]
-    );
-  };
-
-  const handleEliminarPublicacion = (publicacion) => {
-    Alert.alert(
-      'Eliminar publicación',
-      `¿Estás seguro de eliminar "${publicacion.nombre}"? Esta acción no se puede deshacer.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () => {
-            setPublicaciones(prev => prev.filter(p => p.id !== publicacion.id));
-            setModalDetalles(false);
-            Alert.alert('Éxito', 'Publicación eliminada');
-          }
-        }
-      ]
-    );
-  };
+ const handleEliminarPublicacion = (publicacion) => {
+  Alert.alert(
+    'Eliminar publicación',
+    `¿Estás seguro de eliminar "${publicacion.nombre}"?`,
+    [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: () =>
+          dispatch(
+            eliminarEspacio({
+              id: publicacion.id,      // _id real
+              tipo: publicacion.tipo,  // 'oficina' | 'espacio' ...
+            }),
+          )
+            .unwrap()
+            .then(() => Alert.alert('Éxito', 'Espacio eliminado'))
+            .catch((err) => Alert.alert('Error', err)),
+      },
+    ],
+  );
+};
 
   const renderPublicacion = ({ item }) => {
     const estadoInfo = getEstadoInfo(item.estado);
@@ -339,16 +374,16 @@ console.log('Espacios filtrados:', espaciosFiltrados);
 
                   <View style={[
                     styles.modalEstadoBadge,
-                    { backgroundColor: getEstadoInfo(publicacionSeleccionada.estado).color + '20' }
+                    { backgroundColor: getEstadoInfo(publicacionSeleccionada.datosCompletos.estado).color + '20' }
                   ]}>
                     <Ionicons
-                      name={getEstadoInfo(publicacionSeleccionada.estado).icono}
+                      name={getEstadoInfo(publicacionSeleccionada.datosCompletos.estado).icono}
                       size={16}
-                      color={getEstadoInfo(publicacionSeleccionada.estado).color}
+                      color={getEstadoInfo(publicacionSeleccionada.datosCompletos.estado).color}
                     />
                     <Text style={[
                       styles.modalEstadoText,
-                      { color: getEstadoInfo(publicacionSeleccionada.estado).color }
+                      { color: getEstadoInfo(publicacionSeleccionada.datosCompletos.estado).color }
                     ]}>
                        {capitalize(publicacionSeleccionada.estado)}
 
@@ -360,15 +395,15 @@ console.log('Espacios filtrados:', espaciosFiltrados);
                   <Text style={styles.modalSeccionTitle}>Información del propietario</Text>
                   <View style={styles.modalInfoItem}>
                     <Text style={styles.modalInfoLabel}>Nombre</Text>
-                    <Text style={styles.modalInfoValue}>{publicacionSeleccionada.propietario}</Text>
+                    <Text style={styles.modalInfoValue}>{publicacionSeleccionada.datosCompletos.usuarioId.nombre}</Text>
                   </View>
                   <View style={styles.modalInfoItem}>
                     <Text style={styles.modalInfoLabel}>Email</Text>
-                    <Text style={styles.modalInfoValue}>{publicacionSeleccionada.email}</Text>
+                    <Text style={styles.modalInfoValue}>{publicacionSeleccionada.datosCompletos.usuarioId.email}</Text>
                   </View>
                   <View style={styles.modalInfoItem}>
                     <Text style={styles.modalInfoLabel}>Fecha publicación</Text>
-                    <Text style={styles.modalInfoValue}>{publicacionSeleccionada.fechaPublicacion}</Text>
+                    <Text style={styles.modalInfoValue}>{publicacionSeleccionada.datosCompletos.createdAt}</Text>
                   </View>
                 </View>
 
@@ -399,107 +434,20 @@ console.log('Espacios filtrados:', espaciosFiltrados);
                   )}
                 </View>
 
-                {publicacionSeleccionada.estado === 'activa' && (
-                  <View style={styles.modalSeccion}>
-                    <Text style={styles.modalSeccionTitle}>Estadísticas</Text>
-                    <View style={styles.modalEstadisticas}>
-                      <View style={styles.modalEstatItem}>
-                        <Ionicons name="calendar" size={20} color="#4a90e2" />
-                        <Text style={styles.modalEstatValor}>{publicacionSeleccionada.reservasTotal}</Text>
-                        <Text style={styles.modalEstatLabel}>Reservas</Text>
-                      </View>
-                      <View style={styles.modalEstatItem}>
-                        <Ionicons name="cash" size={20} color="#27ae60" />
-                        <Text style={styles.modalEstatValor}>${publicacionSeleccionada.ingresosGenerados}</Text>
-                        <Text style={styles.modalEstatLabel}>Ingresos</Text>
-                      </View>
-                      <View style={styles.modalEstatItem}>
-                        <Ionicons name="trending-up" size={20} color="#f39c12" />
-                        <Text style={styles.modalEstatValor}>${publicacionSeleccionada.comisionesGeneradas}</Text>
-                        <Text style={styles.modalEstatLabel}>Comisiones</Text>
-                      </View>
-                    </View>
-                    {publicacionSeleccionada.ultimaReserva && (
-                      <Text style={styles.ultimaReservaText}>
-                        Última reserva: {publicacionSeleccionada.ultimaReserva}
-                      </Text>
-                    )}
-                  </View>
-                )}
-
-                {publicacionSeleccionada.estado === 'reportada' && publicacionSeleccionada.reportes && (
-                  <View style={styles.modalSeccion}>
-                    <Text style={styles.modalSeccionTitle}>Reportes recibidos</Text>
-                    {publicacionSeleccionada.reportes.map((reporte, index) => (
-                      <View key={index} style={styles.reporteItem}>
-                        <Ionicons name="alert-circle" size={16} color="#e74c3c" />
-                        <View style={styles.reporteInfo}>
-                          <Text style={styles.reporteMotivo}>{reporte.motivo}</Text>
-                          <Text style={styles.reporteDetalles}>
-                            {reporte.fecha} - {reporte.usuario}
-                          </Text>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
-                {publicacionSeleccionada.estado === 'pausada' && publicacionSeleccionada.razonPausa && (
-                  <View style={styles.modalAlerta}>
-                    <Ionicons name="information-circle" size={20} color="#f39c12" />
-                    <Text style={styles.modalAlertaText}>
-                      Razón de pausa: {publicacionSeleccionada.razonPausa}
-                    </Text>
-                  </View>
-                )}
-
-                {publicacionSeleccionada.estado === 'pendiente' && publicacionSeleccionada.documentosPendientes && (
-                  <View style={styles.modalSeccion}>
-                    <Text style={styles.modalSeccionTitle}>Documentos pendientes</Text>
-                    {publicacionSeleccionada.documentosPendientes.map((doc, index) => (
-                      <View key={index} style={styles.documentoItem}>
-                        <Ionicons name="document-text" size={16} color="#3498db" />
-                        <Text style={styles.documentoText}>{doc}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
                 <View style={styles.modalAcciones}>
-                  {publicacionSeleccionada.estado === 'pendiente' && (
-                    <TouchableOpacity
-                      style={[styles.modalBoton, styles.botonAprobar]}
-                      onPress={() => handleCambiarEstado(publicacionSeleccionada, 'activa')}
-                    >
-                      <Ionicons name="checkmark" size={16} color="#fff" />
-                      <Text style={styles.modalBotonText}>Aprobar</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {publicacionSeleccionada.estado === 'activa' && (
-                    <TouchableOpacity
-                      style={[styles.modalBoton, styles.botonPausar]}
-                      onPress={() => handleCambiarEstado(publicacionSeleccionada, 'pausada')}
-                    >
-                      <Ionicons name="pause" size={16} color="#fff" />
-                      <Text style={styles.modalBotonText}>Pausar</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {publicacionSeleccionada.estado === 'pausada' && (
-                    <TouchableOpacity
-                      style={[styles.modalBoton, styles.botonActivar]}
-                      onPress={() => handleCambiarEstado(publicacionSeleccionada, 'activa')}
-                    >
-                      <Ionicons name="play" size={16} color="#fff" />
-                      <Text style={styles.modalBotonText}>Activar</Text>
-                    </TouchableOpacity>
-                  )}
 
                   <TouchableOpacity
                     style={[styles.modalBoton, styles.botonEditar]}
                     onPress={() => {
+                      // Pre‑cargamos los valores del ítem
+                      setForm({
+                        nombre: publicacionSeleccionada.nombre,
+                        direccion: publicacionSeleccionada.direccion,
+                        precio: String(publicacionSeleccionada.precio),
+                        capacidad: String(publicacionSeleccionada.capacidad),
+                      });
                       setModalDetalles(false);
+                      setModalEditar(true);        // <-- abrimos modal de edición
                     }}
                   >
                     <Ionicons name="create" size={16} color="#fff" />
@@ -519,6 +467,68 @@ console.log('Espacios filtrados:', espaciosFiltrados);
           </View>
         </View>
       </Modal>
+
+      {/* Modal de edición */} 
+
+            <Modal
+        visible={modalEditar}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalEditar(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Editar espacio</Text>
+              <TouchableOpacity
+                onPress={() => setModalEditar(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#2c3e50" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalContent}>
+              {/* Nombre */}
+              <Text style={styles.inputLabel}>Nombre</Text>
+              <TextInput
+                value={form.nombre}
+                onChangeText={txt => setForm({ ...form, nombre: txt })}
+                style={styles.input}
+              />
+
+              {/* Capacidad */}
+              <Text style={styles.inputLabel}>Capacidad (personas)</Text>
+              <TextInput
+                value={form.capacidad}
+                onChangeText={txt => setForm({ ...form, capacidad: txt })}
+                keyboardType="numeric"
+                style={styles.input}
+              />
+
+              {/* Botones */}
+              <View style={styles.modalAcciones}>
+                <TouchableOpacity
+                  style={[styles.modalBoton, styles.botonEditar]}
+                  onPress={handleGuardarCambios}
+                >
+                  <Ionicons name="save" size={16} color="#fff" />
+                  <Text style={styles.modalBotonText}>Guardar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalBoton, styles.botonPausar]}
+                  onPress={() => setModalEditar(false)}
+                >
+                  <Ionicons name="arrow-undo" size={16} color="#fff" />
+                  <Text style={styles.modalBotonText}>Cancelar</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 };
@@ -977,6 +987,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  input: {
+  backgroundColor: '#f8f9fa',
+  borderWidth: 1,
+  borderColor: '#e1e5e9',
+  borderRadius: 8,
+  paddingHorizontal: 12,
+  paddingVertical: 10,
+  marginBottom: 16,
+  fontSize: 14,
+  color: '#2c3e50',
+},
+inputLabel: {
+  fontSize: 12,
+  color: '#7f8c8d',
+  marginBottom: 4,
+},
+
 });
 
 export default GestionPublicaciones;

@@ -6,7 +6,7 @@ export const obtenerOficinas = createAsyncThunk(
     try {
       const { auth } = getState();
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/v1/oficinas?skip=${skip}&limit=${limit}`,
+        `${process.env.EXPO_PUBLIC_API_URL}/v1/oficinas`,
         {
           headers: {
             'Authorization': `Bearer ${auth.token}`,
@@ -233,6 +233,7 @@ export const actualizarEspacio = createAsyncThunk(
         }
       );
 
+      console.log('Respuesta de actualización:', response);
       const data = await response.json();
 
       if (!response.ok) {
@@ -305,6 +306,56 @@ export const cargarTodosLosEspacios = createAsyncThunk(
     }
   }
 );
+
+
+export const eliminarEspacio = createAsyncThunk(
+  'espacios/eliminarEspacio',
+  async ({ id, tipo }, { getState, rejectWithValue }) => {
+    try {
+      const { auth } = getState();
+
+      const endpoints = {
+        oficina: '/v1/oficinas',
+        espacio: '/v1/espacios',
+        escritorio: '/v1/escritorios-flexibles',
+        edificio: '/v1/edificios',
+        sala: '/v1/salas-reunion',
+      };
+
+      const endpoint = endpoints[tipo];
+      if (!endpoint) {
+        return rejectWithValue(`Tipo de espacio no válido: ${tipo}`);
+      }
+
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}${endpoint}/${id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${auth.token}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return rejectWithValue(
+          data.message ||
+            `Error HTTP ${response.status}: Error al eliminar el espacio`,
+        );
+      }
+
+      // si tu API devuelve algo, lo mandas; si no, con que devuelva el id basta
+      return { id, tipo };
+    } catch (err) {
+      console.error(err);
+      return rejectWithValue('Error de conexión al eliminar el espacio');
+    }
+  },
+);
+
 
 export const cargarEspaciosCliente = createAsyncThunk(
   'espacios/cargarEspaciosCliente',
@@ -641,6 +692,52 @@ const espaciosSlice = createSlice({
       .addCase(obtenerEscritorios.rejected, (state) => {
         state.escritorios = [];
       })
+      
+        .addCase(eliminarEspacio.pending, (state) => {
+            state.loadingDetalle = true;      // o usa otro flag si prefieres
+            state.errorDetalle = null;
+          })
+          .addCase(eliminarEspacio.fulfilled, (state, action) => {
+            state.loadingDetalle = false;
+            const { id, tipo } = action.payload;
+
+            // --- 1. quita del array específico ---
+            const quitar = (arr) => {
+              const i = arr.findIndex((e) => e._id === id);
+              if (i !== -1) arr.splice(i, 1);
+            };
+            switch (tipo) {
+              case 'oficina':
+                quitar(state.oficinas);
+                break;
+              case 'espacio':
+                quitar(state.espacios);
+                break;
+              case 'escritorio':
+                quitar(state.escritorios);
+                break;
+              case 'edificio':
+                quitar(state.edificios);
+                break;
+              case 'sala':
+                quitar(state.salas);
+                break;
+            }
+
+            // --- 2. quita del cache mapeado/filtrado ---
+            state.espaciosMapeados = state.espaciosMapeados.filter((e) => e.id !== id);
+            state.espaciosFiltrados = state.espaciosFiltrados.filter((e) => e.id !== id);
+
+            // limpia detalle si justo estábamos viéndolo
+            if (state.detalleActual?._id === id) state.detalleActual = null;
+          })
+          .addCase(eliminarEspacio.rejected, (state, action) => {
+            state.loadingDetalle = false;
+            state.errorDetalle = action.payload;
+            // no modificamos los arrays si falla la eliminación
+          })
+
+
 
       .addCase(obtenerEdificios.fulfilled, (state, action) => {
         state.edificios = Array.isArray(action.payload?.data) ? action.payload.data : [];
