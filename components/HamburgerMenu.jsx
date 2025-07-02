@@ -103,36 +103,6 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
           icon: 'construct-outline',
           onPress: () => handleNavigation('GestionProveedores')
         },
-        {
-          id: 6,
-          title: 'Transacciones',
-          icon: 'cash-outline',
-          onPress: () => handleNavigation('TransaccionesAdmin')
-        },
-        {
-          id: 7,
-          title: 'Comisiones',
-          icon: 'calculator-outline',
-          onPress: () => handleNavigation('ComisionesAdmin')
-        },
-        {
-          id: 8,
-          title: 'Reportes',
-          icon: 'stats-chart-outline',
-          onPress: () => handleNavigation('ReportesAdmin')
-        },
-        {
-          id: 9,
-          title: 'Soporte',
-          icon: 'help-circle-outline',
-          onPress: () => handleNavigation('SoporteAdmin')
-        },
-        {
-          id: 10,
-          title: 'Configuración',
-          icon: 'settings-outline',
-          onPress: () => handleNavigation('ConfiguracionAdmin')
-        }
       ];
     } else if (tipoUsuario === 'usuario') {
       return [

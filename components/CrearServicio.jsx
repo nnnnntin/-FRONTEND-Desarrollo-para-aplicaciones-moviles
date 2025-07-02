@@ -12,7 +12,107 @@ import {
   View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import * as yup from 'yup';
 import { crearServicioAdicional } from '../store/slices/proveedoresSlice';
+
+const servicioSchema = yup.object({
+  nombre: yup
+    .string()
+    .required('El nombre del servicio es obligatorio')
+    .min(3, 'El nombre debe tener al menos 3 caracteres')
+    .max(100, 'El nombre no puede exceder los 100 caracteres')
+    .trim(),
+  
+  descripcion: yup
+    .string()
+    .required('La descripción es obligatoria')
+    .min(10, 'La descripción debe tener al menos 10 caracteres')
+    .max(500, 'La descripción no puede exceder los 500 caracteres')
+    .trim(),
+  
+  tipo: yup
+    .string()
+    .required('Selecciona una categoría')
+    .test('tipo-valido', 'Categoría inválida', function(value) {
+      const tiposValidos = ['catering', 'limpieza', 'recepcion', 'parking', 'impresion', 'otro'];
+      return tiposValidos.includes(value);
+    }),
+  
+  precio: yup
+    .number()
+    .required('El precio es obligatorio')
+    .positive('El precio debe ser mayor que 0')
+    .max(99999, 'El precio no puede exceder $99,999')
+    .typeError('Ingresa un precio válido'),
+  
+  unidadPrecio: yup
+    .string()
+    .required('Selecciona una unidad de precio')
+    .test('unidad-precio-valida', 'Unidad de precio inválida', function(value) {
+      const unidadesValidas = ['por_uso', 'por_hora', 'por_persona', 'por_dia'];
+      return unidadesValidas.includes(value);
+    }),
+  
+  disponibilidad: yup.object({
+    diasDisponibles: yup
+      .array()
+      .of(yup.string().test('dia-valido', 'Día no válido', function(value) {
+        const diasValidos = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+        return !value || diasValidos.includes(value);
+      }))
+      .min(1, 'Selecciona al menos un día de disponibilidad')
+      .required('Selecciona al menos un día de disponibilidad'),
+    
+    horaInicio: yup
+      .string()
+      .nullable()
+      .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido (HH:MM)')
+      .test('hora-valida', 'Hora inválida', function(value) {
+        if (!value) return true;
+        const [hora, minuto] = value.split(':').map(Number);
+        return hora >= 0 && hora <= 23 && minuto >= 0 && minuto <= 59;
+      }),
+    
+    horaFin: yup
+      .string()
+      .nullable()
+      .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido (HH:MM)')
+      .test('hora-valida', 'Hora inválida', function(value) {
+        if (!value) return true;
+        const [hora, minuto] = value.split(':').map(Number);
+        return hora >= 0 && hora <= 23 && minuto >= 0 && minuto <= 59;
+      })
+      .test('hora-fin-mayor', 'La hora de fin debe ser posterior a la hora de inicio', function(value) {
+        const { horaInicio } = this.parent;
+        if (!value || !horaInicio) return true;
+        
+        const [horaInicioH, horaInicioM] = horaInicio.split(':').map(Number);
+        const [horaFinH, horaFinM] = value.split(':').map(Number);
+        
+        const inicioMinutos = horaInicioH * 60 + horaInicioM;
+        const finMinutos = horaFinH * 60 + horaFinM;
+        
+        return finMinutos > inicioMinutos;
+      })
+  }),
+  
+  tiempoAnticipacion: yup
+    .number()
+    .nullable()
+    .integer('El tiempo de anticipación debe ser un número entero')
+    .min(0, 'El tiempo de anticipación debe ser mayor o igual a 0')
+    .max(8760, 'El tiempo de anticipación no puede exceder las 8760 horas (1 año)')
+    .typeError('El tiempo de anticipación debe ser un número válido'),
+  
+  requiereAprobacion: yup
+    .boolean()
+    .required(),
+  
+  espaciosDisponibles: yup
+    .array()
+    .of(yup.string())
+    .default([])
+});
 
 const CrearServicio = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -36,6 +136,7 @@ const CrearServicio = ({ navigation }) => {
   });
 
   const [errores, setErrores] = useState({});
+  const [validacionEnCurso, setValidacionEnCurso] = useState(false);
 
   const categorias = [
     { id: 'catering', nombre: 'Catering', icono: 'restaurant', color: '#e74c3c' },
@@ -63,54 +164,67 @@ const CrearServicio = ({ navigation }) => {
     { id: 'por_dia', nombre: 'Por día' }
   ];
 
-  const validarFormulario = () => {
-    const nuevosErrores = {};
-
-    if (!formData.nombre.trim()) {
-      nuevosErrores.nombre = 'El nombre del servicio es obligatorio';
-    }
-
-    if (!formData.descripcion.trim()) {
-      nuevosErrores.descripcion = 'La descripción es obligatoria';
-    }
-
-    if (!formData.tipo) {
-      nuevosErrores.tipo = 'Selecciona una categoría';
-    }
-
-    if (!formData.precio.trim()) {
-      nuevosErrores.precio = 'El precio es obligatorio';
-    } else if (isNaN(parseFloat(formData.precio)) || parseFloat(formData.precio) < 0) {
-      nuevosErrores.precio = 'Ingresa un precio válido (mayor o igual a 0)';
-    }
-
-    if (formData.disponibilidad.diasDisponibles.length === 0) {
-      nuevosErrores.disponibilidad = 'Selecciona al menos un día de disponibilidad';
-    }
-
-    if (formData.disponibilidad.horaInicio && formData.disponibilidad.horaFin) {
-      const horaInicioValid = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(formData.disponibilidad.horaInicio);
-      const horaFinValid = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(formData.disponibilidad.horaFin);
+  const validarCampo = async (campo, valor, datosCompletos = formData) => {
+    try {
+      await servicioSchema.validateAt(campo, {
+        ...datosCompletos,
+        [campo]: valor
+      });
       
-      if (!horaInicioValid) {
-        nuevosErrores.horaInicio = 'Formato de hora inválido (HH:MM)';
-      }
-      if (!horaFinValid) {
-        nuevosErrores.horaFin = 'Formato de hora inválido (HH:MM)';
-      }
+      setErrores(prev => ({
+        ...prev,
+        [campo]: null
+      }));
+      
+      return true;
+    } catch (error) {
+      setErrores(prev => ({
+        ...prev,
+        [campo]: error.message
+      }));
+      
+      return false;
     }
+  };
 
-    if (formData.tiempoAnticipacion && (isNaN(parseInt(formData.tiempoAnticipacion)) || parseInt(formData.tiempoAnticipacion) < 0)) {
-      nuevosErrores.tiempoAnticipacion = 'El tiempo de anticipación debe ser un número entero mayor o igual a 0';
+  const validarFormulario = async () => {
+    setValidacionEnCurso(true);
+    
+    try {
+      const datosValidacion = {
+        ...formData,
+        precio: formData.precio ? parseFloat(formData.precio) : undefined,
+        tiempoAnticipacion: formData.tiempoAnticipacion ? parseInt(formData.tiempoAnticipacion) : null
+      };
+
+      await servicioSchema.validate(datosValidacion, { abortEarly: false });
+      
+      setErrores({});
+      setValidacionEnCurso(false);
+      return true;
+      
+    } catch (error) {
+      const nuevosErrores = {};
+      
+      if (error.inner) {
+        error.inner.forEach(err => {
+          nuevosErrores[err.path] = err.message;
+        });
+      } else {
+        nuevosErrores.general = error.message;
+      }
+      
+      setErrores(nuevosErrores);
+      setValidacionEnCurso(false);
+      return false;
     }
-
-    setErrores(nuevosErrores);
-    return Object.keys(nuevosErrores).length === 0;
   };
 
   const handleSubmit = async () => {
-    if (!validarFormulario()) {
-      Alert.alert('Formulario incompleto', 'Por favor completa todos los campos obligatorios');
+    const esValido = await validarFormulario();
+    
+    if (!esValido) {
+      Alert.alert('Formulario incompleto', 'Por favor corrige los errores antes de continuar');
       return;
     }
 
@@ -157,9 +271,7 @@ const CrearServicio = ({ navigation }) => {
 
   const selectCategoria = (categoriaId) => {
     setFormData({ ...formData, tipo: categoriaId });
-    if (errores.tipo) {
-      setErrores({ ...errores, tipo: null });
-    }
+    validarCampo('tipo', categoriaId);
   };
 
   const toggleDisponibilidad = (dia) => {
@@ -167,21 +279,46 @@ const CrearServicio = ({ navigation }) => {
       ? formData.disponibilidad.diasDisponibles.filter(d => d !== dia)
       : [...formData.disponibilidad.diasDisponibles, dia];
 
-    setFormData({ 
+    const nuevosFormData = { 
       ...formData, 
       disponibilidad: {
         ...formData.disponibilidad,
         diasDisponibles: nuevaDisponibilidad
       }
-    });
+    };
 
-    if (errores.disponibilidad && nuevaDisponibilidad.length > 0) {
-      setErrores({ ...errores, disponibilidad: null });
-    }
+    setFormData(nuevosFormData);
+    validarCampo('disponibilidad.diasDisponibles', nuevaDisponibilidad, nuevosFormData);
   };
 
   const selectUnidadPrecio = (unidad) => {
     setFormData({ ...formData, unidadPrecio: unidad });
+    validarCampo('unidadPrecio', unidad);
+  };
+
+  const handleInputChange = (campo, valor) => {
+    const nuevosFormData = { ...formData, [campo]: valor };
+    setFormData(nuevosFormData);
+    
+    setTimeout(() => {
+      validarCampo(campo, valor, nuevosFormData);
+    }, 500);
+  };
+
+  const handleNestedInputChange = (campoPadre, campoHijo, valor) => {
+    const nuevosFormData = {
+      ...formData,
+      [campoPadre]: {
+        ...formData[campoPadre],
+        [campoHijo]: valor
+      }
+    };
+    
+    setFormData(nuevosFormData);
+    
+    setTimeout(() => {
+      validarCampo(`${campoPadre}.${campoHijo}`, valor, nuevosFormData);
+    }, 500);
   };
 
   const renderCategoria = (categoria) => (
@@ -230,11 +367,9 @@ const CrearServicio = ({ navigation }) => {
             <TextInput
               style={[styles.input, errores.nombre && styles.inputError]}
               value={formData.nombre}
-              onChangeText={(text) => {
-                setFormData({ ...formData, nombre: text });
-                if (errores.nombre) setErrores({ ...errores, nombre: null });
-              }}
+              onChangeText={(text) => handleInputChange('nombre', text)}
               placeholder="Ej: Limpieza profunda de oficinas"
+              maxLength={100}
             />
             {errores.nombre && <Text style={styles.errorText}>{errores.nombre}</Text>}
           </View>
@@ -244,15 +379,14 @@ const CrearServicio = ({ navigation }) => {
             <TextInput
               style={[styles.textArea, errores.descripcion && styles.inputError]}
               value={formData.descripcion}
-              onChangeText={(text) => {
-                setFormData({ ...formData, descripcion: text });
-                if (errores.descripcion) setErrores({ ...errores, descripcion: null });
-              }}
+              onChangeText={(text) => handleInputChange('descripcion', text)}
               placeholder="Describe en detalle qué incluye tu servicio, metodología, etc."
               multiline
               numberOfLines={4}
+              maxLength={500}
             />
             {errores.descripcion && <Text style={styles.errorText}>{errores.descripcion}</Text>}
+            <Text style={styles.characterCounter}>{formData.descripcion.length}/500</Text>
           </View>
         </View>
 
@@ -272,12 +406,10 @@ const CrearServicio = ({ navigation }) => {
             <TextInput
               style={[styles.input, errores.precio && styles.inputError]}
               value={formData.precio}
-              onChangeText={(text) => {
-                setFormData({ ...formData, precio: text });
-                if (errores.precio) setErrores({ ...errores, precio: null });
-              }}
+              onChangeText={(text) => handleInputChange('precio', text)}
               placeholder="120"
               keyboardType="numeric"
+              maxLength={8}
             />
             {errores.precio && <Text style={styles.errorText}>{errores.precio}</Text>}
           </View>
@@ -303,6 +435,7 @@ const CrearServicio = ({ navigation }) => {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+            {errores.unidadPrecio && <Text style={styles.errorText}>{errores.unidadPrecio}</Text>}
           </View>
 
           <View style={styles.inputGroup}>
@@ -310,12 +443,10 @@ const CrearServicio = ({ navigation }) => {
             <TextInput
               style={[styles.input, errores.tiempoAnticipacion && styles.inputError]}
               value={formData.tiempoAnticipacion}
-              onChangeText={(text) => {
-                setFormData({ ...formData, tiempoAnticipacion: text });
-                if (errores.tiempoAnticipacion) setErrores({ ...errores, tiempoAnticipacion: null });
-              }}
+              onChangeText={(text) => handleInputChange('tiempoAnticipacion', text)}
               placeholder="24"
               keyboardType="numeric"
+              maxLength={5}
             />
             {errores.tiempoAnticipacion && <Text style={styles.errorText}>{errores.tiempoAnticipacion}</Text>}
             <Text style={styles.inputHelp}>Tiempo mínimo requerido para solicitar el servicio</Text>
@@ -324,7 +455,11 @@ const CrearServicio = ({ navigation }) => {
           <View style={styles.checkboxContainer}>
             <TouchableOpacity
               style={styles.checkbox}
-              onPress={() => setFormData({ ...formData, requiereAprobacion: !formData.requiereAprobacion })}
+              onPress={() => {
+                const nuevoValor = !formData.requiereAprobacion;
+                setFormData({ ...formData, requiereAprobacion: nuevoValor });
+                validarCampo('requiereAprobacion', nuevoValor);
+              }}
             >
               <Ionicons
                 name={formData.requiereAprobacion ? 'checkbox' : 'square-outline'}
@@ -338,7 +473,7 @@ const CrearServicio = ({ navigation }) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Disponibilidad *</Text>
-          {errores.disponibilidad && <Text style={styles.errorText}>{errores.disponibilidad}</Text>}
+          {errores['disponibilidad.diasDisponibles'] && <Text style={styles.errorText}>{errores['disponibilidad.diasDisponibles']}</Text>}
           <Text style={styles.sectionSubtitle}>Selecciona los días que puedes ofrecer este servicio</Text>
 
           <View style={styles.diasContainer}>
@@ -367,35 +502,25 @@ const CrearServicio = ({ navigation }) => {
               <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
                 <Text style={styles.inputLabel}>Hora inicio</Text>
                 <TextInput
-                  style={[styles.input, errores.horaInicio && styles.inputError]}
+                  style={[styles.input, errores['disponibilidad.horaInicio'] && styles.inputError]}
                   value={formData.disponibilidad.horaInicio}
-                  onChangeText={(text) => {
-                    setFormData({ 
-                      ...formData, 
-                      disponibilidad: { ...formData.disponibilidad, horaInicio: text }
-                    });
-                    if (errores.horaInicio) setErrores({ ...errores, horaInicio: null });
-                  }}
+                  onChangeText={(text) => handleNestedInputChange('disponibilidad', 'horaInicio', text)}
                   placeholder="09:00"
+                  maxLength={5}
                 />
-                {errores.horaInicio && <Text style={styles.errorText}>{errores.horaInicio}</Text>}
+                {errores['disponibilidad.horaInicio'] && <Text style={styles.errorText}>{errores['disponibilidad.horaInicio']}</Text>}
               </View>
 
               <View style={[styles.inputGroup, { flex: 1, marginLeft: 10 }]}>
                 <Text style={styles.inputLabel}>Hora fin</Text>
                 <TextInput
-                  style={[styles.input, errores.horaFin && styles.inputError]}
+                  style={[styles.input, errores['disponibilidad.horaFin'] && styles.inputError]}
                   value={formData.disponibilidad.horaFin}
-                  onChangeText={(text) => {
-                    setFormData({ 
-                      ...formData, 
-                      disponibilidad: { ...formData.disponibilidad, horaFin: text }
-                    });
-                    if (errores.horaFin) setErrores({ ...errores, horaFin: null });
-                  }}
+                  onChangeText={(text) => handleNestedInputChange('disponibilidad', 'horaFin', text)}
                   placeholder="17:00"
+                  maxLength={5}
                 />
-                {errores.horaFin && <Text style={styles.errorText}>{errores.horaFin}</Text>}
+                {errores['disponibilidad.horaFin'] && <Text style={styles.errorText}>{errores['disponibilidad.horaFin']}</Text>}
               </View>
             </View>
           </View>
@@ -407,12 +532,12 @@ const CrearServicio = ({ navigation }) => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+            style={[styles.submitButton, (loading || validacionEnCurso) && styles.submitButtonDisabled]}
             onPress={handleSubmit}
-            disabled={loading}
+            disabled={loading || validacionEnCurso}
           >
             <Text style={styles.submitButtonText}>
-              {loading ? 'Creando...' : 'Crear servicio'}
+              {loading ? 'Creando...' : validacionEnCurso ? 'Validando...' : 'Crear servicio'}
             </Text>
           </TouchableOpacity>
         </View>

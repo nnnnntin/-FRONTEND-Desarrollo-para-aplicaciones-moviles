@@ -1,4 +1,3 @@
-
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
@@ -16,11 +15,160 @@ import {
   View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import * as Yup from 'yup';
 import { crearPublicacion } from '../store/slices/espaciosSlice';
 import MapSelector from './MapSelector';
 
 const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+const ubicacionSchema = Yup.object({
+  edificioId: Yup.string(),
+  piso: Yup.number()
+    .required('El piso es requerido')
+    .min(0, 'El piso debe ser un número positivo')
+    .max(100, 'El piso no puede ser mayor a 100'),
+  numero: Yup.string()
+    .when('$requiereNumero', {
+      is: true,
+      then: (schema) => schema.required('El número es requerido').min(1, 'El número no puede estar vacío'),
+      otherwise: (schema) => schema.nullable()
+    }),
+  zona: Yup.string()
+    .when('$requiereZona', {
+      is: true,
+      then: (schema) => schema.required('La zona es requerida').min(2, 'La zona debe tener al menos 2 caracteres'),
+      otherwise: (schema) => schema.nullable()
+    }),
+  sector: Yup.string()
+    .when('$requiereSector', {
+      is: true,
+      then: (schema) => schema.required('El sector es requerido').min(2, 'El sector debe tener al menos 2 caracteres'),
+      otherwise: (schema) => schema.nullable()
+    }),
+  coordenadas: Yup.object({
+    lat: Yup.number()
+      .required('Debes seleccionar la ubicación en el mapa')
+      .min(-90, 'Latitud inválida')
+      .max(90, 'Latitud inválida'),
+    lng: Yup.number()
+      .required('Debes seleccionar la ubicación en el mapa')
+      .min(-180, 'Longitud inválida')
+      .max(180, 'Longitud inválida')
+  }),
+  direccionCompleta: Yup.object({
+    calle: Yup.string()
+      .required('La calle es requerida')
+      .min(3, 'La calle debe tener al menos 3 caracteres'),
+    numero: Yup.string()
+      .required('El número de dirección es requerido')
+      .matches(/^[0-9]+[a-zA-Z]?$/, 'Formato de número inválido'),
+    ciudad: Yup.string()
+      .required('La ciudad es requerida')
+      .min(2, 'La ciudad debe tener al menos 2 caracteres'),
+    departamento: Yup.string()
+      .required('El departamento es requerido')
+      .min(2, 'El departamento debe tener al menos 2 caracteres'),
+    codigoPostal: Yup.string()
+      .required('El código postal es requerido')
+      .matches(/^[0-9]{5}$/, 'El código postal debe tener 5 dígitos'),
+    pais: Yup.string().default('Uruguay')
+  })
+});
+
+const preciosSchema = Yup.object({
+  porHora: Yup.number()
+    .when('$requierePrecioHora', {
+      is: true,
+      then: (schema) => schema.required('El precio por hora es requerido').min(0.01, 'El precio debe ser mayor a 0'),
+      otherwise: (schema) => schema.nullable().min(0, 'El precio no puede ser negativo')
+    }),
+  porDia: Yup.number()
+    .when('$requierePrecioDia', {
+      is: true,
+      then: (schema) => schema.required('El precio por día es requerido').min(0.01, 'El precio debe ser mayor a 0'),
+      otherwise: (schema) => schema.nullable().min(0, 'El precio no puede ser negativo')
+    }),
+  porMes: Yup.number()
+    .nullable()
+    .min(0, 'El precio no puede ser negativo')
+}).test('al-menos-un-precio', 'Debes indicar al menos un precio', function(value) {
+  return value.porHora || value.porDia || value.porMes;
+});
+
+const disponibilidadSchema = Yup.object({
+  horario: Yup.object({
+    apertura: Yup.string()
+      .required('La hora de apertura es requerida')
+      .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido (HH:MM)'),
+    cierre: Yup.string()
+      .required('La hora de cierre es requerida')
+      .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido (HH:MM)')
+      .test('cierre-despues-apertura', 'La hora de cierre debe ser después de la apertura', function(value) {
+        const { apertura } = this.parent;
+        if (!apertura || !value) return true;
+        return value > apertura;
+      })
+  }),
+  dias: Yup.array()
+    .of(Yup.string().test('dia-valido', 'Día no válido', function(value) {
+      const diasValidos = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+      return !value || diasValidos.includes(value);
+    }))
+    .min(1, 'Debes seleccionar al menos un día')
+});
+
+const publicacionSchema = Yup.object({
+  nombre: Yup.string()
+    .required('El nombre es requerido')
+    .min(3, 'El nombre debe tener al menos 3 caracteres')
+    .max(100, 'El nombre no puede tener más de 100 caracteres'),
+  
+  tipo: Yup.string()
+    .test('tipo-valido', 'Tipo de espacio no válido', function(value) {
+      const tiposValidos = ['oficina', 'espacio', 'escritorio', 'sala'];
+      return tiposValidos.includes(value);
+    })
+    .required('Debes seleccionar un tipo de espacio'),
+  
+  descripcion: Yup.string()
+    .max(500, 'La descripción no puede tener más de 500 caracteres'),
+  
+  capacidad: Yup.number()
+    .when('$requiereCapacidad', {
+      is: true,
+      then: (schema) => schema.required('La capacidad es requerida').min(1, 'La capacidad debe ser mayor a 0').max(1000, 'La capacidad no puede ser mayor a 1000'),
+      otherwise: (schema) => schema.nullable()
+    }),
+  
+  superficieM2: Yup.number()
+    .nullable()
+    .min(1, 'La superficie debe ser mayor a 0')
+    .max(10000, 'La superficie no puede ser mayor a 10,000 m²'),
+  
+  configuracion: Yup.string()
+    .when('$tieneSubtipos', {
+      is: true,
+      then: (schema) => schema.required('Debes seleccionar una configuración'),
+      otherwise: (schema) => schema.nullable()
+    }),
+  
+  ubicacion: ubicacionSchema,
+  precios: preciosSchema,
+  disponibilidad: disponibilidadSchema,
+  
+  amenidades: Yup.array().of(Yup.string()),
+  equipamiento: Yup.array().of(Yup.string()),
+  
+  estado: Yup.string()
+    .test('estado-valido', 'Estado no válido', function(value) {
+      const estadosValidos = ['disponible', 'ocupado', 'mantenimiento'];
+      return !value || estadosValidos.includes(value);
+    })
+    .default('disponible'),
+  
+  activo: Yup.boolean().default(true)
+});
 
 const CrearPublicacion = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -31,7 +179,6 @@ const CrearPublicacion = ({ navigation }) => {
     nombre: '',
     tipo: 'oficina',
     descripcion: '',
-
     ubicacion: {
       edificioId: '',
       piso: '',
@@ -52,13 +199,11 @@ const CrearPublicacion = ({ navigation }) => {
       }
     },
     capacidad: '',
-
     precios: {
       porHora: '',
       porDia: '',
       porMes: ''
     },
-
     disponibilidad: {
       horario: {
         apertura: '09:00',
@@ -66,11 +211,9 @@ const CrearPublicacion = ({ navigation }) => {
       },
       dias: ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
     },
-
     configuracion: '',
     superficieM2: '',
     codigo: '',
-
     amenidades: [],
     equipamiento: [],
     estado: 'disponible',
@@ -80,6 +223,7 @@ const CrearPublicacion = ({ navigation }) => {
   const [imagenes, setImagenes] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [mostrarMapa, setMostrarMapa] = useState(false);
+  const [errores, setErrores] = useState({});
 
   const tipos = [
     {
@@ -135,18 +279,106 @@ const CrearPublicacion = ({ navigation }) => {
 
   const tipoActual = tipos.find(t => t.id === formData.tipo);
 
+  const validarCampo = async (campo, valor, datosCompletos = null) => {
+    try {
+      const contexto = {
+        requiereNumero: tipoActual?.requiereNumero,
+        requiereZona: tipoActual?.requiereZona,
+        requiereSector: tipoActual?.requiereSector,
+        requiereCapacidad: tipoActual?.requiereCapacidad,
+        requierePrecioHora: tipoActual?.requierePrecioHora,
+        requierePrecioDia: formData.tipo === 'escritorio',
+        tieneSubtipos: tipoActual?.subtipos?.length > 0
+      };
+
+      const datosParaValidar = datosCompletos || formData;
+      
+      await publicacionSchema.validateAt(campo, datosParaValidar, { context: contexto });
+      
+      setErrores(prev => ({
+        ...prev,
+        [campo]: null
+      }));
+      return true;
+    } catch (error) {
+      setErrores(prev => ({
+        ...prev,
+        [campo]: error.message
+      }));
+      return false;
+    }
+  };
+
+  const validarFormularioCompleto = async () => {
+    const contexto = {
+      requiereNumero: tipoActual?.requiereNumero,
+      requiereZona: tipoActual?.requiereZona,
+      requiereSector: tipoActual?.requiereSector,
+      requiereCapacidad: tipoActual?.requiereCapacidad,
+      requierePrecioHora: tipoActual?.requierePrecioHora,
+      requierePrecioDia: formData.tipo === 'escritorio',
+      tieneSubtipos: tipoActual?.subtipos?.length > 0
+    };
+
+    const datosParaValidar = {
+      ...formData,
+      capacidad: formData.capacidad ? parseInt(formData.capacidad) : null,
+      superficieM2: formData.superficieM2 ? parseFloat(formData.superficieM2) : null,
+      ubicacion: {
+        ...formData.ubicacion,
+        piso: formData.ubicacion.piso ? parseInt(formData.ubicacion.piso) : null
+      },
+      precios: {
+        porHora: formData.precios.porHora ? parseFloat(formData.precios.porHora) : null,
+        porDia: formData.precios.porDia ? parseFloat(formData.precios.porDia) : null,
+        porMes: formData.precios.porMes ? parseFloat(formData.precios.porMes) : null
+      }
+    };
+
+    try {
+      await publicacionSchema.validate(datosParaValidar, { 
+        abortEarly: false,
+        context: contexto
+      });
+
+      if (imagenes.length === 0) {
+        throw new Error('Debes agregar al menos una imagen');
+      }
+
+      setErrores({});
+      return true;
+    } catch (error) {
+      const nuevosErrores = {};
+      
+      if (error.inner && error.inner.length > 0) {
+        error.inner.forEach(err => {
+          nuevosErrores[err.path] = err.message;
+        });
+      } else {
+        nuevosErrores.general = error.message;
+      }
+      
+      setErrores(nuevosErrores);
+      return false;
+    }
+  };
+
   const handleGoBack = () => {
     navigation.goBack();
   };
 
   const handleLocationSelect = (coordenadas) => {
+    const nuevaUbicacion = {
+      ...formData.ubicacion,
+      coordenadas: coordenadas
+    };
+    
     setFormData(prev => ({
       ...prev,
-      ubicacion: {
-        ...prev.ubicacion,
-        coordenadas: coordenadas
-      }
+      ubicacion: nuevaUbicacion
     }));
+    
+    validarCampo('ubicacion.coordenadas', coordenadas);
   };
 
   const abrirMapa = () => {
@@ -158,24 +390,107 @@ const CrearPublicacion = ({ navigation }) => {
   };
 
   const toggleAmenidad = (amenidad) => {
+    const nuevasAmenidades = formData.amenidades.includes(amenidad)
+      ? formData.amenidades.filter(a => a !== amenidad)
+      : [...formData.amenidades, amenidad];
+    
     setFormData(prev => ({
       ...prev,
-      amenidades: prev.amenidades.includes(amenidad)
-        ? prev.amenidades.filter(a => a !== amenidad)
-        : [...prev.amenidades, amenidad]
+      amenidades: nuevasAmenidades
     }));
   };
 
   const toggleDia = (dia) => {
+    const nuevosDias = formData.disponibilidad.dias.includes(dia)
+      ? formData.disponibilidad.dias.filter(d => d !== dia)
+      : [...formData.disponibilidad.dias, dia];
+    
+    const nuevaDisponibilidad = {
+      ...formData.disponibilidad,
+      dias: nuevosDias
+    };
+    
     setFormData(prev => ({
       ...prev,
-      disponibilidad: {
-        ...prev.disponibilidad,
-        dias: prev.disponibilidad.dias.includes(dia)
-          ? prev.disponibilidad.dias.filter(d => d !== dia)
-          : [...prev.disponibilidad.dias, dia]
-      }
+      disponibilidad: nuevaDisponibilidad
     }));
+    
+    validarCampo('disponibilidad.dias', nuevosDias);
+  };
+
+  const handleCambioTexto = (campo, valor) => {
+    setFormData(prev => ({
+      ...prev,
+      [campo]: valor
+    }));
+    
+    validarCampo(campo, valor);
+  };
+
+  const handleCambioUbicacion = (subcampo, valor) => {
+    const nuevaUbicacion = {
+      ...formData.ubicacion,
+      [subcampo]: valor
+    };
+    
+    setFormData(prev => ({
+      ...prev,
+      ubicacion: nuevaUbicacion
+    }));
+    
+    validarCampo(`ubicacion.${subcampo}`, valor);
+  };
+
+  const handleCambioDireccion = (subcampo, valor) => {
+    const nuevaDireccion = {
+      ...formData.ubicacion.direccionCompleta,
+      [subcampo]: valor
+    };
+    
+    const nuevaUbicacion = {
+      ...formData.ubicacion,
+      direccionCompleta: nuevaDireccion
+    };
+    
+    setFormData(prev => ({
+      ...prev,
+      ubicacion: nuevaUbicacion
+    }));
+    
+    validarCampo(`ubicacion.direccionCompleta.${subcampo}`, valor);
+  };
+
+  const handleCambioPrecio = (tipoPrecio, valor) => {
+    const nuevosPrecios = {
+      ...formData.precios,
+      [tipoPrecio]: valor
+    };
+    
+    setFormData(prev => ({
+      ...prev,
+      precios: nuevosPrecios
+    }));
+    
+    validarCampo(`precios.${tipoPrecio}`, parseFloat(valor) || null);
+  };
+
+  const handleCambioHorario = (tipoHorario, valor) => {
+    const nuevoHorario = {
+      ...formData.disponibilidad.horario,
+      [tipoHorario]: valor
+    };
+    
+    const nuevaDisponibilidad = {
+      ...formData.disponibilidad,
+      horario: nuevoHorario
+    };
+    
+    setFormData(prev => ({
+      ...prev,
+      disponibilidad: nuevaDisponibilidad
+    }));
+    
+    validarCampo(`disponibilidad.horario.${tipoHorario}`, valor);
   };
 
   const uploadToCloudinary = async (imageUri) => {
@@ -224,7 +539,16 @@ const CrearPublicacion = ({ navigation }) => {
           const uploadPromises = result.assets.map(asset => uploadToCloudinary(asset.uri));
           const cloudinaryUrls = await Promise.all(uploadPromises);
 
-          setImagenes([...imagenes, ...cloudinaryUrls]);
+          const nuevasImagenes = [...imagenes, ...cloudinaryUrls];
+          setImagenes(nuevasImagenes);
+          
+          if (nuevasImagenes.length > 0 && errores.imagenes) {
+            setErrores(prev => ({
+              ...prev,
+              imagenes: null
+            }));
+          }
+          
           Alert.alert('Éxito', 'Imágenes subidas correctamente');
         } catch (error) {
           console.error(error);
@@ -240,7 +564,15 @@ const CrearPublicacion = ({ navigation }) => {
   };
 
   const removeImage = (index) => {
-    setImagenes(imagenes.filter((_, i) => i !== index));
+    const nuevasImagenes = imagenes.filter((_, i) => i !== index);
+    setImagenes(nuevasImagenes);
+    
+    if (nuevasImagenes.length === 0) {
+      setErrores(prev => ({
+        ...prev,
+        imagenes: 'Debes agregar al menos una imagen'
+      }));
+    }
   };
 
   const construirPayload = () => {
@@ -343,16 +675,12 @@ const CrearPublicacion = ({ navigation }) => {
 
         const escritorioPayload = {
           codigo: `EF-${Date.now()}`,
-
           tipo: formData.configuracion || 'individual',
-
           ubicacion: {
             ...(formData.ubicacion.edificioId && { edificioId: formData.ubicacion.edificioId }),
-
             piso: parseInt(formData.ubicacion.piso, 10),
             numero: formData.ubicacion.numero,
             zona: formData.ubicacion.zona,
-
             coordenadas: {
               lat: formData.ubicacion.coordenadas.lat,
               lng: formData.ubicacion.coordenadas.lng
@@ -366,26 +694,20 @@ const CrearPublicacion = ({ navigation }) => {
               pais: formData.ubicacion.direccionCompleta.pais
             }
           },
-
           precios: {
             porDia: parseFloat(formData.precios.porDia),
             ...(formData.precios.porHora && { porHora: parseFloat(formData.precios.porHora) }),
             ...(formData.precios.porMes && { porMes: parseFloat(formData.precios.porMes) })
           },
-
           amenidades: formData.amenidades.map(amenidad => ({
             tipo: amenidad,
             descripcion: `${amenidad} incluido`
           })),
-
           imagenes,
-
           usuarioId: usuario.id || usuario._id,
-
           estado: formData.estado,
           activo: formData.activo
         };
-
 
         return escritorioPayload;
 
@@ -413,85 +735,12 @@ const CrearPublicacion = ({ navigation }) => {
     }
   };
 
-  const validarFormulario = () => {
-    const errores = [];
-
-    if (!formData.nombre.trim()) {
-      errores.push('El nombre es obligatorio');
-    }
-
-    if (!formData.ubicacion.direccionCompleta.calle.trim()) {
-      errores.push('La calle es obligatoria');
-    }
-
-    if (!formData.ubicacion.direccionCompleta.numero.trim()) {
-      errores.push('El número de dirección es obligatorio');
-    }
-
-    if (!formData.ubicacion.direccionCompleta.ciudad.trim()) {
-      errores.push('La ciudad es obligatoria');
-    }
-
-    if (!formData.ubicacion.direccionCompleta.departamento.trim()) {
-      errores.push('El departamento es obligatorio');
-    }
-
-    if (!formData.ubicacion.direccionCompleta.codigoPostal.trim()) {
-      errores.push('El código postal es obligatorio');
-    }
-
-    if (!formData.ubicacion.piso || formData.ubicacion.piso.trim() === '') {
-      errores.push('El piso es obligatorio');
-    }
-
-    if (tipoActual.requiereCapacidad && (!formData.capacidad || parseInt(formData.capacidad) < 1)) {
-      errores.push('La capacidad es obligatoria y debe ser mayor a 0');
-    }
-
-    if (tipoActual.requiereNumero && !formData.ubicacion.numero.trim()) {
-      errores.push('El número de oficina/sala es obligatorio');
-    }
-
-    if (tipoActual.requiereZona && !formData.ubicacion.zona.trim()) {
-      errores.push('La zona es obligatoria para escritorios');
-    }
-
-    if (tipoActual.requiereSector && !formData.ubicacion.sector.trim()) {
-      errores.push('El sector es obligatorio para espacios');
-    }
-
-    if (tipoActual.requierePrecioHora && (!formData.precios.porHora || parseFloat(formData.precios.porHora) <= 0)) {
-      errores.push('El precio por hora es obligatorio para salas de reunión');
-    }
-
-    if (formData.tipo === 'escritorio' && (!formData.precios.porDia || parseFloat(formData.precios.porDia) <= 0)) {
-      errores.push('El precio por día es obligatorio para escritorios');
-    }
-
-    if (!formData.ubicacion.coordenadas.lat || !formData.ubicacion.coordenadas.lng) {
-      errores.push('Debes seleccionar la ubicación en el mapa');
-    }
-
-    if (imagenes.length === 0) {
-      errores.push('Debes agregar al menos una imagen');
-    }
-
-    if (tipoActual.subtipos.length > 0 && !formData.configuracion) {
-      errores.push(`Debes seleccionar un tipo de ${formData.tipo}`);
-    }
-
-    if (!formData.precios.porDia && !formData.precios.porHora && !formData.precios.porMes) {
-      errores.push('Debes indicar al menos un precio');
-    }
-
-    return errores;
-  };
-
   const handleGuardar = async () => {
-    const errores = validarFormulario();
+    const esValido = await validarFormularioCompleto();
 
-    if (errores.length > 0) {
-      Alert.alert('Errores de validación', errores.join('\n'));
+    if (!esValido) {
+      const erroresTexto = Object.values(errores).filter(Boolean).join('\n');
+      Alert.alert('Errores de validación', erroresTexto || 'Por favor revisa los campos marcados');
       return;
     }
 
@@ -525,6 +774,24 @@ const CrearPublicacion = ({ navigation }) => {
     }
   };
 
+  const renderErrorText = (campo) => {
+    if (errores[campo]) {
+      return (
+        <Text style={styles.errorText}>
+          {errores[campo]}
+        </Text>
+      );
+    }
+    return null;
+  };
+
+  const getInputStyle = (campo) => {
+    return [
+      styles.input,
+      errores[campo] && styles.inputError
+    ];
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
@@ -550,9 +817,10 @@ const CrearPublicacion = ({ navigation }) => {
                 key={tipo.id}
                 style={[
                   styles.tipoButton,
-                  formData.tipo === tipo.id && styles.tipoButtonActive
+                  formData.tipo === tipo.id && styles.tipoButtonActive,
+                  errores.tipo && styles.tipoButtonError
                 ]}
-                onPress={() => setFormData({ ...formData, tipo: tipo.id })}
+                onPress={() => handleCambioTexto('tipo', tipo.id)}
               >
                 <Ionicons
                   name={tipo.icono}
@@ -568,16 +836,18 @@ const CrearPublicacion = ({ navigation }) => {
               </TouchableOpacity>
             ))}
           </View>
+          {renderErrorText('tipo')}
         </View>
 
         <View style={styles.section}>
           <Text style={styles.label}>Nombre del espacio *</Text>
           <TextInput
-            style={styles.input}
+            style={getInputStyle('nombre')}
             placeholder="Ej: Oficina Ejecutiva Centro"
             value={formData.nombre}
-            onChangeText={(text) => setFormData({ ...formData, nombre: text })}
+            onChangeText={(text) => handleCambioTexto('nombre', text)}
           />
+          {renderErrorText('nombre')}
 
           {tipoActual?.subtipos.length > 0 && (
             <>
@@ -590,9 +860,10 @@ const CrearPublicacion = ({ navigation }) => {
                     key={subtipo}
                     style={[
                       styles.subtipoButton,
-                      formData.configuracion === subtipo && styles.subtipoButtonActive
+                      formData.configuracion === subtipo && styles.subtipoButtonActive,
+                      errores.configuracion && styles.subtipoButtonError
                     ]}
-                    onPress={() => setFormData({ ...formData, configuracion: subtipo })}
+                    onPress={() => handleCambioTexto('configuracion', subtipo)}
                   >
                     <Text style={[
                       styles.subtipoText,
@@ -603,32 +874,35 @@ const CrearPublicacion = ({ navigation }) => {
                   </TouchableOpacity>
                 ))}
               </View>
+              {renderErrorText('configuracion')}
             </>
           )}
 
           <View style={styles.row}>
             {tipoActual.requiereCapacidad && (
-              <View style={formData.tipo === 'oficina' ? styles.halfInput : styles.input}>
+              <View style={formData.tipo === 'oficina' ? styles.halfInput : styles.fullInput}>
                 <Text style={styles.label}>Capacidad *</Text>
                 <TextInput
-                  style={styles.input}
+                  style={getInputStyle('capacidad')}
                   placeholder="Personas"
                   value={formData.capacidad}
-                  onChangeText={(text) => setFormData({ ...formData, capacidad: text })}
+                  onChangeText={(text) => handleCambioTexto('capacidad', text)}
                   keyboardType="numeric"
                 />
+                {renderErrorText('capacidad')}
               </View>
             )}
             {formData.tipo === 'oficina' && (
               <View style={styles.halfInput}>
                 <Text style={styles.label}>Superficie (m²)</Text>
                 <TextInput
-                  style={styles.input}
+                  style={getInputStyle('superficieM2')}
                   placeholder="Metros cuadrados"
                   value={formData.superficieM2}
-                  onChangeText={(text) => setFormData({ ...formData, superficieM2: text })}
+                  onChangeText={(text) => handleCambioTexto('superficieM2', text)}
                   keyboardType="numeric"
                 />
+                {renderErrorText('superficieM2')}
               </View>
             )}
           </View>
@@ -639,55 +913,34 @@ const CrearPublicacion = ({ navigation }) => {
 
           <Text style={styles.label}>Calle *</Text>
           <TextInput
-            style={styles.input}
+            style={getInputStyle('ubicacion.direccionCompleta.calle')}
             placeholder="Nombre de la calle"
             value={formData.ubicacion.direccionCompleta.calle}
-            onChangeText={(text) => setFormData({
-              ...formData,
-              ubicacion: {
-                ...formData.ubicacion,
-                direccionCompleta: {
-                  ...formData.ubicacion.direccionCompleta,
-                  calle: text
-                }
-              }
-            })}
+            onChangeText={(text) => handleCambioDireccion('calle', text)}
           />
+          {renderErrorText('ubicacion.direccionCompleta.calle')}
 
           <View style={styles.row}>
             <View style={styles.halfInput}>
               <Text style={styles.label}>Número *</Text>
               <TextInput
-                style={styles.input}
+                style={getInputStyle('ubicacion.direccionCompleta.numero')}
                 placeholder="1234"
                 value={formData.ubicacion.direccionCompleta.numero}
-                onChangeText={(text) => setFormData({
-                  ...formData,
-                  ubicacion: {
-                    ...formData.ubicacion,
-                    direccionCompleta: {
-                      ...formData.ubicacion.direccionCompleta,
-                      numero: text
-                    }
-                  }
-                })}
+                onChangeText={(text) => handleCambioDireccion('numero', text)}
               />
+              {renderErrorText('ubicacion.direccionCompleta.numero')}
             </View>
             <View style={styles.halfInput}>
               <Text style={styles.label}>Piso *</Text>
               <TextInput
-                style={styles.input}
+                style={getInputStyle('ubicacion.piso')}
                 placeholder="1, 2, 3..."
                 value={formData.ubicacion.piso}
-                onChangeText={(text) => setFormData({
-                  ...formData,
-                  ubicacion: {
-                    ...formData.ubicacion,
-                    piso: text
-                  }
-                })}
+                onChangeText={(text) => handleCambioUbicacion('piso', text)}
                 keyboardType="numeric"
               />
+              {renderErrorText('ubicacion.piso')}
             </View>
           </View>
 
@@ -697,17 +950,12 @@ const CrearPublicacion = ({ navigation }) => {
                 Número de {formData.tipo === 'oficina' ? 'oficina' : formData.tipo === 'sala' ? 'sala' : 'escritorio'} *
               </Text>
               <TextInput
-                style={styles.input}
+                style={getInputStyle('ubicacion.numero')}
                 placeholder="Ej: 101, A-5, etc."
                 value={formData.ubicacion.numero}
-                onChangeText={(text) => setFormData({
-                  ...formData,
-                  ubicacion: {
-                    ...formData.ubicacion,
-                    numero: text
-                  }
-                })}
+                onChangeText={(text) => handleCambioUbicacion('numero', text)}
               />
+              {renderErrorText('ubicacion.numero')}
             </>
           )}
 
@@ -715,17 +963,12 @@ const CrearPublicacion = ({ navigation }) => {
             <>
               <Text style={styles.label}>Zona *</Text>
               <TextInput
-                style={styles.input}
+                style={getInputStyle('ubicacion.zona')}
                 placeholder="Ej: Zona A, Open Space, etc."
                 value={formData.ubicacion.zona}
-                onChangeText={(text) => setFormData({
-                  ...formData,
-                  ubicacion: {
-                    ...formData.ubicacion,
-                    zona: text
-                  }
-                })}
+                onChangeText={(text) => handleCambioUbicacion('zona', text)}
               />
+              {renderErrorText('ubicacion.zona')}
             </>
           )}
 
@@ -733,17 +976,12 @@ const CrearPublicacion = ({ navigation }) => {
             <>
               <Text style={styles.label}>Sector *</Text>
               <TextInput
-                style={styles.input}
+                style={getInputStyle('ubicacion.sector')}
                 placeholder="Ej: Norte, Sur, Principal, etc."
                 value={formData.ubicacion.sector}
-                onChangeText={(text) => setFormData({
-                  ...formData,
-                  ubicacion: {
-                    ...formData.ubicacion,
-                    sector: text
-                  }
-                })}
+                onChangeText={(text) => handleCambioUbicacion('sector', text)}
               />
+              {renderErrorText('ubicacion.sector')}
             </>
           )}
 
@@ -751,57 +989,34 @@ const CrearPublicacion = ({ navigation }) => {
             <View style={styles.halfInput}>
               <Text style={styles.label}>Ciudad *</Text>
               <TextInput
-                style={styles.input}
+                style={getInputStyle('ubicacion.direccionCompleta.ciudad')}
                 placeholder="Montevideo"
                 value={formData.ubicacion.direccionCompleta.ciudad}
-                onChangeText={(text) => setFormData({
-                  ...formData,
-                  ubicacion: {
-                    ...formData.ubicacion,
-                    direccionCompleta: {
-                      ...formData.ubicacion.direccionCompleta,
-                      ciudad: text
-                    }
-                  }
-                })}
+                onChangeText={(text) => handleCambioDireccion('ciudad', text)}
               />
+              {renderErrorText('ubicacion.direccionCompleta.ciudad')}
             </View>
             <View style={styles.halfInput}>
               <Text style={styles.label}>Departamento *</Text>
               <TextInput
-                style={styles.input}
+                style={getInputStyle('ubicacion.direccionCompleta.departamento')}
                 placeholder="Montevideo"
                 value={formData.ubicacion.direccionCompleta.departamento}
-                onChangeText={(text) => setFormData({
-                  ...formData,
-                  ubicacion: {
-                    ...formData.ubicacion,
-                    direccionCompleta: {
-                      ...formData.ubicacion.direccionCompleta,
-                      departamento: text
-                    }
-                  }
-                })}
+                onChangeText={(text) => handleCambioDireccion('departamento', text)}
               />
+              {renderErrorText('ubicacion.direccionCompleta.departamento')}
             </View>
           </View>
 
           <Text style={styles.label}>Código Postal *</Text>
           <TextInput
-            style={styles.input}
+            style={getInputStyle('ubicacion.direccionCompleta.codigoPostal')}
             placeholder="11000"
             value={formData.ubicacion.direccionCompleta.codigoPostal}
-            onChangeText={(text) => setFormData({
-              ...formData,
-              ubicacion: {
-                ...formData.ubicacion,
-                direccionCompleta: {
-                  ...formData.ubicacion.direccionCompleta,
-                  codigoPostal: text
-                }
-              }
-            })}
+            onChangeText={(text) => handleCambioDireccion('codigoPostal', text)}
+            keyboardType="numeric"
           />
+          {renderErrorText('ubicacion.direccionCompleta.codigoPostal')}
 
           <View style={styles.mapSection}>
             <View style={styles.mapSectionHeader}>
@@ -833,7 +1048,10 @@ const CrearPublicacion = ({ navigation }) => {
               </View>
             ) : (
               <TouchableOpacity
-                style={styles.selectLocationCard}
+                style={[
+                  styles.selectLocationCard,
+                  errores['ubicacion.coordenadas.lat'] && styles.selectLocationCardError
+                ]}
                 onPress={abrirMapa}
                 activeOpacity={0.7}
               >
@@ -851,6 +1069,7 @@ const CrearPublicacion = ({ navigation }) => {
                 </View>
               </TouchableOpacity>
             )}
+            {renderErrorText('ubicacion.coordenadas.lat')}
           </View>
         </View>
 
@@ -862,45 +1081,40 @@ const CrearPublicacion = ({ navigation }) => {
                 Por hora {tipoActual.requierePrecioHora ? '*' : ''}
               </Text>
               <TextInput
-                style={styles.input}
+                style={getInputStyle('precios.porHora')}
                 placeholder="USD"
                 value={formData.precios.porHora}
-                onChangeText={(text) => setFormData({
-                  ...formData,
-                  precios: { ...formData.precios, porHora: text }
-                })}
+                onChangeText={(text) => handleCambioPrecio('porHora', text)}
                 keyboardType="numeric"
               />
+              {renderErrorText('precios.porHora')}
             </View>
             <View style={styles.thirdInput}>
               <Text style={styles.label}>
                 Por día {formData.tipo === 'escritorio' ? '*' : ''}
               </Text>
               <TextInput
-                style={styles.input}
+                style={getInputStyle('precios.porDia')}
                 placeholder="USD"
                 value={formData.precios.porDia}
-                onChangeText={(text) => setFormData({
-                  ...formData,
-                  precios: { ...formData.precios, porDia: text }
-                })}
+                onChangeText={(text) => handleCambioPrecio('porDia', text)}
                 keyboardType="numeric"
               />
+              {renderErrorText('precios.porDia')}
             </View>
             <View style={styles.thirdInput}>
               <Text style={styles.label}>Por mes</Text>
               <TextInput
-                style={styles.input}
+                style={getInputStyle('precios.porMes')}
                 placeholder="USD"
                 value={formData.precios.porMes}
-                onChangeText={(text) => setFormData({
-                  ...formData,
-                  precios: { ...formData.precios, porMes: text }
-                })}
+                onChangeText={(text) => handleCambioPrecio('porMes', text)}
                 keyboardType="numeric"
               />
+              {renderErrorText('precios.porMes')}
             </View>
           </View>
+          {renderErrorText('precios')}
         </View>
 
         <View style={styles.section}>
@@ -909,32 +1123,22 @@ const CrearPublicacion = ({ navigation }) => {
             <View style={styles.halfInput}>
               <Text style={styles.label}>Apertura</Text>
               <TextInput
-                style={styles.input}
+                style={getInputStyle('disponibilidad.horario.apertura')}
                 placeholder="09:00"
                 value={formData.disponibilidad.horario.apertura}
-                onChangeText={(text) => setFormData({
-                  ...formData,
-                  disponibilidad: {
-                    ...formData.disponibilidad,
-                    horario: { ...formData.disponibilidad.horario, apertura: text }
-                  }
-                })}
+                onChangeText={(text) => handleCambioHorario('apertura', text)}
               />
+              {renderErrorText('disponibilidad.horario.apertura')}
             </View>
             <View style={styles.halfInput}>
               <Text style={styles.label}>Cierre</Text>
               <TextInput
-                style={styles.input}
+                style={getInputStyle('disponibilidad.horario.cierre')}
                 placeholder="18:00"
                 value={formData.disponibilidad.horario.cierre}
-                onChangeText={(text) => setFormData({
-                  ...formData,
-                  disponibilidad: {
-                    ...formData.disponibilidad,
-                    horario: { ...formData.disponibilidad.horario, cierre: text }
-                  }
-                })}
+                onChangeText={(text) => handleCambioHorario('cierre', text)}
               />
+              {renderErrorText('disponibilidad.horario.cierre')}
             </View>
           </View>
 
@@ -945,7 +1149,8 @@ const CrearPublicacion = ({ navigation }) => {
                 key={dia}
                 style={[
                   styles.diaButton,
-                  formData.disponibilidad.dias.includes(dia) && styles.diaButtonActive
+                  formData.disponibilidad.dias.includes(dia) && styles.diaButtonActive,
+                  errores['disponibilidad.dias'] && styles.diaButtonError
                 ]}
                 onPress={() => toggleDia(dia)}
               >
@@ -958,13 +1163,18 @@ const CrearPublicacion = ({ navigation }) => {
               </TouchableOpacity>
             ))}
           </View>
+          {renderErrorText('disponibilidad.dias')}
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Imágenes *</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <TouchableOpacity
-              style={[styles.addImageButton, uploadingImage && styles.addImageButtonDisabled]}
+              style={[
+                styles.addImageButton, 
+                uploadingImage && styles.addImageButtonDisabled,
+                errores.imagenes && styles.addImageButtonError
+              ]}
               onPress={selectImage}
               disabled={uploadingImage}
             >
@@ -989,6 +1199,7 @@ const CrearPublicacion = ({ navigation }) => {
               </View>
             ))}
           </ScrollView>
+          {renderErrorText('imagenes')}
         </View>
 
         <View style={styles.section}>
@@ -1015,6 +1226,7 @@ const CrearPublicacion = ({ navigation }) => {
             ))}
           </View>
         </View>
+
         <TouchableOpacity
           style={[styles.guardarButton, loading && styles.guardarButtonDisabled]}
           onPress={handleGuardar}
@@ -1116,6 +1328,34 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     marginHorizontal: 10,
+  },
+    inputError: {
+    borderColor: '#e74c3c',
+    borderWidth: 1,
+  },
+  tipoButtonError: {
+    borderColor: '#e74c3c',
+  },
+  subtipoButtonError: {
+    borderColor: '#e74c3c',
+  },
+  selectLocationCardError: {
+    borderColor: '#e74c3c',
+  },
+  addImageButtonError: {
+    borderColor: '#e74c3c',
+  },
+  diaButtonError: {
+    borderColor: '#e74c3c',
+  },
+  errorText: {
+    color: '#e74c3c',
+    fontSize: 12,
+    marginTop: 4,
+    fontFamily: 'System',
+  },
+  fullInput: {
+    flex: 1,
   },
   placeholder: {
     width: 30,

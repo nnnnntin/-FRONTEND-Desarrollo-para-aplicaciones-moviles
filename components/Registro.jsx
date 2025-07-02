@@ -13,127 +13,325 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-
 import { useDispatch, useSelector } from 'react-redux';
+import * as yup from 'yup';
+
 import { clearError, signupUsuario } from '../store/slices/authSlice';
 import { crearEmpresaInmobiliaria, crearProveedor } from '../store/slices/usuarioSlice';
 
 const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
+
+const usuarioBaseSchema = yup.object({
+  username: yup
+    .string()
+    .required('El nombre de usuario es obligatorio')
+    .min(3, 'El nombre de usuario debe tener al menos 3 caracteres')
+    .max(30, 'El nombre de usuario no puede exceder 30 caracteres')
+    .matches(/^[a-zA-Z0-9_-]+$/, 'Solo se permiten letras, números, guiones y guiones bajos')
+    .trim(),
+  
+  nombre: yup
+    .string()
+    .min(2, 'El nombre debe tener al menos 2 caracteres')
+    .max(50, 'El nombre no puede exceder 50 caracteres')
+    .matches(/^[a-zA-ZÀ-ÿ\s]+$/, 'El nombre solo puede contener letras y espacios')
+    .trim()
+    .when('username', {
+      is: (username) => !username || username.length === 0,
+      then: (schema) => schema.required('El nombre es obligatorio si no hay nombre de usuario'),
+      otherwise: (schema) => schema,
+    }),
+  
+  apellidos: yup
+    .string()
+    .max(50, 'Los apellidos no pueden exceder 50 caracteres')
+    .matches(/^[a-zA-ZÀ-ÿ\s]*$/, 'Los apellidos solo pueden contener letras y espacios')
+    .trim(),
+  
+  email: yup
+    .string()
+    .email('El formato del correo electrónico no es válido')
+    .required('El correo electrónico es obligatorio')
+    .lowercase()
+    .trim(),
+  
+  password: yup
+    .string()
+    .required('La contraseña es obligatoria')
+    .min(8, 'La contraseña debe tener al menos 8 caracteres')
+    .max(128, 'La contraseña no puede exceder 128 caracteres')
+    .matches(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      'La contraseña debe contener al menos una minúscula, una mayúscula y un número'
+    ),
+  
+  confirmPassword: yup
+    .string()
+    .required('Debe confirmar la contraseña')
+    .test('passwords-match', 'Las contraseñas no coinciden', function(value) {
+      return value === this.parent.password;
+    }),
+  
+  tipoUsuario: yup
+    .string()
+    .test('tipo-usuario-valido', 'Tipo de usuario no válido', function(value) {
+      const tiposValidos = ['usuario', 'cliente', 'proveedor'];
+      return tiposValidos.includes(value);
+    })
+    .required('Debe seleccionar un tipo de usuario'),
+});
+
+
+const datosPersonalesSchema = yup.object({
+  telefono: yup
+    .string()
+    .matches(/^(\+598\s?)?[0-9\s\-()]{8,15}$/, 'Formato de teléfono inválido (+598 9X XXX XXX)')
+    .nullable(),
+  
+  documentoIdentidad: yup
+    .string()
+    .min(7, 'El documento debe tener al menos 7 caracteres')
+    .max(15, 'El documento no puede exceder 15 caracteres')
+    .matches(/^[0-9A-Z\-]+$/, 'El documento solo puede contener números, letras mayúsculas y guiones')
+    .nullable(),
+  
+  profileImage: yup
+    .string()
+    .url('La URL de la imagen no es válida')
+    .nullable(),
+});
+
+
+const direccionSchema = yup.object({
+  calle: yup
+    .string()
+    .max(100, 'La dirección no puede exceder 100 caracteres')
+    .nullable(),
+  
+  ciudad: yup
+    .string()
+    .max(50, 'La ciudad no puede exceder 50 caracteres')
+    .matches(/^[a-zA-ZÀ-ÿ\s]*$/, 'La ciudad solo puede contener letras y espacios')
+    .default('Montevideo')
+    .nullable(),
+  
+  codigoPostal: yup
+    .string()
+    .matches(/^[0-9]{4,6}$/, 'El código postal debe tener entre 4 y 6 dígitos')
+    .nullable(),
+  
+  pais: yup
+    .string()
+    .max(50, 'El país no puede exceder 50 caracteres')
+    .matches(/^[a-zA-ZÀ-ÿ\s]*$/, 'El país solo puede contener letras y espacios')
+    .default('Uruguay')
+    .nullable(),
+});
+
+
+const empresaSchema = yup.object({
+  nombreEmpresa: yup
+    .string()
+    .when('tipoUsuario', {
+      is: 'cliente',
+      then: (schema) => schema
+        .required('El nombre de la empresa es obligatorio para clientes')
+        .min(3, 'El nombre de la empresa debe tener al menos 3 caracteres')
+        .max(100, 'El nombre de la empresa no puede exceder 100 caracteres'),
+      otherwise: (schema) => schema.nullable(),
+    })
+    .trim(),
+  
+  identificacionFiscal: yup
+    .string()
+    .when('tipoUsuario', {
+      is: (tipo) => ['cliente', 'proveedor'].includes(tipo),
+      then: (schema) => schema
+        .required('La identificación fiscal es obligatoria para empresas y proveedores')
+        .min(8, 'La identificación fiscal debe tener al menos 8 caracteres')
+        .max(20, 'La identificación fiscal no puede exceder 20 caracteres')
+        .matches(/^[0-9\-]+$/, 'La identificación fiscal solo puede contener números y guiones'),
+      otherwise: (schema) => schema.nullable(),
+    })
+    .trim(),
+});
+
+
+const proveedorSchema = yup.object({
+  tipoServicio: yup
+    .string()
+    .when('tipoUsuario', {
+      is: 'proveedor',
+      then: (schema) => schema
+        .required('El tipo de servicio es obligatorio para proveedores')
+        .min(3, 'El tipo de servicio debe tener al menos 3 caracteres')
+        .max(100, 'El tipo de servicio no puede exceder 100 caracteres'),
+      otherwise: (schema) => schema.nullable(),
+    })
+    .trim(),
+  
+  tipoProveedor: yup
+    .string()
+    .test('tipo-proveedor-valido', 'Tipo de proveedor no válido', function(value) {
+      if (!value) return true; 
+      const tiposValidos = ['empresa', 'persona'];
+      return tiposValidos.includes(value);
+    })
+    .default('empresa'),
+});
+
+
+const registroCompletoSchema = usuarioBaseSchema
+  .concat(datosPersonalesSchema)
+  .concat(direccionSchema)
+  .concat(empresaSchema)
+  .concat(proveedorSchema);
+
 const Registro = ({ navigation }) => {
+  
+  const [formData, setFormData] = useState({
+    username: '',
+    nombre: '',
+    apellidos: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    tipoUsuario: 'usuario',
+    telefono: '',
+    documentoIdentidad: '',
+    profileImage: null,
+    calle: '',
+    ciudad: 'Montevideo',
+    codigoPostal: '',
+    pais: 'Uruguay',
+    nombreEmpresa: '',
+    tipoServicio: '',
+    tipoEmpresa: 'inmobiliaria',
+    tipoProveedor: 'empresa',
+    identificacionFiscal: '',
+  });
 
-  const [username, setUsername] = useState('');
-  const [nombre, setNombre] = useState('');
-  const [apellidos, setApellidos] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [tipoUsuario, setTipoUsuario] = useState('usuario');
-
-  const [telefono, setTelefono] = useState('');
-  const [documentoIdentidad, setDocumentoIdentidad] = useState('');
-  const [profileImage, setProfileImage] = useState(null);
-
-  const [calle, setCalle] = useState('');
-  const [ciudad, setCiudad] = useState('Montevideo');
-  const [codigoPostal, setCodigoPostal] = useState('');
-  const [pais, setPais] = useState('Uruguay');
-
-  const [nombreEmpresa, setNombreEmpresa] = useState('');
-  const [tipoServicio, setTipoServicio] = useState('');
-  const [tipoEmpresa, setTipoEmpresa] = useState('inmobiliaria');
-  const [tipoProveedor, setTipoProveedor] = useState('empresa');
-  const [identificacionFiscal, setIdentificacionFiscal] = useState('');
-
+  const [validationErrors, setValidationErrors] = useState({});
   const [uploadingImage, setUploadingImage] = useState(false);
 
   const dispatch = useDispatch();
   const { loading: isRegistering, error } = useSelector(state => state.auth);
   const { loadingEmpresa, loadingProveedor } = useSelector(state => state.usuario);
 
-  const irLogin = () => {
-    navigation.navigate('Login');
+  
+  const updateFormData = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    
+    
+    const timeoutId = setTimeout(() => {
+      validateField(field, value);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
   };
 
-  const validarCampos = () => {
-    if (!username.trim()) {
-      Alert.alert('Error', 'El nombre de usuario es obligatorio');
+  
+  const validateField = async (fieldName, value) => {
+    try {
+      await yup.reach(registroCompletoSchema, fieldName).validate(value);
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[fieldName];
+        return newErrors;
+      });
+      return true;
+    } catch (error) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [fieldName]: error.message
+      }));
       return false;
     }
+  };
 
-    if (username.length < 3) {
-      Alert.alert('Error', 'El nombre de usuario debe tener al menos 3 caracteres');
+  
+  const validateForm = async () => {
+    try {
+      await registroCompletoSchema.validate(formData, { abortEarly: false });
+      setValidationErrors({});
+      return true;
+    } catch (error) {
+      const errors = {};
+      error.inner.forEach(err => {
+        errors[err.path] = err.message;
+      });
+      setValidationErrors(errors);
       return false;
     }
+  };
 
-    if (!nombre.trim() && !username.trim()) {
-      Alert.alert('Error', 'El nombre es obligatorio');
-      return false;
+  
+  const validarCamposAdicionales = () => {
+    const errores = {};
+
+    
+    if (formData.username.includes(' ')) {
+      errores.username = 'El nombre de usuario no puede contener espacios';
     }
 
-    if (!email.trim()) {
-      Alert.alert('Error', 'El correo electrónico es obligatorio');
-      return false;
+    
+    const emailsProhibidos = ['admin@test.com', 'test@test.com'];
+    if (emailsProhibidos.includes(formData.email.toLowerCase())) {
+      errores.email = 'Este email no está disponible';
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      Alert.alert('Error', 'El formato del correo electrónico no es válido');
-      return false;
+    
+    if (formData.tipoUsuario === 'cliente' && !formData.nombreEmpresa.trim()) {
+      errores.nombreEmpresa = 'El nombre de la empresa es obligatorio para clientes';
     }
 
-    if (!password) {
-      Alert.alert('Error', 'La contraseña es obligatoria');
-      return false;
+    if (formData.tipoUsuario === 'proveedor' && !formData.tipoServicio.trim()) {
+      errores.tipoServicio = 'El tipo de servicio es obligatorio para proveedores';
     }
 
-    if (password.length < 8) {
-      Alert.alert('Error', 'La contraseña debe tener al menos 8 caracteres');
-      return false;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Las contraseñas no coinciden');
-      return false;
-    }
-
-    if (tipoUsuario === 'cliente' && !nombreEmpresa.trim()) {
-      Alert.alert('Error', 'El nombre de la empresa es obligatorio para clientes');
-      return false;
-    }
-
-    if (tipoUsuario === 'proveedor' && !tipoServicio.trim()) {
-      Alert.alert('Error', 'El tipo de servicio es obligatorio para proveedores');
-      return false;
-    }
-
-    if ((tipoUsuario === 'cliente' || tipoUsuario === 'proveedor') && !identificacionFiscal.trim()) {
-      Alert.alert('Error', 'La identificación fiscal es obligatoria para empresas y proveedores');
+    if (Object.keys(errores).length > 0) {
+      setValidationErrors(prev => ({ ...prev, ...errores }));
       return false;
     }
 
     return true;
   };
 
+  const irLogin = () => {
+    navigation.navigate('Login');
+  };
+
   const crearEmpresaInmobiliariaAutomatica = async (usuarioId) => {
     try {
+      
+      const empresaData = {
+        nombre: formData.nombreEmpresa.trim(),
+        identificacionFiscal: formData.identificacionFiscal.trim(),
+      };
+
+      await yup.object().shape({
+        nombre: yup.string().required().min(3),
+        identificacionFiscal: yup.string().required().min(8),
+      }).validate(empresaData);
+
       const datosEmpresa = {
-        nombre: nombreEmpresa.trim(),
-        tipo: tipoEmpresa,
-        descripcion: `Empresa inmobiliaria ${nombreEmpresa.trim()}`,
+        nombre: formData.nombreEmpresa.trim(),
+        tipo: formData.tipoEmpresa,
+        descripcion: `Empresa inmobiliaria ${formData.nombreEmpresa.trim()}`,
         contacto: {
-          nombreContacto: `${nombre.trim()} ${apellidos.trim()}`.trim() || username.trim(),
-          email: email.trim().toLowerCase(),
-          telefono: telefono.trim() || 'Sin especificar',
+          nombreContacto: `${formData.nombre.trim()} ${formData.apellidos.trim()}`.trim() || formData.username.trim(),
+          email: formData.email.trim().toLowerCase(),
+          telefono: formData.telefono.trim() || 'Sin especificar',
           cargo: 'Propietario'
         },
-        identificacionFiscal: identificacionFiscal.trim(),
+        identificacionFiscal: formData.identificacionFiscal.trim(),
         direccion: {
-          calle: calle.trim() || 'Sin especificar',
-          ciudad: ciudad.trim() || 'Montevideo',
-          codigoPostal: codigoPostal.trim() || '11000',
-          pais: pais.trim() || 'Uruguay'
+          calle: formData.calle.trim() || 'Sin especificar',
+          ciudad: formData.ciudad.trim() || 'Montevideo',
+          codigoPostal: formData.codigoPostal.trim() || '11000',
+          pais: formData.pais.trim() || 'Uruguay'
         },
         activo: true,
         verificado: false
@@ -150,27 +348,42 @@ const Registro = ({ navigation }) => {
         throw new Error(result.payload || 'Error al crear empresa inmobiliaria');
       }
     } catch (error) {
-      console.error(error);
+      console.error('Error creando empresa:', error);
+      if (error.message.includes('validation')) {
+        Alert.alert('Error de validación', 'Los datos de la empresa no son válidos');
+      }
+      throw error;
     }
   };
 
   const crearProveedorAutomatico = async (usuarioId) => {
     try {
+      
+      const proveedorData = {
+        tipoServicio: formData.tipoServicio.trim(),
+        identificacionFiscal: formData.identificacionFiscal.trim(),
+      };
+
+      await yup.object().shape({
+        tipoServicio: yup.string().required().min(3),
+        identificacionFiscal: yup.string().required().min(8),
+      }).validate(proveedorData);
+
       const datosProveedor = {
-        nombre: tipoServicio.trim(),
-        tipo: tipoProveedor,
-        descripcion: `Proveedor de servicios: ${tipoServicio.trim()}`,
+        nombre: formData.tipoServicio.trim(),
+        tipo: formData.tipoProveedor,
+        descripcion: `Proveedor de servicios: ${formData.tipoServicio.trim()}`,
         contacto: {
-          nombreContacto: `${nombre.trim()} ${apellidos.trim()}`.trim() || username.trim(),
-          email: email.trim().toLowerCase(),
-          telefono: telefono.trim() || 'Sin especificar'
+          nombreContacto: `${formData.nombre.trim()} ${formData.apellidos.trim()}`.trim() || formData.username.trim(),
+          email: formData.email.trim().toLowerCase(),
+          telefono: formData.telefono.trim() || 'Sin especificar'
         },
-        identificacionFiscal: identificacionFiscal.trim(),
+        identificacionFiscal: formData.identificacionFiscal.trim(),
         direccion: {
-          calle: calle.trim() || 'Sin especificar',
-          ciudad: ciudad.trim() || 'Montevideo',
-          codigoPostal: codigoPostal.trim() || '11000',
-          pais: pais.trim() || 'Uruguay'
+          calle: formData.calle.trim() || 'Sin especificar',
+          ciudad: formData.ciudad.trim() || 'Montevideo',
+          codigoPostal: formData.codigoPostal.trim() || '11000',
+          pais: formData.pais.trim() || 'Uruguay'
         },
         activo: true,
         verificado: false
@@ -187,12 +400,21 @@ const Registro = ({ navigation }) => {
         throw new Error(result.payload || 'Error al crear proveedor');
       }
     } catch (error) {
-      console.error(error);
+      console.error('Error creando proveedor:', error);
+      if (error.message.includes('validation')) {
+        Alert.alert('Error de validación', 'Los datos del proveedor no son válidos');
+      }
+      throw error;
     }
   };
 
   const registrarse = async () => {
-    if (!validarCampos()) {
+    
+    const isFormValid = await validateForm();
+    const isAdditionalValid = validarCamposAdicionales();
+    
+    if (!isFormValid || !isAdditionalValid) {
+      Alert.alert('Error de validación', 'Por favor corrige los errores en el formulario');
       return;
     }
 
@@ -202,29 +424,25 @@ const Registro = ({ navigation }) => {
 
     try {
       dispatch(clearError());
+      
       const registrationData = {
-        tipoUsuario,
-        username: username.trim(),
-        email: email.trim().toLowerCase(),
-        password,
-
-        nombre: nombre.trim() || username.trim(),
-        apellidos: apellidos.trim() || '',
-
+        tipoUsuario: formData.tipoUsuario,
+        username: formData.username.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+        nombre: formData.nombre.trim() || formData.username.trim(),
+        apellidos: formData.apellidos.trim() || '',
         datosPersonales: {
-          telefono: telefono.trim() || undefined,
-          documentoIdentidad: documentoIdentidad.trim() || undefined,
+          telefono: formData.telefono.trim() || undefined,
+          documentoIdentidad: formData.documentoIdentidad.trim() || undefined,
         },
-
         direccion: {
-          calle: calle.trim() || undefined,
-          ciudad: ciudad.trim() || 'Montevideo',
-          codigoPostal: codigoPostal.trim() || undefined,
-          pais: pais.trim() || 'Uruguay',
+          calle: formData.calle.trim() || undefined,
+          ciudad: formData.ciudad.trim() || 'Montevideo',
+          codigoPostal: formData.codigoPostal.trim() || undefined,
+          pais: formData.pais.trim() || 'Uruguay',
         },
-
-        imagen: profileImage && typeof profileImage === 'string' && profileImage.trim() ? profileImage.trim() : undefined,
-
+        imagen: formData.profileImage && typeof formData.profileImage === 'string' && formData.profileImage.trim() ? formData.profileImage.trim() : undefined,
         preferencias: {
           idiomaPreferido: 'es',
           monedaPreferida: 'UYU',
@@ -236,18 +454,19 @@ const Registro = ({ navigation }) => {
         },
       };
 
-      if (tipoUsuario === 'cliente' && nombreEmpresa.trim()) {
+      if (formData.tipoUsuario === 'cliente' && formData.nombreEmpresa.trim()) {
         registrationData.datosEmpresa = {
-          nombreEmpresa: nombreEmpresa.trim()
+          nombreEmpresa: formData.nombreEmpresa.trim()
         };
       }
 
-      if (tipoUsuario === 'proveedor' && tipoServicio.trim()) {
+      if (formData.tipoUsuario === 'proveedor' && formData.tipoServicio.trim()) {
         registrationData.datosEmpresa = {
-          nombreEmpresa: tipoServicio.trim()
+          nombreEmpresa: formData.tipoServicio.trim()
         };
       }
 
+      
       if (registrationData.datosPersonales) {
         Object.keys(registrationData.datosPersonales).forEach(key => {
           if (registrationData.datosPersonales[key] === undefined) {
@@ -281,23 +500,19 @@ const Registro = ({ navigation }) => {
 
         if (usuarioId) {
           try {
-            if (tipoUsuario === 'cliente') {
+            if (formData.tipoUsuario === 'cliente') {
               empresa = await crearEmpresaInmobiliariaAutomatica(usuarioId);
-            } else if (tipoUsuario === 'proveedor') {
+            } else if (formData.tipoUsuario === 'proveedor') {
               proveedor = await crearProveedorAutomatico(usuarioId);
             }
           } catch (error) {
-            console.error(error);
+            console.error('Error creando entidad asociada:', error);
           }
         }
 
-        const mensajeEmpresa = empresa ? `\n\n🏢 Empresa "${empresa.nombre}" creada` : '';
-        const mensajeProveedor = proveedor ? `\n\n🔧 Proveedor "${proveedor.nombre}" creado` : '';
-        const mensajeFoto = profileImage ? '\n\n✅ Foto de perfil guardada' : '\n\n⚠️ Sin foto de perfil';
-
         Alert.alert(
           'Registro exitoso',
-          `¡Bienvenido ${result.payload.username || username}! Tu cuenta como ${tipoUsuario} ha sido creada exitosamente.${mensajeFoto}${mensajeEmpresa}${mensajeProveedor}`,
+          `¡Bienvenido ${result.payload.username || formData.username}! Tu cuenta como ${formData.tipoUsuario} ha sido creada exitosamente`,
           [
             {
               text: 'OK',
@@ -313,78 +528,8 @@ const Registro = ({ navigation }) => {
       }
 
     } catch (error) {
-      console.error(error);
+      console.error('Error en registro:', error);
       Alert.alert('Error', 'Error de conexión. Por favor intenta nuevamente.');
-    }
-  };
-
-  const actualizarDatosAdicionales = async (usuarioId) => {
-    try {
-      const updateData = {
-        nombre: nombre.trim() || username.trim(),
-        apellidos: apellidos.trim() || '',
-
-        datosPersonales: {
-          telefono: telefono.trim() || undefined,
-          documentoIdentidad: documentoIdentidad.trim() || undefined,
-        },
-
-        direccion: {
-          calle: calle.trim() || undefined,
-          ciudad: ciudad.trim() || 'Montevideo',
-          codigoPostal: codigoPostal.trim() || undefined,
-          pais: pais.trim() || 'Uruguay',
-        },
-
-        preferencias: {
-          idiomaPreferido: 'es',
-          monedaPreferida: 'UYU',
-          notificaciones: {
-            email: true,
-            push: true,
-            sms: false
-          }
-        },
-      };
-
-      if (profileImage && typeof profileImage === 'string' && profileImage.trim()) {
-        updateData.imagen = profileImage.trim();
-      }
-
-      if (tipoUsuario === 'cliente' && nombreEmpresa.trim()) {
-        updateData.datosEmpresa = {
-          nombreEmpresa: nombreEmpresa.trim()
-        };
-      }
-
-      if (tipoUsuario === 'proveedor' && tipoServicio.trim()) {
-        updateData.datosEmpresa = {
-          nombreEmpresa: tipoServicio.trim()
-        };
-      }
-
-      Object.keys(updateData.datosPersonales).forEach(key => {
-        if (updateData.datosPersonales[key] === undefined) {
-          delete updateData.datosPersonales[key];
-        }
-      });
-
-      Object.keys(updateData.direccion).forEach(key => {
-        if (updateData.direccion[key] === undefined) {
-          delete updateData.direccion[key];
-        }
-      });
-
-      const updateResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/v1/usuarios/${usuarioId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateData),
-      });
-
-    } catch (error) {
-      console.error(error);
     }
   };
 
@@ -415,20 +560,20 @@ const Registro = ({ navigation }) => {
   };
 
   const uploadToCloudinary = async (imageUri) => {
-    const formData = new FormData();
+    const formDataUpload = new FormData();
 
-    formData.append('file', {
+    formDataUpload.append('file', {
       uri: imageUri,
       name: 'profile_registration.jpeg',
       type: 'image/jpeg'
     });
 
-    formData.append('upload_preset', UPLOAD_PRESET);
+    formDataUpload.append('upload_preset', UPLOAD_PRESET);
 
     try {
       const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
         method: 'POST',
-        body: formData
+        body: formDataUpload
       });
 
       const data = await response.json();
@@ -439,7 +584,8 @@ const Registro = ({ navigation }) => {
         throw new Error('Error al subir imagen a Cloudinary');
       }
     } catch (error) {
-      console.error(error);
+      console.error('Error subiendo imagen:', error);
+      throw error;
     }
   };
 
@@ -459,11 +605,11 @@ const Registro = ({ navigation }) => {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const cloudinaryUrl = await uploadToCloudinary(result.assets[0].uri);
-        setProfileImage(cloudinaryUrl);
+        updateFormData('profileImage', cloudinaryUrl);
         Alert.alert('Éxito', 'Foto subida correctamente');
       }
     } catch (error) {
-      console.error(error);
+      console.error('Error tomando foto:', error);
       Alert.alert('Error', 'No se pudo tomar la foto');
     } finally {
       setUploadingImage(false);
@@ -486,11 +632,11 @@ const Registro = ({ navigation }) => {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const cloudinaryUrl = await uploadToCloudinary(result.assets[0].uri);
-        setProfileImage(cloudinaryUrl);
+        updateFormData('profileImage', cloudinaryUrl);
         Alert.alert('Éxito', 'Foto subida correctamente');
       }
     } catch (error) {
-      console.error(error);
+      console.error('Error seleccionando foto:', error);
       Alert.alert('Error', 'No se pudo seleccionar la foto');
     } finally {
       setUploadingImage(false);
@@ -523,6 +669,12 @@ const Registro = ({ navigation }) => {
 
   const isLoading = isRegistering || loadingEmpresa || loadingProveedor;
 
+  
+  const ErrorText = ({ error }) => {
+    if (!error) return null;
+    return <Text style={styles.errorText}>{error}</Text>;
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.keyboardAvoidingView}
@@ -545,7 +697,7 @@ const Registro = ({ navigation }) => {
 
           {error && (
             <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.errorTextContainer}>{error}</Text>
             </View>
           )}
 
@@ -555,14 +707,14 @@ const Registro = ({ navigation }) => {
               <TouchableOpacity
                 style={[
                   styles.tipoUsuarioButton,
-                  tipoUsuario === 'usuario' && styles.tipoUsuarioButtonActive
+                  formData.tipoUsuario === 'usuario' && styles.tipoUsuarioButtonActive
                 ]}
-                onPress={() => setTipoUsuario('usuario')}
+                onPress={() => updateFormData('tipoUsuario', 'usuario')}
                 disabled={isLoading}
               >
                 <Text style={[
                   styles.tipoUsuarioButtonText,
-                  tipoUsuario === 'usuario' && styles.tipoUsuarioButtonTextActive
+                  formData.tipoUsuario === 'usuario' && styles.tipoUsuarioButtonTextActive
                 ]}>
                   Usuario
                 </Text>
@@ -571,14 +723,14 @@ const Registro = ({ navigation }) => {
               <TouchableOpacity
                 style={[
                   styles.tipoUsuarioButton,
-                  tipoUsuario === 'cliente' && styles.tipoUsuarioButtonActive
+                  formData.tipoUsuario === 'cliente' && styles.tipoUsuarioButtonActive
                 ]}
-                onPress={() => setTipoUsuario('cliente')}
+                onPress={() => updateFormData('tipoUsuario', 'cliente')}
                 disabled={isLoading}
               >
                 <Text style={[
                   styles.tipoUsuarioButtonText,
-                  tipoUsuario === 'cliente' && styles.tipoUsuarioButtonTextActive
+                  formData.tipoUsuario === 'cliente' && styles.tipoUsuarioButtonTextActive
                 ]}>
                   Cliente
                 </Text>
@@ -587,62 +739,78 @@ const Registro = ({ navigation }) => {
               <TouchableOpacity
                 style={[
                   styles.tipoUsuarioButton,
-                  tipoUsuario === 'proveedor' && styles.tipoUsuarioButtonActive
+                  formData.tipoUsuario === 'proveedor' && styles.tipoUsuarioButtonActive
                 ]}
-                onPress={() => setTipoUsuario('proveedor')}
+                onPress={() => updateFormData('tipoUsuario', 'proveedor')}
                 disabled={isLoading}
               >
                 <Text style={[
                   styles.tipoUsuarioButtonText,
-                  tipoUsuario === 'proveedor' && styles.tipoUsuarioButtonTextActive
+                  formData.tipoUsuario === 'proveedor' && styles.tipoUsuarioButtonTextActive
                 ]}>
                   Proveedor
                 </Text>
               </TouchableOpacity>
             </View>
+            <ErrorText error={validationErrors.tipoUsuario} />
           </View>
 
           <Text style={styles.sectionTitle}>Información Personal</Text>
 
           <Text style={styles.label}>Nombre de usuario *</Text>
           <TextInput
-            style={[styles.fullInput, isLoading && styles.inputDisabled]}
+            style={[
+              styles.fullInput,
+              isLoading && styles.inputDisabled,
+              validationErrors.username && styles.inputError
+            ]}
             placeholder="Nombre de usuario único"
             placeholderTextColor="#999"
-            value={username}
-            onChangeText={setUsername}
+            value={formData.username}
+            onChangeText={(text) => updateFormData('username', text)}
             returnKeyType="next"
             blurOnSubmit={false}
             editable={!isLoading}
             autoCapitalize="none"
           />
+          <ErrorText error={validationErrors.username} />
 
           <View style={styles.rowContainer}>
             <View style={styles.halfInputContainer}>
               <Text style={styles.label}>Nombre</Text>
               <TextInput
-                style={[styles.input, isLoading && styles.inputDisabled]}
+                style={[
+                  styles.input,
+                  isLoading && styles.inputDisabled,
+                  validationErrors.nombre && styles.inputError
+                ]}
                 placeholder="Tu nombre"
                 placeholderTextColor="#999"
-                value={nombre}
-                onChangeText={setNombre}
+                value={formData.nombre}
+                onChangeText={(text) => updateFormData('nombre', text)}
                 returnKeyType="next"
                 blurOnSubmit={false}
                 editable={!isLoading}
               />
+              <ErrorText error={validationErrors.nombre} />
             </View>
             <View style={styles.halfInputContainer}>
               <Text style={styles.label}>Apellidos</Text>
               <TextInput
-                style={[styles.input, isLoading && styles.inputDisabled]}
+                style={[
+                  styles.input,
+                  isLoading && styles.inputDisabled,
+                  validationErrors.apellidos && styles.inputError
+                ]}
                 placeholder="Tus apellidos"
                 placeholderTextColor="#999"
-                value={apellidos}
-                onChangeText={setApellidos}
+                value={formData.apellidos}
+                onChangeText={(text) => updateFormData('apellidos', text)}
                 returnKeyType="next"
                 blurOnSubmit={false}
                 editable={!isLoading}
               />
+              <ErrorText error={validationErrors.apellidos} />
             </View>
           </View>
 
@@ -656,8 +824,8 @@ const Registro = ({ navigation }) => {
               <View style={styles.photoPlaceholder}>
                 <Text style={styles.uploadingText}>Subiendo...</Text>
               </View>
-            ) : profileImage ? (
-              <Image source={{ uri: profileImage }} style={styles.profileImage} />
+            ) : formData.profileImage ? (
+              <Image source={{ uri: formData.profileImage }} style={styles.profileImage} />
             ) : (
               <View style={styles.photoPlaceholder}>
                 <Ionicons name="camera" size={40} color="#7f8c8d" />
@@ -665,6 +833,7 @@ const Registro = ({ navigation }) => {
               </View>
             )}
           </TouchableOpacity>
+          <ErrorText error={validationErrors.profileImage} />
 
           <Text style={styles.sectionTitle}>Información de Contacto</Text>
 
@@ -672,29 +841,39 @@ const Registro = ({ navigation }) => {
             <View style={styles.halfInputContainer}>
               <Text style={styles.label}>Teléfono</Text>
               <TextInput
-                style={[styles.input, isLoading && styles.inputDisabled]}
+                style={[
+                  styles.input,
+                  isLoading && styles.inputDisabled,
+                  validationErrors.telefono && styles.inputError
+                ]}
                 placeholder="+598 9X XXX XXX"
                 placeholderTextColor="#999"
-                value={telefono}
-                onChangeText={setTelefono}
+                value={formData.telefono}
+                onChangeText={(text) => updateFormData('telefono', text)}
                 keyboardType="phone-pad"
                 returnKeyType="next"
                 blurOnSubmit={false}
                 editable={!isLoading}
               />
+              <ErrorText error={validationErrors.telefono} />
             </View>
             <View style={styles.halfInputContainer}>
               <Text style={styles.label}>Documento</Text>
               <TextInput
-                style={[styles.input, isLoading && styles.inputDisabled]}
+                style={[
+                  styles.input,
+                  isLoading && styles.inputDisabled,
+                  validationErrors.documentoIdentidad && styles.inputError
+                ]}
                 placeholder="C.I. o Pasaporte"
                 placeholderTextColor="#999"
-                value={documentoIdentidad}
-                onChangeText={setDocumentoIdentidad}
+                value={formData.documentoIdentidad}
+                onChangeText={(text) => updateFormData('documentoIdentidad', text)}
                 returnKeyType="next"
                 blurOnSubmit={false}
                 editable={!isLoading}
               />
+              <ErrorText error={validationErrors.documentoIdentidad} />
             </View>
           </View>
 
@@ -702,103 +881,138 @@ const Registro = ({ navigation }) => {
 
           <Text style={styles.label}>Calle</Text>
           <TextInput
-            style={[styles.fullInput, isLoading && styles.inputDisabled]}
+            style={[
+              styles.fullInput,
+              isLoading && styles.inputDisabled,
+              validationErrors.calle && styles.inputError
+            ]}
             placeholder="Calle y número"
             placeholderTextColor="#999"
-            value={calle}
-            onChangeText={setCalle}
+            value={formData.calle}
+            onChangeText={(text) => updateFormData('calle', text)}
             returnKeyType="next"
             blurOnSubmit={false}
             editable={!isLoading}
           />
+          <ErrorText error={validationErrors.calle} />
 
           <View style={styles.rowContainer}>
             <View style={styles.halfInputContainer}>
               <Text style={styles.label}>Ciudad</Text>
               <TextInput
-                style={[styles.input, isLoading && styles.inputDisabled]}
+                style={[
+                  styles.input,
+                  isLoading && styles.inputDisabled,
+                  validationErrors.ciudad && styles.inputError
+                ]}
                 placeholder="Ciudad"
                 placeholderTextColor="#999"
-                value={ciudad}
-                onChangeText={setCiudad}
+                value={formData.ciudad}
+                onChangeText={(text) => updateFormData('ciudad', text)}
                 returnKeyType="next"
                 blurOnSubmit={false}
                 editable={!isLoading}
               />
+              <ErrorText error={validationErrors.ciudad} />
             </View>
             <View style={styles.halfInputContainer}>
               <Text style={styles.label}>Código Postal</Text>
               <TextInput
-                style={[styles.input, isLoading && styles.inputDisabled]}
+                style={[
+                  styles.input,
+                  isLoading && styles.inputDisabled,
+                  validationErrors.codigoPostal && styles.inputError
+                ]}
                 placeholder="Código postal"
                 placeholderTextColor="#999"
-                value={codigoPostal}
-                onChangeText={setCodigoPostal}
+                value={formData.codigoPostal}
+                onChangeText={(text) => updateFormData('codigoPostal', text)}
                 keyboardType="numeric"
                 returnKeyType="next"
                 blurOnSubmit={false}
                 editable={!isLoading}
               />
+              <ErrorText error={validationErrors.codigoPostal} />
             </View>
           </View>
 
-          {tipoUsuario === 'cliente' && (
+          {formData.tipoUsuario === 'cliente' && (
             <>
               <Text style={styles.sectionTitle}>Información de Empresa Inmobiliaria</Text>
 
               <Text style={styles.label}>Nombre de la empresa *</Text>
               <TextInput
-                style={[styles.fullInput, isLoading && styles.inputDisabled]}
+                style={[
+                  styles.fullInput,
+                  isLoading && styles.inputDisabled,
+                  validationErrors.nombreEmpresa && styles.inputError
+                ]}
                 placeholder="Nombre de tu empresa inmobiliaria"
                 placeholderTextColor="#999"
-                value={nombreEmpresa}
-                onChangeText={setNombreEmpresa}
+                value={formData.nombreEmpresa}
+                onChangeText={(text) => updateFormData('nombreEmpresa', text)}
                 returnKeyType="next"
                 blurOnSubmit={false}
                 editable={!isLoading}
               />
+              <ErrorText error={validationErrors.nombreEmpresa} />
 
               <Text style={styles.label}>ID Fiscal *</Text>
               <TextInput
-                style={[styles.input, isLoading && styles.inputDisabled]}
+                style={[
+                  styles.fullInput,
+                  isLoading && styles.inputDisabled,
+                  validationErrors.identificacionFiscal && styles.inputError
+                ]}
                 placeholder="RUT o identificación fiscal"
                 placeholderTextColor="#999"
-                value={identificacionFiscal}
-                onChangeText={setIdentificacionFiscal}
+                value={formData.identificacionFiscal}
+                onChangeText={(text) => updateFormData('identificacionFiscal', text)}
                 returnKeyType="next"
                 blurOnSubmit={false}
                 editable={!isLoading}
               />
+              <ErrorText error={validationErrors.identificacionFiscal} />
             </>
           )}
 
-          {tipoUsuario === 'proveedor' && (
+          {formData.tipoUsuario === 'proveedor' && (
             <>
               <Text style={styles.sectionTitle}>Información de Proveedor</Text>
 
               <Text style={styles.label}>Tipo de servicio *</Text>
               <TextInput
-                style={[styles.fullInput, isLoading && styles.inputDisabled]}
+                style={[
+                  styles.fullInput,
+                  isLoading && styles.inputDisabled,
+                  validationErrors.tipoServicio && styles.inputError
+                ]}
                 placeholder="Ej: Limpieza, Catering, Seguridad, Mantenimiento, etc."
                 placeholderTextColor="#999"
-                value={tipoServicio}
-                onChangeText={setTipoServicio}
+                value={formData.tipoServicio}
+                onChangeText={(text) => updateFormData('tipoServicio', text)}
                 returnKeyType="next"
                 blurOnSubmit={false}
                 editable={!isLoading}
               />
+              <ErrorText error={validationErrors.tipoServicio} />
 
               <Text style={styles.label}>ID Fiscal *</Text>
               <TextInput
-                style={[styles.input, isLoading && styles.inputDisabled]}
+                style={[
+                  styles.fullInput,
+                  isLoading && styles.inputDisabled,
+                  validationErrors.identificacionFiscal && styles.inputError
+                ]}
                 placeholder="RUT o identificación fiscal"
                 placeholderTextColor="#999"
-                value={identificacionFiscal}
-                onChangeText={setIdentificacionFiscal}
+                value={formData.identificacionFiscal}
+                onChangeText={(text) => updateFormData('identificacionFiscal', text)}
                 returnKeyType="next"
                 blurOnSubmit={false}
                 editable={!isLoading}
               />
+              <ErrorText error={validationErrors.identificacionFiscal} />
             </>
           )}
 
@@ -806,42 +1020,57 @@ const Registro = ({ navigation }) => {
 
           <Text style={styles.label}>Correo electrónico *</Text>
           <TextInput
-            style={[styles.fullInput, isLoading && styles.inputDisabled]}
+            style={[
+              styles.fullInput,
+              isLoading && styles.inputDisabled,
+              validationErrors.email && styles.inputError
+            ]}
             placeholder="tu@email.com"
             placeholderTextColor="#999"
-            value={email}
-            onChangeText={setEmail}
+            value={formData.email}
+            onChangeText={(text) => updateFormData('email', text)}
             keyboardType="email-address"
             autoCapitalize="none"
             returnKeyType="next"
             blurOnSubmit={false}
             editable={!isLoading}
           />
+          <ErrorText error={validationErrors.email} />
 
           <Text style={styles.label}>Contraseña *</Text>
           <TextInput
-            style={[styles.fullInput, isLoading && styles.inputDisabled]}
-            placeholder="Mínimo 8 caracteres"
+            style={[
+              styles.fullInput,
+              isLoading && styles.inputDisabled,
+              validationErrors.password && styles.inputError
+            ]}
+            placeholder="Mínimo 8 caracteres (mayúscula, minúscula y número)"
             placeholderTextColor="#999"
-            value={password}
-            onChangeText={setPassword}
+            value={formData.password}
+            onChangeText={(text) => updateFormData('password', text)}
             secureTextEntry
             returnKeyType="next"
             blurOnSubmit={false}
             editable={!isLoading}
           />
+          <ErrorText error={validationErrors.password} />
 
           <Text style={styles.label}>Confirmar contraseña *</Text>
           <TextInput
-            style={[styles.fullInput, isLoading && styles.inputDisabled]}
+            style={[
+              styles.fullInput,
+              isLoading && styles.inputDisabled,
+              validationErrors.confirmPassword && styles.inputError
+            ]}
             placeholder="Repite tu contraseña"
             placeholderTextColor="#999"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
+            value={formData.confirmPassword}
+            onChangeText={(text) => updateFormData('confirmPassword', text)}
             secureTextEntry
             returnKeyType="done"
             editable={!isLoading}
           />
+          <ErrorText error={validationErrors.confirmPassword} />
 
           <TouchableOpacity
             style={[
@@ -856,6 +1085,16 @@ const Registro = ({ navigation }) => {
                 loadingEmpresa ? 'Creando empresa...' :
                   loadingProveedor ? 'Creando proveedor...' :
                     'Registrarse'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.backContainer}
+            onPress={irLogin}
+            disabled={isLoading}
+          >
+            <Text style={[styles.backLink, isLoading && styles.linkDisabled]}>
+              ¿Ya tienes cuenta? Inicia sesión
             </Text>
           </TouchableOpacity>
         </View>
@@ -906,7 +1145,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#fcc',
   },
-  errorText: {
+  errorTextContainer: {
     color: '#c33',
     fontSize: 14,
     textAlign: 'center',
@@ -1007,7 +1246,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 8,
     paddingHorizontal: 15,
-    marginBottom: 20,
+    marginBottom: 5,
     borderWidth: 1,
     borderColor: '#e1e5e9',
     fontSize: 16,
@@ -1019,7 +1258,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 8,
     paddingHorizontal: 15,
-    marginBottom: 20,
+    marginBottom: 5,
     borderWidth: 1,
     borderColor: '#e1e5e9',
     fontSize: 16,
@@ -1029,34 +1268,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     color: '#999',
   },
-  pickerContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
-    marginBottom: 20,
+  inputError: {
+    borderColor: '#e74c3c',
+    borderWidth: 2,
   },
-  pickerButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e1e5e9',
-    minWidth: 70,
-    alignItems: 'center',
-  },
-  pickerButtonActive: {
-    backgroundColor: '#4a90e2',
-    borderColor: '#4a90e2',
-  },
-  pickerText: {
+  errorText: {
     fontSize: 12,
-    color: '#7f8c8d',
-    fontWeight: '500',
+    color: '#e74c3c',
+    marginBottom: 15,
     fontFamily: 'System',
-  },
-  pickerTextActive: {
-    color: '#fff',
   },
   button: {
     width: '100%',

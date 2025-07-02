@@ -10,11 +10,44 @@ import {
   View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import * as yup from 'yup';
 import {
   obtenerProveedores,
   obtenerServiciosPorEspacio,
   toggleServicioAdicional
 } from '../store/slices/proveedoresSlice';
+
+const servicioSchema = yup.object({
+  _id: yup.string().required('ID del servicio es requerido'),
+  nombre: yup.string().required('Nombre del servicio es requerido').min(2, 'Nombre debe tener al menos 2 caracteres'),
+  activo: yup.boolean().required('Estado activo es requerido')
+});
+
+const proveedorExternoSchema = yup.object({
+  _id: yup.string().required('ID del proveedor es requerido'),
+  proveedor: yup.string().required('Nombre del proveedor es requerido').min(2, 'Nombre debe tener al menos 2 caracteres'),
+  servicio: yup.string().required('Servicio es requerido').min(2, 'Servicio debe tener al menos 2 caracteres'),
+  precio: yup.number().min(0, 'Precio debe ser mayor o igual a 0').required('Precio es requerido'),
+  calificacion: yup.number().min(0, 'Calificación mínima es 0').max(5, 'Calificación máxima es 5').required('Calificación es requerida'),
+  activo: yup.boolean().required('Estado activo es requerido')
+});
+
+const espacioSchema = yup.object({
+  id: yup.number().positive('ID debe ser un número positivo').required('ID del espacio es requerido'),
+  nombre: yup.string().required('Nombre del espacio es requerido').min(3, 'Nombre debe tener al menos 3 caracteres'),
+  serviciosIncluidos: yup.array().of(servicioSchema).default([]),
+  proveedoresExternos: yup.array().of(proveedorExternoSchema).default([])
+});
+
+const gestionServiciosSchema = yup.object({
+  tabActiva: yup.string()
+    .test('tab-valida', 'Tab debe ser incluidos o externos', function(value) {
+      const tabsValidas = ['incluidos', 'externos'];
+      return tabsValidas.includes(value);
+    })
+    .required('Tab activa es requerida'),
+  espaciosData: yup.array().of(espacioSchema).required('Datos de espacios son requeridos')
+});
 
 const GestionServicios = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -22,7 +55,7 @@ const GestionServicios = ({ navigation }) => {
   const { serviciosPorEspacio, proveedores, loading } = useSelector(state => state.proveedores);
 
   const [tabActiva, setTabActiva] = useState('incluidos');
-
+  const [validationErrors, setValidationErrors] = useState({});
 
   const misEspacios = [
     {
@@ -51,29 +84,66 @@ const GestionServicios = ({ navigation }) => {
 
   const [espaciosData, setEspaciosData] = useState(misEspacios);
 
+  const validateData = async (data, schema) => {
+    try {
+      await schema.validate(data, { abortEarly: false });
+      return { isValid: true, errors: {} };
+    } catch (error) {
+      const errors = {};
+      error.inner.forEach(err => {
+        errors[err.path] = err.message;
+      });
+      return { isValid: false, errors };
+    }
+  };
+
+  const validateCompleteState = async () => {
+    const stateData = {
+      tabActiva,
+      espaciosData
+    };
+
+    const { isValid, errors } = await validateData(stateData, gestionServiciosSchema);
+    setValidationErrors(errors);
+    return isValid;
+  };
+
+  const validateEspacio = async (espacio) => {
+    return await validateData(espacio, espacioSchema);
+  };
+
+  const validateServicio = async (servicio) => {
+    return await validateData(servicio, servicioSchema);
+  };
+
+  const validateProveedorExterno = async (proveedor) => {
+    return await validateData(proveedor, proveedorExternoSchema);
+  };
+
   useEffect(() => {
     cargarDatos();
   }, []);
 
+  useEffect(() => {
+    validateCompleteState();
+  }, [tabActiva, espaciosData]);
+
   const cargarDatos = async () => {
     try {
-
       await dispatch(obtenerProveedores(0, 50));
-
 
       for (const espacioId of oficinasPropias) {
         await dispatch(obtenerServiciosPorEspacio(espacioId));
       }
     } catch (error) {
-      console.error(error);
+      console.error('Error cargando datos:', error);
     }
   };
 
   const getProveedoresExternosPorEspacio = (espacioId) => {
-
     if (!proveedores) return [];
 
-    return proveedores
+    const proveedoresEspacio = proveedores
       .filter(proveedor => proveedor.espaciosAtendidos?.includes(espacioId))
       .map(proveedor => ({
         _id: proveedor._id,
@@ -83,14 +153,27 @@ const GestionServicios = ({ navigation }) => {
         calificacion: proveedor.calificacion || 0,
         activo: proveedor.activo || false
       }));
+
+    proveedoresEspacio.forEach(async (proveedor) => {
+      const { isValid, errors } = await validateProveedorExterno(proveedor);
+      if (!isValid) {
+        console.warn('Proveedor externo inválido:', errors);
+      }
+    });
+
+    return proveedoresEspacio;
   };
 
   const toggleServicioIncluido = async (espacioId, servicioId) => {
     try {
+      const isStateValid = await validateCompleteState();
+      if (!isStateValid) {
+        console.warn('Estado inválido antes de toggle:', validationErrors);
+      }
 
       setEspaciosData(prev => prev.map(espacio => {
         if (espacio.id === espacioId) {
-          return {
+          const updatedEspacio = {
             ...espacio,
             serviciosIncluidos: espacio.serviciosIncluidos.map(servicio =>
               servicio._id === servicioId
@@ -98,20 +181,30 @@ const GestionServicios = ({ navigation }) => {
                 : servicio
             )
           };
+
+          validateEspacio(updatedEspacio).then(({ isValid, errors }) => {
+            if (!isValid) {
+              console.warn('Espacio inválido después de actualización:', errors);
+            }
+          });
+
+          return updatedEspacio;
         }
         return espacio;
       }));
-
 
       const servicio = espaciosData
         .find(e => e.id === espacioId)
         ?.serviciosIncluidos.find(s => s._id === servicioId);
 
       if (servicio) {
-        await dispatch(toggleServicioAdicional(servicioId, !servicio.activo));
+        const { isValid } = await validateServicio(servicio);
+        if (isValid) {
+          await dispatch(toggleServicioAdicional(servicioId, !servicio.activo));
+        }
       }
     } catch (error) {
-      console.error(error);
+      console.error('Error toggling servicio incluido:', error);
       setEspaciosData(prev => prev.map(espacio => {
         if (espacio.id === espacioId) {
           return {
@@ -130,14 +223,28 @@ const GestionServicios = ({ navigation }) => {
 
   const toggleProveedorExterno = async (espacioId, proveedorId) => {
     try {
-
       const proveedor = proveedores.find(p => p._id === proveedorId);
       if (proveedor) {
+        const proveedorData = {
+          _id: proveedor._id,
+          proveedor: proveedor.empresa || proveedor.nombre,
+          servicio: proveedor.servicios?.[0]?.nombre || 'Servicio general',
+          precio: proveedor.servicios?.[0]?.precio || 0,
+          calificacion: proveedor.calificacion || 0,
+          activo: proveedor.activo || false
+        };
+
+        const { isValid, errors } = await validateProveedorExterno(proveedorData);
+        if (!isValid) {
+          console.warn('Proveedor inválido:', errors);
+          return;
+        }
+
         await dispatch(toggleServicioAdicional(proveedorId, !proveedor.activo));
         await cargarDatos();
       }
     } catch (error) {
-      console.error(error);
+      console.error('Error toggling proveedor externo:', error);
     }
   };
 

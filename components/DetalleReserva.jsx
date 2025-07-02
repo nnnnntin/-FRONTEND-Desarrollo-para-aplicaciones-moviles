@@ -4,30 +4,219 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
 import { useDispatch } from 'react-redux';
+import * as yup from 'yup';
 import { obtenerDetalleEspacio } from '../store/slices/espaciosSlice';
+
+const reservaSchema = yup.object({
+  codigoReserva: yup
+    .string()
+    .required('El código de reserva es obligatorio')
+    .min(3, 'El código de reserva debe tener al menos 3 caracteres')
+    .max(50, 'El código de reserva no puede exceder los 50 caracteres'),
+
+  fechaReservaRaw: yup
+    .date()
+    .required('La fecha de reserva es obligatoria')
+    .min(new Date('2020-01-01'), 'La fecha no puede ser anterior al año 2020')
+    .max(new Date('2030-12-31'), 'La fecha no puede ser posterior al año 2030'),
+
+  horario: yup
+    .string()
+    .nullable()
+    .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]\s*-\s*([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 
+      'El horario debe tener el formato HH:MM - HH:MM'),
+
+  cantidadPersonas: yup
+    .number()
+    .required('La cantidad de personas es obligatoria')
+    .integer('La cantidad de personas debe ser un número entero')
+    .min(1, 'Debe haber al menos 1 persona')
+    .max(500, 'La cantidad de personas no puede exceder 500'),
+
+  precio: yup
+    .number()
+    .required('El precio es obligatorio')
+    .min(0, 'El precio no puede ser negativo')
+    .max(999999, 'El precio no puede exceder $999,999'),
+
+  estado: yup
+    .string()
+    .required('El estado de la reserva es obligatorio')
+    .test('estado-valido', 'Estado de reserva inválido', function(value) {
+      const estadosValidos = ['pendiente', 'confirmada', 'aprobada', 'finalizada', 'completada', 'cancelada', 'rechazada'];
+      return estadosValidos.includes(value);
+    }),
+
+  metodoPago: yup
+    .string()
+    .nullable()
+    .test('metodo-pago-valido', 'Método de pago inválido', function(value) {
+      if (!value) return true; 
+      const metodosValidos = ['tarjeta_credito', 'tarjeta_debito', 'efectivo', 'transferencia', 'paypal', 'tarjeta', 'credit_card', 'debit_card', 'cash', 'transfer'];
+      return metodosValidos.includes(value);
+    }),
+
+  notas: yup
+    .string()
+    .nullable()
+    .max(500, 'Las notas no pueden exceder los 500 caracteres'),
+
+  duracion: yup
+    .string()
+    .nullable()
+    .matches(/^\d+\s*(hora|horas|minuto|minutos|día|días)$/, 
+      'La duración debe tener el formato: "2 horas", "30 minutos", etc.'),
+
+  fechaCreacion: yup
+    .date()
+    .nullable()
+    .max(new Date(), 'La fecha de creación no puede ser futura'),
+
+  oficina: yup.object({
+    id: yup
+      .string()
+      .required('El ID de la oficina es obligatorio'),
+    
+    nombre: yup
+      .string()
+      .required('El nombre de la oficina es obligatorio')
+      .min(2, 'El nombre debe tener al menos 2 caracteres')
+      .max(100, 'El nombre no puede exceder los 100 caracteres'),
+    
+    tipo: yup
+      .string()
+      .required('El tipo de oficina es obligatorio')
+      .test('tipo-oficina-valido', 'Tipo de oficina inválido', function(value) {
+        const tiposValidos = ['oficina', 'sala', 'escritorio', 'coworking', 'espacio', 'sala_reuniones'];
+        return tiposValidos.includes(value);
+      }),
+    
+    ubicacion: yup
+      .string()
+      .nullable()
+      .max(200, 'La ubicación no puede exceder los 200 caracteres'),
+    
+    capacidad: yup
+      .number()
+      .nullable()
+      .integer('La capacidad debe ser un número entero')
+      .min(1, 'La capacidad debe ser mayor a 0')
+      .max(500, 'La capacidad no puede exceder 500 personas'),
+    
+    imagen: yup
+      .string()
+      .nullable()
+      .url('La imagen debe ser una URL válida')
+  })
+});
+
+const edicionReservaSchema = yup.object({
+  cantidadPersonas: yup
+    .number()
+    .required('La cantidad de personas es obligatoria')
+    .integer('La cantidad de personas debe ser un número entero')
+    .min(1, 'Debe haber al menos 1 persona')
+    .max(500, 'La cantidad de personas no puede exceder 500'),
+
+  notas: yup
+    .string()
+    .nullable()
+    .max(500, 'Las notas no pueden exceder los 500 caracteres'),
+
+  metodoPago: yup
+    .string()
+    .nullable()
+    .test('metodo-pago-valido', 'Método de pago inválido', function(value) {
+      if (!value) return true; 
+      const metodosValidos = ['tarjeta_credito', 'tarjeta_debito', 'efectivo', 'transferencia', 'paypal'];
+      return metodosValidos.includes(value);
+    })
+});
 
 const DetalleReserva = ({ navigation, route }) => {
   const dispatch = useDispatch();
   const [detalleEspacio, setDetalleEspacio] = useState(null);
   const [loadingDetalle, setLoadingDetalle] = useState(false);
+  const [erroresValidacion, setErroresValidacion] = useState({});
+  const [validacionCompleta, setValidacionCompleta] = useState(false);
+  
+  const [modoEdicion, setModoEdicion] = useState(false);
+  const [datosEdicion, setDatosEdicion] = useState({
+    cantidadPersonas: '',
+    notas: '',
+    metodoPago: ''
+  });
+  const [modalEdicion, setModalEdicion] = useState(false);
+  const [guardandoCambios, setGuardandoCambios] = useState(false);
+
+  useEffect(() => {
+    if (!route?.params?.reserva) {
+      Alert.alert('Error', 'No se encontraron los datos de la reserva', [
+        { text: 'OK', onPress: () => navigation.goBack() }
+      ]);
+      return;
+    }
+
+    validarDatosReserva(route.params.reserva);
+  }, [route?.params]);
 
   if (!route?.params?.reserva) {
-    Alert.alert('Error', 'No se encontraron los datos de la reserva', [
-      { text: 'OK', onPress: () => navigation.goBack() }
-    ]);
     return null;
   }
 
   const { reserva, reservaCompleta } = route.params;
+
+  const validarDatosReserva = async (datosReserva) => {
+    try {
+      await reservaSchema.validate(datosReserva, { abortEarly: false });
+      setValidacionCompleta(true);
+      setErroresValidacion({});
+    } catch (error) {
+      setValidacionCompleta(false);
+      const errores = {};
+      
+      if (error.inner) {
+        error.inner.forEach(err => {
+          errores[err.path] = err.message;
+        });
+      } else {
+        errores.general = error.message;
+      }
+      
+      setErroresValidacion(errores);
+      console.warn('Errores de validación en reserva:', errores);
+    }
+  };
+
+  const validarDatosEdicion = async (datos) => {
+    try {
+      await edicionReservaSchema.validate(datos, { abortEarly: false });
+      return { valido: true, errores: {} };
+    } catch (error) {
+      const errores = {};
+      
+      if (error.inner) {
+        error.inner.forEach(err => {
+          errores[err.path] = err.message;
+        });
+      } else {
+        errores.general = error.message;
+      }
+      
+      return { valido: false, errores };
+    }
+  };
 
   useEffect(() => {
     const cargarDetalleEspacio = async () => {
@@ -54,14 +243,13 @@ const DetalleReserva = ({ navigation, route }) => {
 
           if (obtenerDetalleEspacio.fulfilled.match(result)) {
             setDetalleEspacio(result.payload.data);
-          } else {
           }
         } catch (error) {
-          console.error(error);
+          console.error('Error cargando detalle del espacio:', error);
+          Alert.alert('Error', 'No se pudo cargar la información del espacio');
         } finally {
           setLoadingDetalle(false);
         }
-      } else {
       }
     };
 
@@ -211,12 +399,39 @@ const DetalleReserva = ({ navigation, route }) => {
   };
 
   const estadoInfo = getEstadoInfo(reserva.estado);
+  const fechaReservaLarga = formatearFecha(reserva.fechaReservaRaw);
 
   const handleGoBack = () => {
     navigation.goBack();
   };
 
-  const fechaReservaLarga = formatearFecha(reserva.fechaReservaRaw);
+  const ErroresValidacionComponent = () => {
+    if (validacionCompleta || Object.keys(erroresValidacion).length === 0) {
+      return null;
+    }
+
+    return (
+      <View style={styles.errorContainer}>
+        <View style={styles.errorHeader}>
+          <Ionicons name="warning" size={20} color="#e74c3c" />
+          <Text style={styles.errorTitle}>Datos de reserva incompletos</Text>
+        </View>
+        <Text style={styles.errorDescription}>
+          Algunos datos de la reserva presentan inconsistencias. La funcionalidad puede verse limitada.
+        </Text>
+        {Object.keys(erroresValidacion).slice(0, 3).map((campo, index) => (
+          <Text key={index} style={styles.errorItem}>
+            • {erroresValidacion[campo]}
+          </Text>
+        ))}
+        {Object.keys(erroresValidacion).length > 3 && (
+          <Text style={styles.errorMore}>
+            ...y {Object.keys(erroresValidacion).length - 3} errores más
+          </Text>
+        )}
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -233,10 +448,14 @@ const DetalleReserva = ({ navigation, route }) => {
         <Text style={styles.headerTitle} numberOfLines={2}>
           Detalle de reserva
         </Text>
-        <View style={styles.placeholder} />
+        {!(reserva.estado === 'pendiente' || reserva.estado === 'confirmada') && (
+          <View style={styles.placeholder} />
+        )}
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ErroresValidacionComponent />
+
         <View style={styles.imageContainer}>
           {loadingDetalle ? (
             <View style={styles.imagePlaceholder}>
@@ -269,6 +488,11 @@ const DetalleReserva = ({ navigation, route }) => {
           <View style={styles.imageOverlay}>
             <Text style={styles.imageText}>{nombreEspacio}</Text>
           </View>
+          
+          {/* Badge de estado */}
+          <View style={[styles.estadoBadgeDetalle, { backgroundColor: estadoInfo.color }]}>
+            <Text style={styles.estadoTextDetalle}>{estadoInfo.texto}</Text>
+          </View>
         </View>
 
         <View style={styles.titleSection}>
@@ -283,6 +507,9 @@ const DetalleReserva = ({ navigation, route }) => {
         <View style={styles.codigoContainer}>
           <Text style={styles.codigoLabel}>Código de reserva</Text>
           <Text style={styles.codigoText}>{reserva.codigoReserva}</Text>
+          {erroresValidacion.codigoReserva && (
+            <Text style={styles.codigoError}>⚠️ {erroresValidacion.codigoReserva}</Text>
+          )}
         </View>
 
         <View style={styles.infoSection}>
@@ -294,6 +521,9 @@ const DetalleReserva = ({ navigation, route }) => {
               <View style={styles.infoTextContainer}>
                 <Text style={styles.infoLabel}>Fecha</Text>
                 <Text style={styles.infoValue}>{fechaReservaLarga}</Text>
+                {erroresValidacion.fechaReservaRaw && (
+                  <Text style={styles.infoError}>⚠️ {erroresValidacion.fechaReservaRaw}</Text>
+                )}
               </View>
             </View>
 
@@ -305,6 +535,9 @@ const DetalleReserva = ({ navigation, route }) => {
                   <Text style={styles.infoValue}>{reserva.horario}</Text>
                   {reserva.duracion && (
                     <Text style={styles.infoDuracion}>Duración: {reserva.duracion}</Text>
+                  )}
+                  {erroresValidacion.horario && (
+                    <Text style={styles.infoError}>⚠️ {erroresValidacion.horario}</Text>
                   )}
                 </View>
               </View>
@@ -323,6 +556,9 @@ const DetalleReserva = ({ navigation, route }) => {
               <View style={styles.infoTextContainer}>
                 <Text style={styles.infoLabel}>Cantidad de personas</Text>
                 <Text style={styles.infoValue}>{reserva.cantidadPersonas} persona{reserva.cantidadPersonas !== 1 ? 's' : ''}</Text>
+                {erroresValidacion.cantidadPersonas && (
+                  <Text style={styles.infoError}>⚠️ {erroresValidacion.cantidadPersonas}</Text>
+                )}
               </View>
             </View>
 
@@ -331,6 +567,9 @@ const DetalleReserva = ({ navigation, route }) => {
               <View style={styles.infoTextContainer}>
                 <Text style={styles.infoLabel}>Precio</Text>
                 <Text style={styles.infoValue}>{formatearPrecio(reserva.precio)}</Text>
+                {erroresValidacion.precio && (
+                  <Text style={styles.infoError}>⚠️ {erroresValidacion.precio}</Text>
+                )}
               </View>
             </View>
 
@@ -340,6 +579,9 @@ const DetalleReserva = ({ navigation, route }) => {
                 <View style={styles.infoTextContainer}>
                   <Text style={styles.infoLabel}>Método de pago</Text>
                   <Text style={styles.infoValue}>{getTipoMetodoPago(reserva.metodoPago)}</Text>
+                  {erroresValidacion.metodoPago && (
+                    <Text style={styles.infoError}>⚠️ {erroresValidacion.metodoPago}</Text>
+                  )}
                 </View>
               </View>
             )}
@@ -350,6 +592,9 @@ const DetalleReserva = ({ navigation, route }) => {
                 <View style={styles.infoTextContainer}>
                   <Text style={styles.infoLabel}>Notas</Text>
                   <Text style={styles.infoValue}>{reserva.notas}</Text>
+                  {erroresValidacion.notas && (
+                    <Text style={styles.infoError}>⚠️ {erroresValidacion.notas}</Text>
+                  )}
                 </View>
               </View>
             )}
@@ -362,6 +607,9 @@ const DetalleReserva = ({ navigation, route }) => {
                   <Text style={styles.infoValue}>
                     {new Date(reserva.fechaCreacion).toLocaleString('es-ES')}
                   </Text>
+                  {erroresValidacion.fechaCreacion && (
+                    <Text style={styles.infoError}>⚠️ {erroresValidacion.fechaCreacion}</Text>
+                  )}
                 </View>
               </View>
             )}
@@ -373,7 +621,7 @@ const DetalleReserva = ({ navigation, route }) => {
     </SafeAreaView>
   );
 };
-
+                              
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -396,6 +644,9 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 5,
   },
+  editButton: {
+    padding: 5,
+  },
   headerTitle: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -412,6 +663,47 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  
+  errorContainer: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 16,
+    margin: 20,
+    marginBottom: 10,
+  },
+  errorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  errorTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#dc2626',
+    marginLeft: 8,
+  },
+  errorDescription: {
+    fontSize: 14,
+    color: '#7f1d1d',
+    marginBottom: 8,
+    lineHeight: 18,
+  },
+  errorItem: {
+    fontSize: 12,
+    color: '#991b1b',
+    marginBottom: 2,
+    marginLeft: 8,
+  },
+  errorMore: {
+    fontSize: 12,
+    color: '#991b1b',
+    fontStyle: 'italic',
+    marginLeft: 8,
+    marginTop: 4,
+  },
+  
   imageContainer: {
     paddingHorizontal: 20,
     paddingTop: 20,
@@ -441,102 +733,15 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
-  titleSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-  },
-  oficinaTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    fontFamily: 'System',
-    lineHeight: 24,
-  },
-  infoSection: {
-    paddingHorizontal: 20,
-  },
-  infoSectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    fontFamily: 'System',
-    marginBottom: 15,
-  },
-  infoContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    borderWidth: 1,
-    borderColor: '#ecf0f1',
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#5a6c7d',
-    fontFamily: 'System',
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  infoBold: {
-    fontWeight: 'bold',
-    color: '#2c3e50',
-  },
-  verPublicacionContainer: {
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  verPublicacionText: {
-    fontSize: 16,
-    color: '#4a90e2',
-    fontFamily: 'System',
-    textDecorationLine: 'underline',
-  },
-  bottomSpacing: {
-    height: 100,
-  },
-  bottomButtonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#f8f9fa',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    paddingBottom: 30,
-  },
-  inicioButton: {
-    backgroundColor: '#4a90e2',
-    paddingVertical: 15,
-    borderRadius: 8,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  inicioButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    fontFamily: 'System',
-  },
   imageDetalle: {
     width: '100%',
     height: 200,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    borderRadius: 12,
   },
-
   estadoBadgeDetalle: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: 15,
+    right: 35,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -554,7 +759,17 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 1,
   },
-
+  titleSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  oficinaTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    fontFamily: 'System',
+    lineHeight: 24,
+  },
   oficinaSubtitle: {
     fontSize: 14,
     color: '#7f8c8d',
@@ -582,6 +797,33 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     fontWeight: 'bold',
     fontFamily: 'monospace',
+  },
+  codigoError: {
+    fontSize: 11,
+    color: '#e74c3c',
+    marginTop: 4,
+  },
+  infoSection: {
+    paddingHorizontal: 20,
+  },
+  infoSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    fontFamily: 'System',
+    marginBottom: 15,
+  },
+  infoContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    borderWidth: 1,
+    borderColor: '#ecf0f1',
   },
   infoRow: {
     flexDirection: 'row',
@@ -615,96 +857,149 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontStyle: 'italic',
   },
-  verPublicacionContainer: {
+  infoError: {
+    fontSize: 11,
+    color: '#e74c3c',
+    marginTop: 4,
+  },
+  
+  validacionExitosa: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-    marginBottom: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
+    backgroundColor: '#f0f9f4',
+    borderColor: '#10b981',
     borderWidth: 1,
-    borderColor: '#e1e5e9',
-  },
-  verPublicacionText: {
-    fontSize: 16,
-    color: '#4a90e2',
-    fontFamily: 'System',
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  bottomButtonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#f8f9fa',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    paddingBottom: 30,
-    flexDirection: 'row',
-    gap: 12,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  cancelButton: {
-    backgroundColor: '#e74c3c',
-    paddingVertical: 15,
     borderRadius: 8,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 12,
+    margin: 20,
+    marginTop: 10,
   },
-  cancelButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    fontFamily: 'System',
+  validacionExitosaText: {
+    fontSize: 14,
+    color: '#065f46',
     marginLeft: 8,
+    fontWeight: '500',
   },
-  inicioButtonSecondary: {
-    flex: 1,
-  },
-  inicioButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    fontFamily: 'System',
-    marginLeft: 8,
-  },
-  inicioButton: {
-    backgroundColor: '#4a90e2',
-    paddingVertical: 15,
-    borderRadius: 8,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-  },
+  
   loadingImageText: {
     color: 'white',
     fontSize: 14,
     marginTop: 8,
     textAlign: 'center',
-  }
+  },
+  bottomSpacing: {
+    height: 100,
+  },
+
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e5e9',
+  },
+  modalCancelButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  modalCancelText: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    fontWeight: '500',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+  },
+  modalSaveButton: {
+    backgroundColor: '#4a90e2',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  modalSaveButtonDisabled: {
+    backgroundColor: '#bdc3c7',
+  },
+  modalSaveText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  modalSection: {
+    marginBottom: 24,
+  },
+  modalSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 12,
+  },
+  modalInput: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+    color: '#2c3e50',
+  },
+  modalTextArea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  modalInputHelp: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginTop: 6,
+    fontStyle: 'italic',
+  },
+  modalCharacterCount: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  metodoPagoContainer: {
+    gap: 8,
+  },
+  metodoPagoOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+  },
+  metodoPagoOptionActive: {
+    borderColor: '#4a90e2',
+    backgroundColor: '#f0f8ff',
+  },
+  metodoPagoText: {
+    fontSize: 15,
+    color: '#2c3e50',
+    marginLeft: 12,
+    fontWeight: '500',
+  },
+  metodoPagoTextActive: {
+    color: '#4a90e2',
+    fontWeight: '600',
+  },
 });
 
 export default DetalleReserva;
