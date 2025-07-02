@@ -26,5 +26,93 @@
     "age": "You must be over 18",
     "selectCountry": "Please select a country",
     "terms": "You must accept the terms"
+  },
+  "addPaymentMethodForm": {
+    "title": "Add Card",
+    "sectionTitle": "Add a card",
+    "sectionSubtitle": "Enter your card details securely",
+    "labels": {
+      "cardHolderName": "Cardholder Name",
+      "cardNumber": "Card Number",
+      "expirationDate": "Expiration Date",
+      "cvc": "CVC",
+      "setAsDefault": "Set as default payment method"
+    },
+    "placeholders": {
+      "cardHolderName": "Name as it appears on the card",
+      "cardNumber": "1234 5678 9012 3456",
+      "expirationDate": "MM/YY",
+      "cvc": "123"
+    },
+    "validation": {
+      "cardNumberRequired": "Card number is required",
+      "cardNumberInvalid": "Card number must have between 13 and 19 digits",
+      "cvcRequired": "CVC is required",
+      "cvcInvalid": "CVC must have exactly 3 or 4 digits",
+      "expirationDateRequired": "Expiration date is required",
+      "expirationDateFormat": "Format must be MM/YY with valid month (01-12)",
+      "cardExpired": "Card is expired",
+      "invalidMonth": "Month must be between 01 and 12",
+      "cardHolderNameRequired": "Cardholder name is required",
+      "cardHolderNameMin": "Name must have at least 2 characters",
+      "cardHolderNameMax": "Name cannot have more than 100 characters",
+      "cardHolderNameInvalid": "Name can only contain letters and spaces",
+      "cardNumberLength": "Card number must have 16 digits",
+      "cardHolderNameMinLength": "Cardholder name must have at least 2 characters",
+      "expirationDateInvalid": "Invalid date format (must be MM/YY)",
+      "cvcDigits": "CVC must have 3 or 4 digits",
+      "cvcNumeric": "CVC can only contain numbers"
+    },
+    "buttons": {
+      "addCard": "Add Card",
+      "retry": "Retry",
+      "cancel": "Cancel"
+    },
+    "alerts": {
+      "cardAdded": "Card Added",
+      "cardAddedSuccess": "has been successfully added",
+      "addCardError": "Error adding card",
+      "unknownError": "Unknown error adding the card",
+      "connectionError": "Connection error. Check your internet connection and try again.",
+      "sessionExpired": "Session expired. Please log in again.",
+      "invalidCardData": "Invalid card data. Check the information entered.",
+      "serverError": "Server error. Try again in a few minutes.",
+      "noConnection": "No Connection",
+      "noConnectionMessage": "Cannot connect to the server. Check your internet connection.",
+      "validationError": "Validation Error",
+      "userError": "Could not identify user",
+      "formatError": "Format Error",
+      "dateFormatError": "Date must be in MM/YY format with valid month (01-12)"
+    },
+    "common": {
+      "ok": "OK",
+      "error": "Error"
+    },
+    "gestionServicios": {
+      "validation": {
+        "serviceIdRequired": "Service ID is required",
+        "serviceNameRequired": "Service name is required",
+        "serviceNameMin": "Name must have at least 2 characters",
+        "serviceActiveRequired": "Active status is required",
+        "providerIdRequired": "Provider ID is required",
+        "providerNameRequired": "Provider name is required",
+        "providerNameMin": "Name must have at least 2 characters",
+        "serviceRequired": "Service is required",
+        "serviceMin": "Service must have at least 2 characters",
+        "priceMin": "Price must be greater than or equal to 0",
+        "priceRequired": "Price is required",
+        "ratingMin": "Minimum rating is 0",
+        "ratingMax": "Maximum rating is 5",
+        "ratingRequired": "Rating is required",
+        "providerActiveRequired": "Active status is required",
+        "spaceIdPositive": "ID must be a positive number",
+        "spaceIdRequired": "Space ID is required",
+        "spaceNameRequired": "Space name is required",
+        "spaceNameMin": "Name must have at least 3 characters",
+        "tabValid": "Tab must be included or external",
+        "activeTabRequired": "Active tab is required",
+        "spaceDataRequired": "Space data is required"
+      }
+    }
   }
 }

@@ -17,8 +17,8 @@ const AppContent = () => {
 
   const verificarTokenYRedirigir = useCallback(async () => {
     const { token, isLoggedIn } = auth;
-    
-    if (isLoggedIn && !token) {      
+
+    if (isLoggedIn && !token) {
       try {
         await SecureStore.deleteItemAsync('isLogged');
         await SecureStore.deleteItemAsync('usuario');
@@ -26,14 +26,14 @@ const AppContent = () => {
       } catch (error) {
         console.error(error);
       }
-      
+
       dispatch(desloguear());
       setIsLogged(false);
-      
-      return false; 
+
+      return false;
     }
-    
-    return true; 
+
+    return true;
   }, [auth, dispatch]);
 
   const handleSetIsLogged = useCallback(async (newLoginState) => {
@@ -110,7 +110,7 @@ const AppContent = () => {
         if (isLoggedStorage === 'true' && usuarioStorage) {
           try {
             const parsedUser = JSON.parse(usuarioStorage);
-            
+
             if (!parsedUser.token) {
               await resetSession();
               return;
