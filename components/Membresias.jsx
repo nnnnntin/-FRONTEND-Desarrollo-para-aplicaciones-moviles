@@ -648,17 +648,6 @@ const cancelarMembresiaBackend = async () => {
 
   
   const AlertaValidacion = () => {
-    if (datosValidados && Object.keys(erroresValidacion).length === 0) {
-      return (
-        <View style={styles.alertaExito}>
-          <Ionicons name="checkmark-circle" size={20} color="#27ae60" />
-          <Text style={styles.alertaExitoTexto}>
-            Todos los datos de membresías son válidos
-          </Text>
-        </View>
-      );
-    }
-
     if (Object.keys(erroresValidacion).length > 0) {
       return (
         <View style={styles.alertaError}>
