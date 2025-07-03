@@ -15,7 +15,7 @@ import {
   View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { cancelarReserva, confirmarReserva, obtenerReservas, selectErrorReservas, selectLoadingReservas, selectReservas } from '../store/slices/reservasSlice'; // ejemplo de ruta
+import { cancelarReserva, obtenerReservas, selectErrorReservas, selectLoadingReservas, selectReservas } from '../store/slices/reservasSlice'; // ejemplo de ruta
 
 const GestionReservas = ({ navigation }) => {
   const [tabActiva, setTabActiva] = useState('todas');
@@ -34,18 +34,32 @@ useEffect(() => {
 }, [dispatch]);
   
 
-
-  const estadisticas = useMemo(() => {
+const estadisticas = useMemo(() => {
+  // Estado inicial con solo las claves necesarias
   const base = {
-    total: 0, confirmadas: 0, pendientes: 0,
-    canceladas: 0, completadas: 0,
-    ingresosTotales: 0, comisionesTotales: 0,
+    total: 0,
+    confirmadas: 0,
+    pendientes: 0,
+    canceladas: 0,
+    ingresosTotales: 0,
+    comisionesTotales: 0,
+  };
+
+  // Relaciona el valor singular que llega en r.estado
+  // con la clave plural que queremos incrementar
+  const keyMap = {
+    confirmada: 'confirmadas',
+    pendiente : 'pendientes',
+    cancelada : 'canceladas',
   };
 
   return reservas.reduce((acc, r) => {
     acc.total += 1;
-    acc[r.estado] = (acc[r.estado] ?? 0) + 1;
-    if (r.estado !== 'cancelada') {
+
+    const key = keyMap[r.estado];      // 'confirmadas', 'pendientes' o 'canceladas'
+    if (key) acc[key] += 1;            // solo si el estado está mapeado
+
+    if (r.estado !== 'cancelada') {    // solo sumamos ingresos cuando no está cancelada
       acc.ingresosTotales   += r.precioTotal   ?? 0;
       acc.comisionesTotales += r.comision      ?? 0;
     }
@@ -119,42 +133,14 @@ const handleCancelarReserva = (reserva) => {
         text: 'Sí, cancelar',
         style: 'destructive',
         onPress: () => {
-          dispatch(cancelarReserva({ reservaId: reserva.id, motivo: 'Cancelada desde app' }));
+          dispatch(cancelarReserva({ reservaId: reserva._id, motivo: 'Cancelada desde app' }));
           setModalDetalle(false);
         }
       }
     ]
   );
 };
-
-  const handleConfirmarReserva = (reserva) => {
-  Alert.alert(
-    'Confirmar reserva',
-    '¿Confirmar esta reserva?',
-    [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Confirmar',
-        onPress: () => {
-          dispatch(confirmarReserva({ reservaId: reserva.id, datosPago: {/* lo que toque */} }));
-          setModalDetalle(false);
-        }
-      }
-    ]
-  );
-};
-
-  const handleContactarUsuario = (email, tipo) => {
-    Alert.alert(
-      `Contactar ${tipo}`,
-      `¿Enviar email a ${email}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Enviar', onPress: () => console.log('Abrir email') }
-      ]
-    );
-  };
-
+   
   const renderReserva = ({ item }) => {
     const estadoInfo = getEstadoInfo(item.estado);
     const tipoInfo = getTipoEspacioInfo(item.entidadReservada.tipo);
@@ -281,11 +267,11 @@ const handleCancelarReserva = (reserva) => {
           </Text>
           <Text style={styles.estatLabel}>Pendientes</Text>
         </View>
-        <View style={styles.estatItem}>
+         <View style={styles.estatItem}>
           <Text style={[styles.estatNumero, { color: '#27ae60' }]}>
-            ${estadisticas.comisionesTotales}
+            {estadisticas.canceladas}
           </Text>
-          <Text style={styles.estatLabel}>Comisiones</Text>
+          <Text style={styles.estatLabel}>Canceladas</Text>
         </View>
       </View>
 
@@ -295,7 +281,7 @@ const handleCancelarReserva = (reserva) => {
         style={styles.tabsContainer}
         contentContainerStyle={styles.tabsContent}
       >
-        {['todas', 'pendiente', 'confirmada', 'en_curso', 'completada', 'cancelada'].map(tab => (
+        {['todas', 'pendiente', 'confirmada', 'cancelada'].map(tab => (
           <TouchableOpacity
             key={tab}
             style={[styles.tab, tabActiva === tab && styles.tabActive]}
@@ -393,21 +379,6 @@ const handleCancelarReserva = (reserva) => {
                 </View>
 
                 <View style={styles.modalSeccion}>
-                  <Text style={styles.modalSeccionTitle}>Información del cliente</Text>
-                  <TouchableOpacity
-                    style={styles.modalClienteCard}
-                    onPress={() => handleContactarUsuario(reservaSeleccionada.usuarioId.email, 'cliente')}
-                  >
-                    <Ionicons name="person-circle" size={40} color="#4a90e2" />
-                    <View style={styles.modalClienteInfo}>
-                      <Text style={styles.modalClienteNombre}>{reservaSeleccionada.usuarioId.nombre}</Text>
-                      <Text style={styles.modalClienteEmail}>{reservaSeleccionada.usuarioId.email}</Text>
-                    </View>
-                    <Ionicons name="mail" size={20} color="#4a90e2" />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.modalSeccion}>
                   <Text style={styles.modalSeccionTitle}>Detalles de la reserva</Text>
                   <View style={styles.modalDetalle}>
                     <Ionicons name="calendar" size={16} color="#4a90e2" />
@@ -461,20 +432,6 @@ const handleCancelarReserva = (reserva) => {
                   </View>
                 </View>
 
-                {reservaSeleccionada.estado === 'cancelada' && (
-                  <View style={styles.modalAlerta}>
-                    <Ionicons name="information-circle" size={20} color="#e74c3c" />
-                    <View style={styles.modalAlertaContent}>
-                      <Text style={styles.modalAlertaTitle}>Cancelación</Text>
-                      <Text style={styles.modalAlertaText}>
-                        Fecha: {reservaSeleccionada.fechaCancelacion}
-                      </Text>
-                      <Text style={styles.modalAlertaText}>
-                        Motivo: {reservaSeleccionada.motivoCancelacion}
-                      </Text>
-                    </View>
-                  </View>
-                )}
 
                 {reservaSeleccionada.estado === 'completada' && reservaSeleccionada.calificacion && (
                   <View style={styles.modalCalificacion}>
@@ -500,13 +457,6 @@ const handleCancelarReserva = (reserva) => {
                 <View style={styles.modalAcciones}>
                   {reservaSeleccionada.estado === 'pendiente' && (
                     <>
-                      <TouchableOpacity
-                        style={[styles.modalBoton, styles.botonConfirmar]}
-                        onPress={() => handleConfirmarReserva(reservaSeleccionada)}
-                      >
-                        <Ionicons name="checkmark" size={16} color="#fff" />
-                        <Text style={styles.modalBotonText}>Confirmar</Text>
-                      </TouchableOpacity>
 
                       <TouchableOpacity
                         style={[styles.modalBoton, styles.botonCancelar]}
@@ -528,20 +478,8 @@ const handleCancelarReserva = (reserva) => {
                     </TouchableOpacity>
                   )}
 
-                  <TouchableOpacity
-                    style={[styles.modalBoton, styles.botonContactar]}
-                    onPress={() => handleContactarUsuario(reservaSeleccionada.emailCliente, 'cliente')}
-                  >
-                    <Ionicons name="mail" size={16} color="#fff" />
-                    <Text style={styles.modalBotonText}>Contactar cliente</Text>
-                  </TouchableOpacity>
                 </View>
 
-                <View style={styles.modalTimestamp}>
-                  <Text style={styles.timestampText}>
-                    Creada el {reservaSeleccionada.fechaCreacion}
-                  </Text>
-                </View>
               </ScrollView>
             )}
           </View>

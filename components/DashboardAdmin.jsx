@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Dimensions,
   FlatList,
@@ -11,11 +11,53 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-
+import { useDispatch, useSelector } from 'react-redux';
+import { obtenerProveedores } from '../store/slices/proveedoresSlice';
+import { obtenerReservas, selectReservas } from '../store/slices/reservasSlice'; // ejemplo de ruta
+import { obtenerUsuarios } from '../store/slices/usuarioSlice';
 const { width } = Dimensions.get('window');
 
 const DashboardAdmin = ({ navigation }) => {
   const [periodoSeleccionado, setPeriodoSeleccionado] = useState('mes');
+  const dispatch = useDispatch();
+  const usuarios = useSelector(state => state.usuario.usuarios);
+  const reservas = useSelector(selectReservas);
+   const { proveedores, loading } = useSelector(state => state.proveedores);
+ const {
+    espaciosFiltrados = [],
+  } = useSelector(state => state.espacios || {});
+
+
+useEffect(() => {
+  dispatch(obtenerReservas()); 
+  dispatch(obtenerUsuarios({ skip: 0, limit: 100 }));         // pasa skip/limit si querés
+  dispatch(obtenerProveedores(0, 100));
+}, [dispatch]);
+
+const {
+    gananciasTotales,
+    comisionReservas,
+    pendientesCobro
+  } = useMemo(() => {
+    const rate = 0.10;                  // 10 %  ‑‑ cámbialo si debía ser 0.001 (=0,10 %)
+    let ingresos = 0;
+    let pendientes = 0;
+
+    reservas.forEach(r => {
+      const monto = r.precioTotal || 0;
+      if (['confirmada', 'completada'].includes(r.estado)) {
+        ingresos += monto;
+      } else {
+        pendientes += monto;
+      }
+    });
+
+    return {
+      gananciasTotales: ingresos,
+      comisionReservas: ingresos * rate,
+      pendientesCobro: pendientes
+    };
+  }, [reservas]);
 
   const datosBase = {
     día: {
@@ -253,57 +295,40 @@ const DashboardAdmin = ({ navigation }) => {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.resumenFinanciero}>
-          <Text style={styles.resumenTitulo}>Resumen Financiero</Text>
-          <View style={styles.periodosContainer}>
-            {['día', 'semana', 'mes'].map((periodo) => (
-              <TouchableOpacity
-                key={periodo}
-                style={[
-                  styles.periodoButton,
-                  periodoSeleccionado === periodo && styles.periodoButtonActive
-                ]}
-                onPress={() => setPeriodoSeleccionado(periodo)}
-              >
-                <Text style={[
-                  styles.periodoText,
-                  periodoSeleccionado === periodo && styles.periodoTextActive
-                ]}>
-                  {periodo.charAt(0).toUpperCase() + periodo.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+  <Text style={styles.resumenTitulo}>Resumen Financiero</Text>
 
-          <View style={styles.montoContainer}>
-            <Text style={styles.montoLabel}>Ganancias {getEtiquetaPeriodo()}</Text>
-            <Text style={styles.montoValor}>${estadisticas.finanzas.gananciasPeriodo.toLocaleString()}</Text>
-          </View>
+  {/* Ganancias totales */}
+  <View style={styles.montoContainer}>
+    <Text style={styles.montoLabel}>Ganancias totales</Text>
+    <Text style={styles.montoValor}>
+      ${gananciasTotales.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+    </Text>
+  </View>
 
-          <View style={styles.detalleFinanciero}>
-            <View style={styles.detalleItem}>
-              <Ionicons name="business" size={20} color="#4a90e2" />
-              <View style={styles.detalleInfo}>
-                <Text style={styles.detalleLabel}>Comisiones reservas</Text>
-                <Text style={styles.detalleValor}>${estadisticas.finanzas.comisionesReservas.toLocaleString()}</Text>
-              </View>
-            </View>
-            <View style={styles.detalleItem}>
-              <Ionicons name="construct" size={20} color="#27ae60" />
-              <View style={styles.detalleInfo}>
-                <Text style={styles.detalleLabel}>Comisiones servicios</Text>
-                <Text style={styles.detalleValor}>${estadisticas.finanzas.comisionesServicios.toLocaleString()}</Text>
-              </View>
-            </View>
-            <View style={styles.detalleItem}>
-              <Ionicons name="time" size={20} color="#f39c12" />
-              <View style={styles.detalleInfo}>
-                <Text style={styles.detalleLabel}>Pendiente cobro</Text>
-                <Text style={styles.detalleValor}>${estadisticas.finanzas.pendientesCobro.toLocaleString()}</Text>
-              </View>
-            </View>
-          </View>
-        </View>
+  {/* Detalle financiero */}
+  <View style={styles.detalleFinanciero}>
+    <View style={styles.detalleItem}>
+      <Ionicons name="business" size={20} color="#4a90e2" />
+      <View style={styles.detalleInfo}>
+        <Text style={styles.detalleLabel}>Comisiones reservas (10 %)</Text>
+        <Text style={styles.detalleValor}>
+          ${comisionReservas.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+        </Text>
+      </View>
+    </View>
 
+    <View style={styles.detalleItem}>
+      <Ionicons name="time" size={20} color="#f39c12" />
+      <View style={styles.detalleInfo}>
+        <Text style={styles.detalleLabel}>Pendiente cobro</Text>
+        <Text style={styles.detalleValor}>
+          ${pendientesCobro.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+        </Text>
+      </View>
+    </View>
+  </View>
+</View>
+{/* ---------- FIN RESUMEN FINANCIERO ---------- */}
         <View style={styles.statsGrid}>
           <TouchableOpacity
             style={styles.statCard}
@@ -312,9 +337,9 @@ const DashboardAdmin = ({ navigation }) => {
             <View style={[styles.statIconContainer, { backgroundColor: '#4a90e220' }]}>
               <Ionicons name="people" size={24} color="#4a90e2" />
             </View>
-            <Text style={styles.statNumber}>{estadisticas.usuarios.total}</Text>
+            <Text style={styles.statNumber}>{usuarios.length}</Text>
             <Text style={styles.statLabel}>Usuarios totales</Text>
-            <Text style={styles.statSubtext}>+{estadisticas.usuarios.nuevosEstePeriodo} {getEtiquetaPeriodo()}</Text>
+           
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -324,22 +349,21 @@ const DashboardAdmin = ({ navigation }) => {
             <View style={[styles.statIconContainer, { backgroundColor: '#27ae6020' }]}>
               <Ionicons name="business" size={24} color="#27ae60" />
             </View>
-            <Text style={styles.statNumber}>{estadisticas.espacios.activos}</Text>
+            <Text style={styles.statNumber}>{espaciosFiltrados.length}</Text>
             <Text style={styles.statLabel}>Espacios activos</Text>
             <Text style={styles.statSubtext}>+{estadisticas.espacios.nuevosEstePeriodo} {getEtiquetaPeriodo()}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.statCard}
-            onPress={() => navegarA('GestionReservas')}
-          >
-            <View style={[styles.statIconContainer, { backgroundColor: '#9b59b620' }]}>
-              <Ionicons name="calendar" size={24} color="#9b59b6" />
-            </View>
-            <Text style={styles.statNumber}>{estadisticas.reservas.estePeriodo}</Text>
-            <Text style={styles.statLabel}>Reservas {getEtiquetaPeriodo()}</Text>
-            <Text style={styles.statSubtext}>{estadisticas.reservas.total} totales</Text>
-          </TouchableOpacity>
+              style={styles.statCard}
+              onPress={() => navegarA('GestionReservas')}
+            >
+              <View style={[styles.statIconContainer, { backgroundColor: '#9b59b620' }]}>
+                <Ionicons name="calendar" size={24} color="#9b59b6" />
+              </View>
+              <Text style={styles.statNumber}>{reservas.length}</Text>
+              <Text style={styles.statLabel}>Reservas totales</Text>
+            </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.statCard}
@@ -348,7 +372,7 @@ const DashboardAdmin = ({ navigation }) => {
             <View style={[styles.statIconContainer, { backgroundColor: '#e67e2220' }]}>
               <Ionicons name="construct" size={24} color="#e67e22" />
             </View>
-            <Text style={styles.statNumber}>{estadisticas.servicios.proveedoresActivos}</Text>
+            <Text style={styles.statNumber}>{proveedores.length}</Text>
             <Text style={styles.statLabel}>Proveedores activos</Text>
             <Text style={styles.statSubtext}>{estadisticas.servicios.solicitudes} solicitudes</Text>
           </TouchableOpacity>
