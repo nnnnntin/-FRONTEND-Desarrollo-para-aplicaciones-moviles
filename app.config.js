@@ -22,7 +22,7 @@ export default {
       package: "com.mnacimento.aplicacion",
       permissions: ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
       adaptiveIcon: {
-        foregroundImage: "./assets/icon.png",
+        foregroundImage: "./assets/images/logo.png",
         backgroundColor: "#ffffff"
       },
       config: {

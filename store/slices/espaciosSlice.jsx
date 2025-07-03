@@ -220,28 +220,28 @@ export const actualizarEspacio = createAsyncThunk(
         return rejectWithValue(`Tipo de espacio no válido: ${tipo}`);
       }
 
-      const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}${endpoint}/${id}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${auth.token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(datosActualizados)
-        }
-      );
+      const url = `${process.env.EXPO_PUBLIC_API_URL}${endpoint}/${id}`;
+
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(datosActualizados)
+      });
 
       const data = await response.json();
 
       if (!response.ok) {
-        return rejectWithValue(data.message || `Error HTTP ${response.status}: Error al actualizar el espacio`);
+        const errorMessage = data.message || data.error || `Error HTTP ${response.status}`;
+        return rejectWithValue(errorMessage);
       }
 
-      return { data, tipo, id };
+      return { data, tipo, id }; 
     } catch (error) {
-      console.error(error);
-      return rejectWithValue('Error de conexión al actualizar el espacio');
+      console.error('Network/Parse error:', error);
+      return rejectWithValue(`Error de conexión: ${error.message}`);
     }
   }
 );

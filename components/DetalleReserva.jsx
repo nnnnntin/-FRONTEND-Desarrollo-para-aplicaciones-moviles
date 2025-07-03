@@ -4,13 +4,11 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Modal,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
@@ -403,34 +401,6 @@ const DetalleReserva = ({ navigation, route }) => {
     navigation.goBack();
   };
 
-  const ErroresValidacionComponent = () => {
-    if (validacionCompleta || Object.keys(erroresValidacion).length === 0) {
-      return null;
-    }
-
-    return (
-      <View style={styles.errorContainer}>
-        <View style={styles.errorHeader}>
-          <Ionicons name="warning" size={20} color="#e74c3c" />
-          <Text style={styles.errorTitle}>Datos de reserva incompletos</Text>
-        </View>
-        <Text style={styles.errorDescription}>
-          Algunos datos de la reserva presentan inconsistencias. La funcionalidad puede verse limitada.
-        </Text>
-        {Object.keys(erroresValidacion).slice(0, 3).map((campo, index) => (
-          <Text key={index} style={styles.errorItem}>
-            • {erroresValidacion[campo]}
-          </Text>
-        ))}
-        {Object.keys(erroresValidacion).length > 3 && (
-          <Text style={styles.errorMore}>
-            ...y {Object.keys(erroresValidacion).length - 3} errores más
-          </Text>
-        )}
-      </View>
-    );
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
@@ -452,8 +422,6 @@ const DetalleReserva = ({ navigation, route }) => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <ErroresValidacionComponent />
-
         <View style={styles.imageContainer}>
           {loadingDetalle ? (
             <View style={styles.imagePlaceholder}>

@@ -130,7 +130,8 @@ export const cargarNotificacionesUsuario = (usuarioId, token, options = {}) => {
       });
 
       if (!response.ok) {
-        throw new Error('Error al cargar notificaciones');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Error al cargar notificaciones');
       }
 
       const data = await response.json();
@@ -142,6 +143,8 @@ export const cargarNotificacionesUsuario = (usuarioId, token, options = {}) => {
         notificacionesData = data.notificaciones;
       } else if (data.datos && Array.isArray(data.datos)) {
         notificacionesData = data.datos;
+      } else if (data.data && Array.isArray(data.data)) {
+        notificacionesData = data.data;
       } else {
         notificacionesData = [];
       }
@@ -151,15 +154,14 @@ export const cargarNotificacionesUsuario = (usuarioId, token, options = {}) => {
         .sort((a, b) => new Date(b.fechaRaw) - new Date(a.fechaRaw));
 
       dispatch(setNotificaciones(notificacionesProcesadas));
-
-      return notificacionesProcesadas;
+      return { payload: notificacionesProcesadas };
 
     } catch (error) {
-      console.error(error);
+      console.error('Error al cargar notificaciones:', error);
       if (!options.silencioso) {
         dispatch(setError(error.message || 'Error al cargar notificaciones'));
       }
-      return [];
+      return { payload: [] };
     }
   };
 };
@@ -187,31 +189,50 @@ export const recargarNotificacionesDesdeBackend = (usuarioId, token, opciones = 
   };
 };
 
-export const marcarNotificacionComoLeida = (notificacionId, token) => {
+export const marcarNotificacionComoLeida = (notificacionId, token, usuarioId) => {
   return async (dispatch) => {
     try {
-      const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/v1/notificaciones/leer`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            notificacionId: notificacionId
-          }),
-        }
-      );
-
-      if (response.ok) {
-        dispatch(marcarComoLeida(notificacionId));
-      } else {
-        dispatch(marcarComoLeida(notificacionId));
-      }
-    } catch (error) {
-      console.error(error);
       dispatch(marcarComoLeida(notificacionId));
+      
+      const url = `${process.env.EXPO_PUBLIC_API_URL}/v1/notificaciones/leer`;
+      
+      const bodyData = {
+        notificacionId: notificacionId,
+        usuarioId: usuarioId 
+      };
+            
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bodyData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error del servidor:', errorData);
+        
+        dispatch(updateNotificacion({
+          id: notificacionId,
+          leida: false
+        }));
+        
+        throw new Error(errorData.error || errorData.message || 'Error al marcar como leída');
+      }
+
+      const result = await response.json();
+      
+    } catch (error) {
+      console.error('Error:', error);
+      
+      dispatch(updateNotificacion({
+        id: notificacionId,
+        leida: false
+      }));
+      
+      throw error;
     }
   };
 };
@@ -312,10 +333,14 @@ const mapearNotificacion = (notifBackend) => {
   }
 
   let estadoLeido = false;
-  if (notifBackend.hasOwnProperty('leido')) {
+  if (typeof notifBackend.leido === 'boolean') {
     estadoLeido = notifBackend.leido;
-  } else if (notifBackend.hasOwnProperty('leida')) {
+  } else if (typeof notifBackend.leida === 'boolean') {
     estadoLeido = notifBackend.leida;
+  } else if (typeof notifBackend.read === 'boolean') {
+    estadoLeido = notifBackend.read;
+  } else if (typeof notifBackend.isRead === 'boolean') {
+    estadoLeido = notifBackend.isRead;
   }
 
   const notificacionMapeada = {

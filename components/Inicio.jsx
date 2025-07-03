@@ -15,6 +15,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Swipeable, RectButton } from 'react-native-gesture-handler';
+import DraggableFlatList from 'react-native-draggable-flatlist';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { desloguear } from '../store/slices/authSlice';
@@ -35,6 +37,7 @@ import HamburgerMenu from './HamburgerMenu';
 const Inicio = ({ navigation, setIsLogged, resetSession }) => {
   const [menuVisible, setMenuVisible] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [modoReordenar, setModoReordenar] = useState(false);
   const dispatch = useDispatch();
 
   const {
@@ -117,18 +120,8 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
     try {
       if (tipoUsuario === 'cliente') {
         const result = await dispatch(cargarEspaciosCliente());
-        if (cargarEspaciosCliente.rejected.match(result)) {
-          console.error('Error cargando espacios del cliente:', result.payload);
-        } else {
-          console.log('Espacios del cliente cargados exitosamente');
-        }
       } else {
         const result = await dispatch(cargarTodosLosEspacios({ filtroTipo }));
-        if (cargarTodosLosEspacios.rejected.match(result)) {
-          console.error('Error cargando todos los espacios:', result.payload);
-        } else {
-          console.log('Todos los espacios cargados exitosamente');
-        }
       }
     } catch (error) {
       console.error('Error inesperado al cargar espacios:', error);
@@ -143,13 +136,10 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
         return;
       }
 
-      console.log(`Cargando reservas para proveedor: ${usuarioId}`);
       const result = await dispatch(obtenerReservasPorProveedor(usuarioId));
 
       if (obtenerReservasPorProveedor.rejected.match(result)) {
         console.error('Error cargando reservas del proveedor:', result.payload);
-      } else {
-        console.log('Reservas del proveedor cargadas exitosamente');
       }
     } catch (error) {
       console.error('Error inesperado al cargar reservas del proveedor:', error);
@@ -187,6 +177,88 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
   const handleCloseMenu = () => {
     setMenuVisible(false);
   };
+
+  // Funciones para gestos de swipe
+  const eliminarEspacio = (espacioId) => {
+    Alert.alert(
+      "Eliminar Espacio",
+      "¿Estás seguro de que deseas eliminar este espacio?",
+      [
+        { text: "Cancelar", style: 'cancel' },
+        { 
+          text: "Eliminar", 
+          style: 'destructive',
+          onPress: () => {
+            // Aquí implementarías la lógica para eliminar el espacio
+            console.log('Eliminando espacio:', espacioId);
+            // dispatch(eliminarEspacio(espacioId));
+          }
+        }
+      ]
+    );
+  };
+
+  const editarEspacio = (espacio) => {
+    navigation.navigate('EditarEspacio', { espacio });
+  };
+
+  const eliminarReserva = (reservaId) => {
+    Alert.alert(
+      "Cancelar Reserva",
+      "¿Estás seguro de que deseas cancelar esta reserva?",
+      [
+        { text: "No", style: 'cancel' },
+        { 
+          text: "Sí, cancelar", 
+          style: 'destructive',
+          onPress: () => {
+            // Implementar lógica para cancelar reserva
+            console.log('Cancelando reserva:', reservaId);
+          }
+        }
+      ]
+    );
+  };
+
+  const renderRightActionsEspacio = (espacio) => (
+    <View style={styles.rightActions}>
+      <RectButton
+        style={[styles.actionButton, styles.editButton]}
+        onPress={() => editarEspacio(espacio)}
+      >
+        <Ionicons name="pencil" size={20} color="#fff" />
+        <Text style={styles.actionText}>Editar</Text>
+      </RectButton>
+      <RectButton
+        style={[styles.actionButton, styles.deleteButton]}
+        onPress={() => eliminarEspacio(espacio.id)}
+      >
+        <Ionicons name="trash" size={20} color="#fff" />
+        <Text style={styles.actionText}>Eliminar</Text>
+      </RectButton>
+    </View>
+  );
+
+  const renderRightActionsReserva = (reserva) => (
+    <View style={styles.rightActions}>
+      <RectButton
+        style={[styles.actionButton, styles.infoButton]}
+        onPress={() => verDetalleReserva(reserva)}
+      >
+        <Ionicons name="information-circle" size={20} color="#fff" />
+        <Text style={styles.actionText}>Info</Text>
+      </RectButton>
+      {reserva.estado === 'pendiente' && (
+        <RectButton
+          style={[styles.actionButton, styles.cancelButton]}
+          onPress={() => eliminarReserva(reserva._id || reserva.id)}
+        >
+          <Ionicons name="close" size={20} color="#fff" />
+          <Text style={styles.actionText}>Cancelar</Text>
+        </RectButton>
+      )}
+    </View>
+  );
 
   const verDetalleOficina = (espacio) => {
     if (!espacio || !espacio.datosCompletos) {
@@ -358,7 +430,8 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
     });
   };
 
-  const ReservaProveedorCard = ({ reserva }) => {
+  // Componente con swipe para reservas del proveedor
+  const ReservaProveedorCard = ({ reserva, drag, isActive }) => {
     if (!reserva) return null;
 
     const fechaInicio = new Date(reserva.fechaInicio);
@@ -373,12 +446,21 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
       return servicioProveedorId === usuarioId?.toString();
     }) || [];
 
-    const ingresosTotales = serviciosDelProveedor.reduce((total, servicio) => {
-      return total + (servicio.precio || 0);
-    }, 0);
-
-    return (
-      <View style={styles.reservaCard}>
+    const CardContent = (
+      <View style={[
+        styles.reservaCard,
+        isActive && styles.activeCard,
+        modoReordenar && styles.draggingCard
+      ]}>
+        {modoReordenar && (
+          <TouchableOpacity 
+            style={styles.dragHandle}
+            onLongPress={drag}
+          >
+            <Ionicons name="reorder-three" size={24} color="#7f8c8d" />
+          </TouchableOpacity>
+        )}
+        
         <View style={styles.reservaHeader}>
           <View style={styles.reservaInfo}>
             <Text style={styles.reservaTitulo}>
@@ -425,8 +507,19 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
         </View>
       </View>
     );
+
+    if (modoReordenar) {
+      return CardContent;
+    }
+
+    return (
+      <Swipeable renderRightActions={() => renderRightActionsReserva(reserva)}>
+        {CardContent}
+      </Swipeable>
+    );
   };
 
+  // Componente con swipe para espacios
   const EspacioCard = ({ espacio }) => {
     if (!espacio || !espacio.datosCompletos) {
       return null;
@@ -449,7 +542,7 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
 
     const imagenesDisponibles = espacio.fotos || espacio.imagenes || [];
 
-    return (
+    const CardContent = (
       <View style={styles.card}>
         <View style={styles.cardImageContainer}>
           {Array.isArray(imagenesDisponibles) && imagenesDisponibles.length > 0 ? (
@@ -531,6 +624,17 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
         </View>
       </View>
     );
+
+    // Solo mostrar swipe para espacios propios (cliente)
+    if (esPropio && tipoUsuario === 'cliente') {
+      return (
+        <Swipeable renderRightActions={() => renderRightActionsEspacio(espacio)}>
+          {CardContent}
+        </Swipeable>
+      );
+    }
+
+    return CardContent;
   };
 
   const reservasFiltradas = reservasProveedor.filter(reserva => {
@@ -546,6 +650,13 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
       estado.includes(textoBusquedaLower);
   });
 
+  // Función para manejar el reordenamiento de reservas
+  const onDragEndReservas = ({ data }) => {
+    // Aquí podrías guardar el nuevo orden en el estado o enviar a la API
+    console.log('Nuevo orden de reservas:', data);
+    // setReservasOrdenadas(data);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
@@ -560,177 +671,212 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
           {tipoUsuario === 'cliente' ? 'Mis espacios' :
             tipoUsuario === 'proveedor' ? 'Mis reservas de servicios' : 'Reservar espacios'}
         </Text>
-        <TouchableOpacity
-          style={styles.notificationButton}
-          onPress={() => navigation.navigate('Notificaciones')}
-        >
-          <Ionicons name="notifications-outline" size={24} color="#4a90e2" />
-          <View style={styles.notificationBadge} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          {tipoUsuario === 'proveedor' && (
+            <TouchableOpacity
+              style={[styles.reorderButton, modoReordenar && styles.reorderButtonActive]}
+              onPress={() => setModoReordenar(!modoReordenar)}
+            >
+              <Ionicons 
+                name={modoReordenar ? "checkmark" : "reorder-three"} 
+                size={20} 
+                color={modoReordenar ? "#fff" : "#4a90e2"} 
+              />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={() => navigation.navigate('Notificaciones')}
+          >
+            <Ionicons name="notifications-outline" size={24} color="#4a90e2" />
+            <View style={styles.notificationBadge} />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing || loadingReservasProveedor} onRefresh={onRefresh} />
-        }
-      >
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#7f8c8d" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={
-              tipoUsuario === 'usuario' ? 'Buscar espacios...' :
-                tipoUsuario === 'cliente' ? 'Buscar en mis espacios...' :
-                  'Buscar en mis reservas...'
-            }
-            placeholderTextColor="#999"
-            value={textoBusqueda}
-            onChangeText={handleSearchChange}
+      {/* Contenido principal */}
+      {tipoUsuario === 'proveedor' && modoReordenar ? (
+        // Vista de reordenamiento para reservas
+        <View style={styles.content}>
+          <Text style={styles.reorderTitle}>Arrastra para reordenar tus reservas</Text>
+          <DraggableFlatList
+            data={reservasFiltradas.map((reserva, index) => ({
+              ...reserva,
+              key: reserva._id || reserva.id || index.toString()
+            }))}
+            onDragEnd={onDragEndReservas}
+            keyExtractor={(item) => item.key}
+            renderItem={({ item, drag, isActive }) => (
+              <ReservaProveedorCard 
+                reserva={item} 
+                drag={drag} 
+                isActive={isActive} 
+              />
+            )}
+            contentContainerStyle={styles.draggableList}
           />
         </View>
-
-        {tipoUsuario === 'proveedor' && resumenProveedor && (
-          <View style={styles.estadisticasContainer}>
-            <Text style={styles.estadisticasTitle}>Resumen de servicios</Text>
-            <View style={styles.estadisticasGrid}>
-              <View style={styles.estadisticaItem}>
-                <Text style={styles.estadisticaNumero}>{resumenProveedor.totalReservas}</Text>
-                <Text style={styles.estadisticaLabel}>Total reservas</Text>
-              </View>
-              <View style={styles.estadisticaItem}>
-                <Text style={styles.estadisticaNumero}>{resumenProveedor.reservasConfirmadas}</Text>
-                <Text style={styles.estadisticaLabel}>Confirmadas</Text>
-              </View>
-              <View style={styles.estadisticaItem}>
-                <Text style={styles.estadisticaNumero}>${resumenProveedor.ingresosPotenciales || 0}</Text>
-                <Text style={styles.estadisticaLabel}>Ingresos</Text>
-              </View>
-            </View>
+      ) : (
+        // Vista normal con scroll
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing || loadingReservasProveedor} onRefresh={onRefresh} />
+          }
+        >
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color="#7f8c8d" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={
+                tipoUsuario === 'usuario' ? 'Buscar espacios...' :
+                  tipoUsuario === 'cliente' ? 'Buscar en mis espacios...' :
+                    'Buscar en mis reservas...'
+              }
+              placeholderTextColor="#999"
+              value={textoBusqueda}
+              onChangeText={handleSearchChange}
+            />
           </View>
-        )}
 
-        {(tipoUsuario === 'usuario' || tipoUsuario === 'administrador') && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.filtrosContainer}
-          >
-            {tipos.map(tipo => (
-              <TouchableOpacity
-                key={tipo.id}
-                style={[
-                  styles.filtroButton,
-                  filtroTipo === tipo.id && styles.filtroButtonActive
-                ]}
-                onPress={() => handleFiltroChange(tipo.id)}
-              >
-                <Ionicons
-                  name={tipo.icono}
-                  size={20}
-                  color={filtroTipo === tipo.id ? '#fff' : '#4a90e2'}
-                />
-                <Text style={[
-                  styles.filtroText,
-                  filtroTipo === tipo.id && styles.filtroTextActive
-                ]}>
-                  {tipo.nombre}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
-
-        {tipoUsuario === 'cliente' && (
-          <TouchableOpacity
-            style={styles.crearPublicacionButton}
-            onPress={handleCrearPublicacion}
-          >
-            <Ionicons name="add-circle" size={24} color="#fff" />
-            <Text style={styles.crearPublicacionText}>Crear nueva publicación</Text>
-          </TouchableOpacity>
-        )}
-
-        {tipoUsuario === 'proveedor' && (
-          <TouchableOpacity
-            style={styles.crearServicioButton}
-            onPress={handleCrearServicio}
-          >
-            <Ionicons name="add-circle" size={24} color="#fff" />
-            <Text style={styles.crearServicioText}>Crear nuevo servicio</Text>
-          </TouchableOpacity>
-        )}
-
-        {loading || loadingReservasProveedor ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4a90e2" />
-            <Text style={styles.loadingText}>
-              {tipoUsuario === 'proveedor' ? 'Cargando reservas...' : 'Cargando espacios...'}
-            </Text>
-          </View>
-        ) : tipoUsuario === 'proveedor' ? (
-          !Array.isArray(reservasFiltradas) || reservasFiltradas.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="calendar-outline" size={60} color="#bdc3c7" />
-              <Text style={styles.emptyText}>
-                {textoBusqueda ? 'No se encontraron reservas con ese criterio' : 'No tienes reservas con servicios'}
-              </Text>
-              <Text style={styles.emptySubtext}>
-                Las reservas que incluyan tus servicios aparecerán aquí
-              </Text>
+          {tipoUsuario === 'proveedor' && resumenProveedor && (
+            <View style={styles.estadisticasContainer}>
+              <Text style={styles.estadisticasTitle}>Resumen de servicios</Text>
+              <View style={styles.estadisticasGrid}>
+                <View style={styles.estadisticaItem}>
+                  <Text style={styles.estadisticaNumero}>{resumenProveedor.totalReservas}</Text>
+                  <Text style={styles.estadisticaLabel}>Total reservas</Text>
+                </View>
+                <View style={styles.estadisticaItem}>
+                  <Text style={styles.estadisticaNumero}>{resumenProveedor.reservasConfirmadas}</Text>
+                  <Text style={styles.estadisticaLabel}>Confirmadas</Text>
+                </View>
+              </View>
             </View>
-          ) : (
-            <View style={styles.reservasContainer}>
-              <Text style={styles.reservasCount}>
-                {reservasFiltradas.length} reserva{reservasFiltradas.length !== 1 ? 's' : ''}
-                {textoBusqueda ? ` encontrada${reservasFiltradas.length !== 1 ? 's' : ''}` : ' con tus servicios'}
-              </Text>
-              {reservasFiltradas.map((reserva) => (
-                <ReservaProveedorCard key={reserva._id || reserva.id || Math.random()} reserva={reserva} />
-              ))}
-            </View>
-          )
-        ) : (
-          !Array.isArray(espaciosFiltrados) || espaciosFiltrados.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Ionicons
-                name={
-                  tipoUsuario === 'cliente' ? 'business-outline' : 'search-outline'
-                }
-                size={60}
-                color="#bdc3c7"
-              />
-              <Text style={styles.emptyText}>
-                {tipoUsuario === 'cliente' ? 'No tienes espacios publicados' :
-                  textoBusqueda ? 'No se encontraron espacios con ese criterio' : 'No hay espacios disponibles'}
-              </Text>
-              <Text style={styles.emptySubtext}>
-                {tipoUsuario === 'cliente' ? 'Publica tu primer espacio y comienza a recibir reservas' :
-                  'Intenta ajustar los filtros de búsqueda'}
-              </Text>
-              {tipoUsuario === 'cliente' && (
+          )}
+
+          {(tipoUsuario === 'usuario' || tipoUsuario === 'administrador') && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.filtrosContainer}
+            >
+              {tipos.map(tipo => (
                 <TouchableOpacity
-                  style={styles.emptyButton}
-                  onPress={handleCrearPublicacion}
+                  key={tipo.id}
+                  style={[
+                    styles.filtroButton,
+                    filtroTipo === tipo.id && styles.filtroButtonActive
+                  ]}
+                  onPress={() => handleFiltroChange(tipo.id)}
                 >
-                  <Text style={styles.emptyButtonText}>Publicar espacio</Text>
+                  <Ionicons
+                    name={tipo.icono}
+                    size={20}
+                    color={filtroTipo === tipo.id ? '#fff' : '#4a90e2'}
+                  />
+                  <Text style={[
+                    styles.filtroText,
+                    filtroTipo === tipo.id && styles.filtroTextActive
+                  ]}>
+                    {tipo.nombre}
+                  </Text>
                 </TouchableOpacity>
-              )}
-            </View>
-          ) : (
-            <View style={styles.espaciosContainer}>
-              <Text style={styles.espaciosCount}>
-                {espaciosFiltrados.length} espacio{espaciosFiltrados.length !== 1 ? 's' : ''}
-                {textoBusqueda ? ` encontrado${espaciosFiltrados.length !== 1 ? 's' : ''}` : ' disponible'}
-              </Text>
-              {espaciosFiltrados.map((espacio) => (
-                <EspacioCard key={espacio.id || Math.random()} espacio={espacio} />
               ))}
+            </ScrollView>
+          )}
+
+          {tipoUsuario === 'cliente' && (
+            <TouchableOpacity
+              style={styles.crearPublicacionButton}
+              onPress={handleCrearPublicacion}
+            >
+              <Ionicons name="add-circle" size={24} color="#fff" />
+              <Text style={styles.crearPublicacionText}>Crear nueva publicación</Text>
+            </TouchableOpacity>
+          )}
+
+          {tipoUsuario === 'proveedor' && (
+            <TouchableOpacity
+              style={styles.crearServicioButton}
+              onPress={handleCrearServicio}
+            >
+              <Ionicons name="add-circle" size={24} color="#fff" />
+              <Text style={styles.crearServicioText}>Crear nuevo servicio</Text>
+            </TouchableOpacity>
+          )}
+
+          {loading || loadingReservasProveedor ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#4a90e2" />
+              <Text style={styles.loadingText}>
+                {tipoUsuario === 'proveedor' ? 'Cargando reservas...' : 'Cargando espacios...'}
+              </Text>
             </View>
-          )
-        )}
-      </ScrollView>
+          ) : tipoUsuario === 'proveedor' ? (
+            !Array.isArray(reservasFiltradas) || reservasFiltradas.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="calendar-outline" size={60} color="#bdc3c7" />
+                <Text style={styles.emptyText}>
+                  {textoBusqueda ? 'No se encontraron reservas con ese criterio' : 'No tienes reservas con servicios'}
+                </Text>
+                <Text style={styles.emptySubtext}>
+                  Las reservas que incluyan tus servicios aparecerán aquí
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.reservasContainer}>
+                <Text style={styles.reservasCount}>
+                  {reservasFiltradas.length} reserva{reservasFiltradas.length !== 1 ? 's' : ''}
+                  {textoBusqueda ? ` encontrada${reservasFiltradas.length !== 1 ? 's' : ''}` : ' con tus servicios'}
+                </Text>
+                {reservasFiltradas.map((reserva) => (
+                  <ReservaProveedorCard key={reserva._id || reserva.id || Math.random()} reserva={reserva} />
+                ))}
+              </View>
+            )
+          ) : (
+            !Array.isArray(espaciosFiltrados) || espaciosFiltrados.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons
+                  name={
+                    tipoUsuario === 'cliente' ? 'business-outline' : 'search-outline'
+                  }
+                  size={60}
+                  color="#bdc3c7"
+                />
+                <Text style={styles.emptyText}>
+                  {tipoUsuario === 'cliente' ? 'No tienes espacios publicados' :
+                    textoBusqueda ? 'No se encontraron espacios con ese criterio' : 'No hay espacios disponibles'}
+                </Text>
+                <Text style={styles.emptySubtext}>
+                  {tipoUsuario === 'cliente' ? 'Publica tu primer espacio y comienza a recibir reservas' :
+                    'Intenta ajustar los filtros de búsqueda'}
+                </Text>
+                {tipoUsuario === 'cliente' && (
+                  <TouchableOpacity
+                    style={styles.emptyButton}
+                    onPress={handleCrearPublicacion}
+                  >
+                    <Text style={styles.emptyButtonText}>Publicar espacio</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
+              <View style={styles.espaciosContainer}>
+                <Text style={styles.espaciosCount}>
+                  {espaciosFiltrados.length} espacio{espaciosFiltrados.length !== 1 ? 's' : ''}
+                  {textoBusqueda ? ` encontrado${espaciosFiltrados.length !== 1 ? 's' : ''}` : ' disponible'}
+                </Text>
+                {espaciosFiltrados.map((espacio) => (
+                  <EspacioCard key={espacio.id || Math.random()} espacio={espacio} />
+                ))}
+              </View>
+            )
+          )}
+        </ScrollView>
+      )}
 
       <TouchableOpacity
         style={styles.floatingMapButton}
@@ -790,6 +936,32 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginHorizontal: 10,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  reorderButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#4a90e2',
+  },
+  reorderButtonActive: {
+    backgroundColor: '#4a90e2',
+  },
+  reorderTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    textAlign: 'center',
+    marginVertical: 15,
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 8,
+    marginHorizontal: 20,
+  },
   notificationButton: {
     position: 'relative',
     padding: 5,
@@ -806,6 +978,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
+  },
+  draggableList: {
+    paddingVertical: 10,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -826,6 +1001,64 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'System',
     color: '#2c3e50',
+  },
+
+  // Estilos para gestos de swipe
+  rightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginBottom: 15,
+  },
+  actionButton: {
+    width: 80,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 5,
+    borderRadius: 8,
+  },
+  editButton: {
+    backgroundColor: '#f39c12',
+  },
+  deleteButton: {
+    backgroundColor: '#e74c3c',
+  },
+  infoButton: {
+    backgroundColor: '#3498db',
+  },
+  cancelButton: {
+    backgroundColor: '#e74c3c',
+  },
+  actionText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginTop: 4,
+  },
+
+  // Estilos para drag and drop
+  activeCard: {
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    transform: [{ scale: 1.02 }],
+  },
+  draggingCard: {
+    borderWidth: 2,
+    borderColor: '#4a90e2',
+    borderStyle: 'dashed',
+  },
+  dragHandle: {
+    position: 'absolute',
+    left: 10,
+    top: 10,
+    zIndex: 1000,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 15,
+    padding: 8,
   },
 
   estadisticasContainer: {
@@ -948,40 +1181,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#27ae60',
-  },
-  resumenFinanciero: {
-    borderTopWidth: 1,
-    borderTopColor: '#ecf0f1',
-    paddingTop: 12,
-  },
-  ingresoItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  ingresoLabel: {
-    fontSize: 14,
-    color: '#7f8c8d',
-  },
-  ingresoMonto: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#27ae60',
-  },
-  verReservaButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#4a90e2',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 8,
-    gap: 8,
-  },
-  verReservaButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
   },
 
   filtrosContainer: {

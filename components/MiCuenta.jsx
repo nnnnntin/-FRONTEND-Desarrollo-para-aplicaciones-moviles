@@ -78,24 +78,40 @@ const userProfileSchema = yup.object({
 
   password: yup
     .string()
-    .min(8, 'La contraseña debe tener al menos 8 caracteres')
-    .max(128, 'La contraseña no puede exceder 128 caracteres')
-    .matches(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-      'La contraseña debe contener al menos una minúscula, una mayúscula y un número'
-    )
-    .nullable(),
+    .nullable()
+    .test('password-optional', 'La contraseña debe tener al menos 8 caracteres', function (value) {
+      if (!value || value.length === 0) {
+        return true;
+      }
+      return value.length >= 8;
+    })
+    .test('password-max', 'La contraseña no puede exceder 128 caracteres', function (value) {
+      if (!value || value.length === 0) {
+        return true;
+      }
+      return value.length <= 128;
+    })
+    .test('password-pattern', 'La contraseña debe contener al menos una minúscula, una mayúscula y un número', function (value) {
+      if (!value || value.length === 0) {
+        return true;
+      }
+      return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(value);
+    }),
 
   confirmPassword: yup
     .string()
-    .when('password', {
-      is: (password) => password && password.length > 0,
-      then: (schema) => schema
-        .required('Debe confirmar la contraseña')
-        .test('passwords-match', 'Las contraseñas deben coincidir', function (value) {
-          return value === this.parent.password;
-        }),
-      otherwise: (schema) => schema.nullable(),
+    .nullable()
+    .test('passwords-match', 'Las contraseñas deben coincidir', function (value) {
+      const { password } = this.parent;
+      if (!password || password.length === 0) {
+        return true;
+      }
+      if (!value) {
+        return this.createError({
+          message: 'Debe confirmar la contraseña'
+        });
+      }
+      return value === password;
     }),
 });
 
@@ -129,27 +145,36 @@ const MiCuenta = ({ navigation }) => {
   const [editData, setEditData] = useState({ ...formData });
 
   useEffect(() => {
-    if (usuario) {
-      const data = {
-        username: usuario.username || '',
-        nombre: usuario.nombre || '',
-        apellidos: usuario.apellidos || '',
-        email: usuario.email || '',
-        telefono: usuario.datosPersonales?.telefono || '',
-        documentoIdentidad: usuario.datosPersonales?.documentoIdentidad || '',
-        imagen: usuario.imagen || '',
-        calle: usuario.direccion?.calle || '',
-        ciudad: usuario.direccion?.ciudad || '',
-        codigoPostal: usuario.direccion?.codigoPostal || '',
-        pais: usuario.direccion?.pais || 'Uruguay',
-        password: '',
-        confirmPassword: ''
-      };
+  if (usuario) {
+    console.log('=== DEBUG USUARIO RECIBIDO ===');
+    console.log('Usuario completo:', JSON.stringify(usuario, null, 2));
+    console.log('Teléfono directo:', usuario.telefono);
+    console.log('Documento directo:', usuario.documentoIdentidad);
+    console.log('DatosPersonales:', usuario.datosPersonales);
+    
+    const data = {
+      username: usuario.username || '',
+      nombre: usuario.nombre || '',
+      apellidos: usuario.apellidos || '',
+      email: usuario.email || '',
+      telefono: usuario.datosPersonales?.telefono || usuario.telefono || '',
+      documentoIdentidad: usuario.datosPersonales?.documentoIdentidad || usuario.documentoIdentidad || '',
+      imagen: usuario.imagen || '',
+      calle: usuario.direccion?.calle || usuario.calle || '',
+      ciudad: usuario.direccion?.ciudad || usuario.ciudad || '',
+      codigoPostal: usuario.direccion?.codigoPostal || usuario.codigoPostal || '',
+      pais: usuario.direccion?.pais || usuario.pais || 'Uruguay',
+      password: '',
+      confirmPassword: ''
+    };
 
-      setFormData(data);
-      setEditData(data);
-    }
-  }, [usuario]);
+    console.log('=== DATOS MAPEADOS ===');
+    console.log('FormData resultante:', JSON.stringify(data, null, 2));
+    
+    setFormData(data);
+    setEditData(data);
+  }
+}, [usuario]);
 
   const validateField = async (fieldName, value) => {
     try {
@@ -198,8 +223,14 @@ const MiCuenta = ({ navigation }) => {
 
   const handleEdit = async () => {
     if (isEditing) {
+      const dataToValidate = { ...editData };
 
-      const isValid = await validateForm(editData);
+      if (!editData.password || editData.password.trim() === '') {
+        delete dataToValidate.password;
+        delete dataToValidate.confirmPassword;
+      }
+
+      const isValid = await validateForm(dataToValidate);
 
       if (!isValid) {
         Alert.alert('Error de validación', 'Por favor corrige los errores en el formulario');
@@ -211,14 +242,16 @@ const MiCuenta = ({ navigation }) => {
         return;
       }
 
-      if (editData.password && editData.password !== editData.confirmPassword) {
-        Alert.alert('Error', 'Las contraseñas no coinciden');
-        return;
-      }
+      if (editData.password && editData.password.trim() !== '') {
+        if (editData.password !== editData.confirmPassword) {
+          Alert.alert('Error', 'Las contraseñas no coinciden');
+          return;
+        }
 
-      if (editData.password && editData.password.length < 8) {
-        Alert.alert('Error', 'La contraseña debe tener al menos 8 caracteres');
-        return;
+        if (editData.password.length < 8) {
+          Alert.alert('Error', 'La contraseña debe tener al menos 8 caracteres');
+          return;
+        }
       }
 
       try {
@@ -251,7 +284,7 @@ const MiCuenta = ({ navigation }) => {
           updateData.direccion = direccion;
         }
 
-        if (editData.password) {
+        if (editData.password && editData.password.trim() !== '') {
           updateData.password = editData.password;
         }
 

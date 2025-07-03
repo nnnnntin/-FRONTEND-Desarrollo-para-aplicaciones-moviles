@@ -248,9 +248,16 @@ const Notificaciones = ({ navigation }) => {
       return;
     }
 
+    const usuarioId = usuario._id || usuario.id;
+    if (!usuarioId) {
+      Alert.alert('Error', 'ID de usuario no disponible');
+      return;
+    }
+
     try {
-      await dispatch(marcarNotificacionComoLeida(item.id, token));
+      await dispatch(marcarNotificacionComoLeida(item.id, token, usuarioId));
     } catch (error) {
+      console.error('Error al marcar como leída:', error);
       Alert.alert('Error', 'No se pudo marcar la notificación como leída');
     }
   };

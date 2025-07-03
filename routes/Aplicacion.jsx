@@ -31,8 +31,8 @@ import ServiciosEspacio from '../components/ServiciosEspacio';
 import ServiciosOfrecidos from '../components/ServiciosOfrecidos';
 import ServiciosProveedor from '../components/ServiciosProveedor';
 import Transacciones from '../components/Transacciones';
-import Listar from './Listar';
 import { desloguear } from '../store/slices/authSlice';
+import Listar from './Listar';
 
 const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
@@ -319,7 +319,9 @@ const Aplicacion = ({ setIsLogged, resetSession }) => {
         name='Inicio'
         options={{
           headerShown: false,
-          title: getTituloPrincipal()
+          title: getTituloPrincipal(),
+          swipeEnabled: false,
+          gestureEnabled: false
         }}
       >
         {props => (

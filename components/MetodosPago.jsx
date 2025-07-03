@@ -688,6 +688,51 @@ const crearFacturaDesdeReserva = async (reserva, pago, usuario, datosReserva) =>
   }
 };
 
+const enviarNotificacion = async (tipo, titulo, mensaje, entidadRelacionada, auth) => {
+  try {
+    const USUARIO_HARDCODED = '685dc0ada569cd95307eab86';
+
+    const notificacionData = {
+      tipoNotificacion: tipo || 'general',
+      titulo: ` ${titulo}`,
+      mensaje: `${mensaje}`,
+      destinatarioId: USUARIO_HARDCODED,
+      entidadRelacionada: entidadRelacionada || undefined,
+      prioridad: 'media'
+    };
+
+    const validacion = await validarNotificacion(notificacionData);
+    if (!validacion.valido) {
+      console.error('Validación falló para notificación de prueba:', validacion.errores);
+      return false;
+    }
+
+    const response = await fetch(
+      `${process.env.EXPO_PUBLIC_API_URL}/v1/notificaciones`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(notificacionData)
+      }
+    );
+
+    if (response.ok) {
+      return true;
+    } else {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Error enviando notificación de prueba:', errorData);
+      return false;
+    }
+
+  } catch (error) {
+    console.error('Error en enviarNotificacionPrueba:', error);
+    return false;
+  }
+};
+
 const crearNotificacionPropietario = async (reserva, datosReserva, usuarioReservante, auth) => {
   try {
     const espacioDetalle = await obtenerDetalleEspacioPorId(datosReserva.espacioId, auth.token);
@@ -1191,7 +1236,6 @@ const MetodosPago = ({ navigation, route }) => {
       }
 
       if (!modoSuscripcion && datosReserva) {
-
         const validacionReserva = await validarDatosReserva(datosReserva);
         if (!validacionReserva.valido) {
           Alert.alert(
@@ -1286,12 +1330,13 @@ const MetodosPago = ({ navigation, route }) => {
           }
 
           const pagoCreado = resultadoPago.payload;
+          const pagoActual = pagoCreado.pago || pagoCreado;
 
           let facturaCreada = null;
           try {
             const facturaData = await crearFacturaDesdeReserva(
               reservaActual,
-              pagoCreado,
+              pagoActual,
               usuario,
               datosReserva
             );
@@ -1309,38 +1354,26 @@ const MetodosPago = ({ navigation, route }) => {
 
             if (crearFactura.fulfilled.match(resultadoFactura)) {
               facturaCreada = resultadoFactura.payload;
+              const facturaActual = facturaCreada.factura || facturaCreada;
+
               try {
-                const pagoCreado = resultadoPago.payload;
-                const facturaCreada = resultadoFactura.payload;
-
-                const pagoId = pagoCreado?._id ||
-                  pagoCreado?.id ||
-                  pagoCreado?.pago?._id ||
-                  pagoCreado?.pago?.id ||
-                  pagoCreado?.data?._id ||
-                  pagoCreado?.data?.id;
-
-                const facturaId = facturaCreada?._id ||
-                  facturaCreada?.id ||
-                  facturaCreada?.factura?._id ||
-                  facturaCreada?.factura?.id ||
-                  facturaCreada?.data?._id ||
-                  facturaCreada?.data?.id;
+                const pagoId = pagoActual._id || pagoActual.id;
+                const facturaId = facturaActual._id || facturaActual.id;
 
                 if (pagoId && facturaId) {
-
                   const resultadoVinculacion = await dispatch(vincularFacturaPago({
                     pagoId: pagoId.toString(),
                     facturaData: { facturaId: facturaId.toString() }
                   }));
                 }
               } catch (error) {
-                console.error(error);
+                console.error('Error vinculando factura con pago:', error);
               }
             } else {
               throw new Error(resultadoFactura.payload || 'Error al crear factura');
             }
           } catch (facturaError) {
+            console.warn('Error en factura:', facturaError);
             Alert.alert(
               'Advertencia',
               'La reserva y pago se procesaron correctamente, pero hubo un problema al generar la factura. Puedes solicitar la factura más tarde desde el detalle de la transacción.',
@@ -1348,13 +1381,140 @@ const MetodosPago = ({ navigation, route }) => {
             );
           }
 
+          const transaccionCompleta = {
+            id: `TRANS_${Date.now()}_${reservaId}`,
+            fecha: new Date().toLocaleDateString('es-ES'),
+            precio: `${parseFloat(datosReserva.precioTotal || 0).toFixed(2)}`,
+
+            usuario: {
+              nombre: usuario?.nombre || usuario?.name ||
+                `${usuario?.firstName || ''} ${usuario?.lastName || ''}`.trim() || 'Usuario',
+              name: usuario?.name || usuario?.nombre,
+              firstName: usuario?.firstName,
+              lastName: usuario?.lastName,
+              email: usuario?.email || usuario?.correo || '',
+              correo: usuario?.correo || usuario?.email || ''
+            },
+
+            reserva: {
+              id: reservaId,
+              espacioNombre: datosReserva.espacioNombre || 'Espacio no especificado',
+              entidadReservada: {
+                nombre: datosReserva.espacioNombre || 'Espacio no especificado',
+                tipo: reservaParaBackend.entidadReservada?.tipo || 'oficina'
+              },
+              fecha: datosReserva.fecha,
+              horaInicio: datosReserva.horaInicio,
+              horaFin: datosReserva.horaFin,
+              cantidadPersonas: parseInt(datosReserva.cantidadPersonas) || 1,
+              estado: reservaActual.estado || 'confirmada',
+              tipoReserva: reservaParaBackend.tipoReserva || 'hora',
+              serviciosAdicionales: (datosReserva.serviciosAdicionales || []).map(servicio => ({
+                nombre: servicio.nombre || 'Servicio adicional',
+                precio: parseFloat(servicio.precio || 0),
+                unidadPrecio: servicio.unidadPrecio || 'servicio',
+                cantidad: parseInt(servicio.cantidad || 1)
+              }))
+            },
+
+            pago: {
+              id: pagoActual._id || pagoActual.id,
+              _id: pagoActual._id || pagoActual.id,
+              monto: parseFloat(datosReserva.precioTotal || 0),
+              moneda: 'USD',
+              conceptoPago: 'Reserva',
+              fecha: new Date(),
+              estado: pagoActual.estado || 'completado',
+              comprobante: pagoActual.comprobante || `comp_${Date.now()}_${reservaId}`,
+              metodoPago: {
+                tipo: mapearTipoMetodoPago(metodo.tipo),
+                detalles: {
+                  ultimosDigitos: metodo.ultimosDigitos || '****',
+                  numeroAutorizacion: pagoActual.metodoPago?.detalles?.numeroAutorizacion ||
+                    `AUTH_${Date.now()}`
+                }
+              }
+            },
+
+            factura: facturaCreada ? {
+              id: (facturaCreada.factura || facturaCreada)._id ||
+                (facturaCreada.factura || facturaCreada).id,
+              numeroFactura: (facturaCreada.factura || facturaCreada).numeroFactura,
+              fechaEmision: new Date(),
+              fechaVencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+              estado: 'pagada',
+              subtotal: parseFloat(datosReserva.precioTotal || 0),
+              descuentoTotal: datosReserva.descuento?.porcentaje ?
+                (parseFloat(datosReserva.precioTotal || 0) * (datosReserva.descuento.porcentaje / 100)) : 0,
+              total: parseFloat(datosReserva.precioTotal || 0)
+            } : null,
+
+            oficina: {
+              nombre: datosReserva.espacioNombre || oficina?.nombre || 'Espacio'
+            },
+
+            metodo: {
+              ultimosDigitos: metodo.ultimosDigitos || '****'
+            }
+          };
+
+          const limpiarObjeto = (obj) => {
+            if (Array.isArray(obj)) {
+              return obj.map(limpiarObjeto).filter(item => item !== null && item !== undefined);
+            } else if (obj && typeof obj === 'object') {
+              const cleaned = {};
+              Object.keys(obj).forEach(key => {
+                if (obj[key] !== undefined && obj[key] !== null) {
+                  if (typeof obj[key] === 'object') {
+                    const cleanedNested = limpiarObjeto(obj[key]);
+                    if (cleanedNested && (Array.isArray(cleanedNested) ? cleanedNested.length > 0 : Object.keys(cleanedNested).length > 0)) {
+                      cleaned[key] = cleanedNested;
+                    }
+                  } else {
+                    cleaned[key] = obj[key];
+                  }
+                }
+              });
+              return cleaned;
+            }
+            return obj;
+          };
+
+          const transaccionLimpia = limpiarObjeto(transaccionCompleta);
+
+          if (!transaccionLimpia.id || !transaccionLimpia.fecha || !transaccionLimpia.precio) {
+            console.error('Campos críticos faltantes en transacción:', {
+              id: transaccionLimpia.id,
+              fecha: transaccionLimpia.fecha,
+              precio: transaccionLimpia.precio
+            });
+            Alert.alert(
+              'Error interno',
+              'No se pudieron generar correctamente los datos de la transacción',
+              [{ text: 'OK', onPress: () => setEstadoPago('error') }]
+            );
+            return;
+          }
+
+          setTransaccionActual(transaccionLimpia);
+
           try {
             await Promise.all([
               crearNotificacionPropietario(reservaActual, datosReserva, usuario, auth),
-              crearNotificacionUsuario(reservaActual, pagoCreado, facturaCreada, usuario, auth)
+              crearNotificacionUsuario(reservaActual, pagoActual, facturaCreada, usuario, auth),
+              enviarNotificacion(
+                'reserva',
+                'Nueva reserva creada',
+                `Reserva de ${datosReserva.espacioNombre} por ${usuario?.nombre || 'Usuario'} el ${datosReserva.fecha}`,
+                {
+                  tipo: 'reserva',
+                  id: (reservaActual._id || reservaActual.id).toString()
+                },
+                auth
+              )
             ]);
           } catch (error) {
-            console.error(error);
+            console.error('Error creando notificaciones:', error);
           }
 
           try {
@@ -1363,43 +1523,13 @@ const MetodosPago = ({ navigation, route }) => {
               dispatch(cargarNotificacionesUsuario(userId, auth.token));
             }
           } catch (error) {
-            console.error(error);
+            console.error('Error cargando notificaciones:', error);
           }
-
-          setTransaccionActual({
-            id: pagoCreado._id || pagoCreado.id,
-            fecha: new Date().toLocaleDateString('es-ES'),
-            precio: precio,
-            oficina: oficina,
-            metodo: metodo,
-            usuario: {
-              id: usuario?.id || usuario?._id,
-              nombre: usuario?.nombre || usuario?.name || 'Usuario',
-              email: usuario?.email || usuario?.correo
-            },
-            reserva: {
-              id: reservaId,
-              espacioNombre: datosReserva.espacioNombre,
-              fecha: datosReserva.fecha,
-              horaInicio: datosReserva.horaInicio,
-              horaFin: datosReserva.horaFin,
-              cantidadPersonas: datosReserva.cantidadPersonas,
-              serviciosAdicionales: datosReserva.serviciosAdicionales,
-              estado: 'confirmada',
-              entidadReservada: {
-                tipo: reservaParaBackend.entidadReservada.tipo,
-                nombre: datosReserva.espacioNombre
-              },
-              tipoReserva: reservaParaBackend.tipoReserva
-            },
-            pago: pagoCreado,
-            factura: facturaCreada
-          });
 
           setEstadoPago('confirmado');
 
         } catch (error) {
-          console.error(error);
+          console.error('Error en procesamiento de reserva:', error);
           Alert.alert(
             'Error en reserva',
             `Error al procesar la reserva: ${error.message || 'Error desconocido'}`,
@@ -1409,9 +1539,6 @@ const MetodosPago = ({ navigation, route }) => {
 
       } else if (modoSuscripcion && planSuscripcion) {
         try {
-
-          const validacionPlan = await validarPayloadPago(planSuscripcion);
-
           const usuarioId = usuario?._id || usuario?.id || usuario?.userId;
 
           if (!usuario) {
@@ -1470,16 +1597,18 @@ const MetodosPago = ({ navigation, route }) => {
               dispatch(actualizarSuscripcionActual(suscripcion));
             }
 
-            setTransaccionActual({
-              id: `suscripcion_${Date.now()}`,
+            const transaccionSuscripcion = {
+              id: `SUBS_${Date.now()}_${planId}`,
               fecha: new Date().toLocaleDateString('es-ES'),
-              precio: precio,
-              metodo: metodo,
+              precio: precio || '$0.00',
+
               usuario: {
-                id: usuarioId,
                 nombre: usuario.nombre || usuario.username || 'Usuario',
-                email: usuario.email
+                name: usuario.name || usuario.nombre,
+                email: usuario.email || usuario.correo || '',
+                correo: usuario.correo || usuario.email || ''
               },
+
               suscripcion: {
                 planId: planId,
                 planNombre: planSuscripcion.nombre,
@@ -1487,9 +1616,14 @@ const MetodosPago = ({ navigation, route }) => {
                 fechaVencimiento: usuarioActualizado.membresia.fechaVencimiento,
                 renovacionAutomatica: usuarioActualizado.membresia.renovacionAutomatica,
                 estado: 'activa'
-              }
-            });
+              },
 
+              metodo: {
+                ultimosDigitos: metodo.ultimosDigitos || '****'
+              }
+            };
+
+            setTransaccionActual(transaccionSuscripcion);
             setEstadoPago('confirmado');
 
           } else {
@@ -1497,6 +1631,7 @@ const MetodosPago = ({ navigation, route }) => {
           }
 
         } catch (suscripcionError) {
+          console.error('Error en suscripción:', suscripcionError);
           Alert.alert(
             'Error en la suscripción',
             `No se pudo procesar la suscripción: ${suscripcionError.message}`,
@@ -1507,6 +1642,7 @@ const MetodosPago = ({ navigation, route }) => {
       }
 
     } catch (error) {
+      console.error('Error general en procesarPago:', error);
       Alert.alert(
         'Error en el pago',
         `Ocurrió un error inesperado: ${error.message || 'Error desconocido'}`,

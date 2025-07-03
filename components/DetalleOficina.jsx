@@ -1539,77 +1539,55 @@ const DetalleOficina = ({ navigation, route }) => {
           text: 'Guardar',
           onPress: async () => {
             try {
-              const datosActualizados = {
-                nombre: editData.nombre.trim(),
-                tipo: editData.configuracion || editData.tipo,
-                descripcion: editData.descripcion.trim(),
+              const datosValidados = validarYLimpiarDatos();
 
-                ubicacion: {
-                  ...(editData.ubicacion.edificioId && { edificioId: editData.ubicacion.edificioId }),
-                  piso: parseInt(editData.ubicacion.piso),
-                  ...(editData.ubicacion.numero && { numero: editData.ubicacion.numero }),
-                  ...(editData.ubicacion.zona && { zona: editData.ubicacion.zona }),
-                  ...(editData.ubicacion.sector && { sector: editData.ubicacion.sector }),
-                  coordenadas: {
-                    lat: editData.ubicacion.coordenadas.lat,
-                    lng: editData.ubicacion.coordenadas.lng
-                  },
-                  direccionCompleta: {
-                    calle: editData.ubicacion.direccionCompleta.calle,
-                    numero: editData.ubicacion.direccionCompleta.numero,
-                    ciudad: editData.ubicacion.direccionCompleta.ciudad,
-                    departamento: editData.ubicacion.direccionCompleta.departamento,
-                    codigoPostal: editData.ubicacion.direccionCompleta.codigoPostal,
-                    pais: editData.ubicacion.direccionCompleta.pais
-                  }
-                },
-
-                ...(editData.capacidadPersonas && { capacidad: parseInt(editData.capacidadPersonas) }),
-                ...(editData.superficieM2 && { superficieM2: parseFloat(editData.superficieM2) }),
-
-                precios: {
-                  ...(editData.precios.porHora && { porHora: parseFloat(editData.precios.porHora) }),
-                  ...(editData.precios.porDia && { porDia: parseFloat(editData.precios.porDia) }),
-                  ...(editData.precios.porMes && { porMes: parseFloat(editData.precios.porMes) })
-                },
-
-                disponibilidad: {
-                  horario: {
-                    apertura: editData.disponibilidad.horario.apertura,
-                    cierre: editData.disponibilidad.horario.cierre
-                  },
-                  dias: editData.disponibilidad.dias
-                },
-
-                horarioDisponible: {
-                  horaInicio: editData.disponibilidad.horario.apertura,
-                  horaFin: editData.disponibilidad.horario.cierre,
-                  diasSemana: editData.disponibilidad.dias
-                },
-
-                amenidades: editData.amenidades,
-
-                equipamiento: editData.equipamiento.map(item => ({
-                  tipo: item,
-                  descripcion: `${item} disponible`
-                })),
-
-                imagenes: editingImages,
-                estado: editData.estado,
-                activo: editData.estado === 'disponible',
-                codigo: datosEspacio?.codigo || `${editData.tipo.toUpperCase().substring(0, 2)}-${Date.now()}`
-              };
+              if (!datosValidados) {
+                Alert.alert('Error', 'Los datos no son válidos para enviar');
+                return;
+              }
 
               const result = await dispatch(actualizarEspacio({
                 id: oficina.id,
-                tipo: oficina.tipo,
-                datosActualizados
+                tipo: oficina.tipo, 
+                datosActualizados: datosValidados
               }));
 
               if (actualizarEspacio.fulfilled.match(result)) {
                 setDatosEspacio(result.payload.data);
                 setIsEditing(false);
-                setEditData({});
+
+                setEditData({
+                  nombre: '',
+                  descripcion: '',
+                  tipo: 'oficina',
+                  configuracion: '',
+                  superficieM2: '',
+                  capacidadPersonas: '',
+                  ubicacion: {
+                    edificioId: '',
+                    piso: '1',
+                    numero: '',
+                    zona: '',
+                    sector: '',
+                    coordenadas: { lat: null, lng: null },
+                    direccionCompleta: {
+                      calle: '',
+                      numero: '',
+                      ciudad: 'Montevideo',
+                      departamento: 'Montevideo',
+                      codigoPostal: '11000',
+                      pais: 'Uruguay'
+                    }
+                  },
+                  precios: { porHora: '', porDia: '', porMes: '' },
+                  disponibilidad: {
+                    horario: { apertura: '09:00', cierre: '18:00' },
+                    dias: ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
+                  },
+                  amenidades: [],
+                  equipamiento: [],
+                  estado: 'disponible'
+                });
                 setEditingImages([]);
 
                 Alert.alert('Éxito', 'Los cambios se han guardado correctamente');
@@ -1618,11 +1596,38 @@ const DetalleOficina = ({ navigation, route }) => {
                   navigation.setOptions({ title: editData.nombre });
                 }
               } else {
-                throw new Error(result.payload || 'Error al guardar los cambios');
+                const errorMessage = result.payload || 'Error al guardar los cambios';
+                console.error('Error del servidor:', errorMessage);
+
+                if (typeof errorMessage === 'string') {
+                  if (errorMessage.includes('400')) {
+                    Alert.alert(
+                      'Error de validación',
+                      'Los datos enviados no son válidos. Verifica:\n\n' +
+                      '• Todos los campos obligatorios están completos\n' +
+                      '• Las coordenadas están seleccionadas\n' +
+                      '• Los precios son números válidos\n' +
+                      '• Las imágenes se han subido correctamente\n\n' +
+                      'Error técnico: ' + errorMessage
+                    );
+                  } else if (errorMessage.includes('401')) {
+                    Alert.alert('Error de autenticación', 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+                  } else if (errorMessage.includes('403')) {
+                    Alert.alert('Error de permisos', 'No tienes permisos para editar este espacio.');
+                  } else if (errorMessage.includes('404')) {
+                    Alert.alert('Error', 'El espacio no fue encontrado. Puede haber sido eliminado.');
+                  } else if (errorMessage.includes('500')) {
+                    Alert.alert('Error del servidor', 'Hay un problema temporal en el servidor. Intenta nuevamente en unos minutos.');
+                  } else {
+                    Alert.alert('Error', errorMessage);
+                  }
+                } else {
+                  Alert.alert('Error', 'Ocurrió un error inesperado al guardar los cambios.');
+                }
               }
             } catch (error) {
-              console.error(error);
-              Alert.alert('Error', 'No se pudieron guardar los cambios. Inténtalo de nuevo.');
+              console.error('Error en handleSave:', error);
+              Alert.alert('Error', 'Ocurrió un error inesperado: ' + error.message);
             }
           },
         },
@@ -1630,10 +1635,160 @@ const DetalleOficina = ({ navigation, route }) => {
     );
   };
 
+const validarYLimpiarDatos = () => {
+  try {
+    if (!editData.nombre?.trim()) {
+      console.error(' Nombre requerido');
+      return null;
+    }
+
+    if (!editData.ubicacion?.coordenadas?.lat || !editData.ubicacion?.coordenadas?.lng) {
+      console.error('Coordenadas requeridas');
+      return null;
+    }
+
+    const datosLimpios = {
+      nombre: editData.nombre.trim(),
+    };
+
+    if (editData.ubicacion) {
+      datosLimpios.ubicacion = {
+        piso: parseInt(editData.ubicacion.piso) || 1,
+        coordenadas: {
+          lat: parseFloat(editData.ubicacion.coordenadas.lat),
+          lng: parseFloat(editData.ubicacion.coordenadas.lng)
+        }
+      };
+
+      if (editData.ubicacion.direccionCompleta) {
+        datosLimpios.ubicacion.direccionCompleta = {
+          calle: editData.ubicacion.direccionCompleta.calle?.trim() || '',
+          numero: editData.ubicacion.direccionCompleta.numero?.trim() || '',
+          ciudad: editData.ubicacion.direccionCompleta.ciudad?.trim() || 'Montevideo',
+          departamento: editData.ubicacion.direccionCompleta.departamento?.trim() || 'Montevideo',
+          codigoPostal: editData.ubicacion.direccionCompleta.codigoPostal?.trim() || '11000',
+          pais: editData.ubicacion.direccionCompleta.pais || 'Uruguay'
+        };
+      }
+
+      if (editData.ubicacion.numero) {
+        datosLimpios.ubicacion.numero = editData.ubicacion.numero.trim();
+      }
+      if (editData.ubicacion.zona) {
+        datosLimpios.ubicacion.zona = editData.ubicacion.zona.trim();
+      }
+      if (editData.ubicacion.sector) {
+        datosLimpios.ubicacion.sector = editData.ubicacion.sector.trim();
+      }
+    }
+
+    if (editData.estado) {
+      datosLimpios.estado = editData.estado;
+      datosLimpios.activo = editData.estado === 'disponible';
+    }
+
+    if (editData.capacidadPersonas) {
+      const capacidad = parseInt(editData.capacidadPersonas);
+      if (capacidad > 0) {
+        datosLimpios.capacidad = capacidad;
+      }
+    }
+
+    if (editData.superficieM2 && editData.tipo === 'oficina') {
+      const superficie = parseFloat(editData.superficieM2);
+      if (superficie > 0) {
+        datosLimpios.superficieM2 = superficie;
+      }
+    }
+    if (editData.disponibilidad) {
+      datosLimpios.disponibilidad = {
+        horario: {
+          apertura: editData.disponibilidad.horario?.apertura || '09:00',
+          cierre: editData.disponibilidad.horario?.cierre || '18:00'
+        },
+        dias: editData.disponibilidad.dias || ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
+      };
+    }
+
+    if (editData.amenidades && Array.isArray(editData.amenidades) && editData.amenidades.length > 0) {
+      datosLimpios.amenidades = editData.amenidades;
+    }
+
+    if (editData.equipamiento && Array.isArray(editData.equipamiento) && editData.equipamiento.length > 0) {
+      datosLimpios.equipamiento = editData.equipamiento;
+    }
+
+    if (editingImages && Array.isArray(editingImages) && editingImages.length > 0) {
+      datosLimpios.imagenes = editingImages;
+    }
+    return datosLimpios;
+
+  } catch (error) {
+    console.error(' Error al validar datos safe:', error);
+    return null;
+  }
+};
   const handleCancel = () => {
-    setIsEditing(false);
-    setEditData({});
-    setEditingImages([]);
+    Alert.alert(
+      'Cancelar edición',
+      '¿Estás seguro de que quieres cancelar? Se perderán todos los cambios.',
+      [
+        {
+          text: 'Continuar editando',
+          style: 'cancel',
+        },
+        {
+          text: 'Cancelar edición',
+          style: 'destructive',
+          onPress: () => {
+            setIsEditing(false);
+            setEditData({
+              nombre: '',
+              descripcion: '',
+              tipo: 'oficina',
+              configuracion: '',
+              superficieM2: '',
+              capacidadPersonas: '',
+              ubicacion: {
+                edificioId: '',
+                piso: '1',
+                numero: '',
+                zona: '',
+                sector: '',
+                coordenadas: {
+                  lat: null,
+                  lng: null
+                },
+                direccionCompleta: {
+                  calle: '',
+                  numero: '',
+                  ciudad: 'Montevideo',
+                  departamento: 'Montevideo',
+                  codigoPostal: '11000',
+                  pais: 'Uruguay'
+                }
+              },
+              precios: {
+                porHora: '',
+                porDia: '',
+                porMes: ''
+              },
+              disponibilidad: {
+                horario: {
+                  apertura: '09:00',
+                  cierre: '18:00'
+                },
+                dias: ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
+              },
+              amenidades: [],
+              equipamiento: [],
+              estado: 'disponible'
+            });
+            setEditingImages([]);
+          },
+        },
+      ]
+    );
   };
 
   const MapaEdicionModal = () => (
