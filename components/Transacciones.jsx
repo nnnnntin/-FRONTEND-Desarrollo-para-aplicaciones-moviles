@@ -32,7 +32,6 @@ const metodoPagoSchema = Yup.object({
   })
 });
 
-
 const pagoSchema = Yup.object({
   id: Yup.string().required('ID del pago es requerido'),
   _id: Yup.string(),
@@ -42,7 +41,7 @@ const pagoSchema = Yup.object({
     .required('Monto es requerido'),
   moneda: Yup.string()
     .test('moneda-valida', 'Moneda no válida', function (value) {
-      if (!value) return true; 
+      if (!value) return true;
       const monedasValidas = ['USD', 'UYU', 'EUR'];
       return monedasValidas.includes(value);
     })
@@ -55,7 +54,7 @@ const pagoSchema = Yup.object({
     .required('Fecha del pago es requerida'),
   estado: Yup.string()
     .test('estado-pago-valido', 'Estado de pago no válido', function (value) {
-      if (!value) return true; 
+      if (!value) return true;
       const estadosValidos = ['pendiente', 'completado', 'fallido', 'cancelado'];
       return estadosValidos.includes(value);
     })
@@ -66,7 +65,6 @@ const pagoSchema = Yup.object({
 }).test('id-required', 'Se requiere ID del pago', function (value) {
   return value.id || value._id;
 });
-
 
 const facturaSchema = Yup.object({
   id: Yup.string().required('ID de la factura es requerido'),
@@ -86,7 +84,7 @@ const facturaSchema = Yup.object({
     .required('Fecha de vencimiento es requerida'),
   estado: Yup.string()
     .test('estado-factura-valido', 'Estado de factura no válido', function (value) {
-      if (!value) return true; 
+      if (!value) return true;
       const estadosValidos = ['pendiente', 'pagada', 'vencida', 'cancelada'];
       return estadosValidos.includes(value);
     })
@@ -110,9 +108,8 @@ const facturaSchema = Yup.object({
 }).test('total-valido', 'El total debe ser igual al subtotal menos el descuento', function (value) {
   const { subtotal, descuentoTotal, total } = value;
   const totalCalculado = subtotal - descuentoTotal;
-  return Math.abs(total - totalCalculado) < 0.01; 
+  return Math.abs(total - totalCalculado) < 0.01;
 });
-
 
 const entidadReservadaSchema = Yup.object({
   nombre: Yup.string()
@@ -126,7 +123,6 @@ const entidadReservadaSchema = Yup.object({
     })
     .required('Tipo de entidad es requerido')
 });
-
 
 const servicioAdicionalSchema = Yup.object({
   nombre: Yup.string()
@@ -144,7 +140,6 @@ const servicioAdicionalSchema = Yup.object({
     })
     .required('Unidad de precio es requerida')
 });
-
 
 const reservaSchema = Yup.object({
   id: Yup.string().required('ID de la reserva es requerido'),
@@ -168,7 +163,7 @@ const reservaSchema = Yup.object({
     .required('Cantidad de personas es requerida'),
   estado: Yup.string()
     .test('estado-reserva-valido', 'Estado de reserva no válido', function (value) {
-      if (!value) return true; 
+      if (!value) return true;
       const estadosValidos = ['pendiente', 'confirmada', 'completada', 'cancelada'];
       return estadosValidos.includes(value);
     })
@@ -188,7 +183,6 @@ const reservaSchema = Yup.object({
   return fin > inicio;
 });
 
-
 const usuarioSchema = Yup.object({
   nombre: Yup.string().max(100, 'El nombre no puede exceder 100 caracteres').trim(),
   name: Yup.string().max(100, 'El nombre no puede exceder 100 caracteres').trim(),
@@ -200,7 +194,6 @@ const usuarioSchema = Yup.object({
   return value.nombre || value.name || value.firstName ||
     (value.firstName && value.lastName && `${value.firstName} ${value.lastName}`.trim());
 });
-
 
 const transaccionSchema = Yup.object({
   id: Yup.string().max(100, 'El ID no puede exceder 100 caracteres'),
@@ -225,7 +218,6 @@ const transaccionSchema = Yup.object({
   })
 });
 
-
 const navigationParamsSchema = Yup.object({
   reservaId: Yup.string().max(100, 'ID de reserva no puede exceder 100 caracteres'),
   pagoId: Yup.string().max(100, 'ID de pago no puede exceder 100 caracteres'),
@@ -246,45 +238,38 @@ const Transacciones = ({ navigation, route }) => {
   const [usuarioValidado, setUsuarioValidado] = useState(null);
   const [erroresValidacion, setErroresValidacion] = useState({});
 
-  
   const validarTransaccion = useCallback((data) => {
     try {
       if (!data) return null;
       transaccionSchema.validateSync(data);
       return data;
     } catch (error) {
-      console.warn('Transacción inválida:', error.message);
       setErroresValidacion(prev => ({ ...prev, transaccion: error.message }));
       return null;
     }
   }, []);
 
-  
   const validarUsuario = useCallback((data) => {
     try {
       if (!data) return null;
       usuarioSchema.validateSync(data);
       return data;
     } catch (error) {
-      console.warn('Usuario inválido:', error.message);
       setErroresValidacion(prev => ({ ...prev, usuario: error.message }));
       return null;
     }
   }, []);
 
-  
   const validarNavigationParams = useCallback((params) => {
     try {
       navigationParamsSchema.validateSync(params);
       return true;
     } catch (error) {
-      console.warn('Parámetros de navegación inválidos:', error.message);
       setErroresValidacion(prev => ({ ...prev, navigation: error.message }));
       return false;
     }
   }, []);
 
-  
   useEffect(() => {
     try {
       if (transaccion) {
@@ -297,7 +282,7 @@ const Transacciones = ({ navigation, route }) => {
         setUsuarioValidado(usuarioValido);
       }
     } catch (error) {
-      console.error('Error en validación inicial:', error);
+      console.error(error);
     }
   }, [transaccion, usuario, validarTransaccion, validarUsuario]);
 
@@ -315,7 +300,6 @@ const Transacciones = ({ navigation, route }) => {
         facturaId: transaccionValidada?.factura?.id
       };
 
-      
       if (validarNavigationParams(params)) {
         navigation.navigate('FormularioProblema', params);
       } else {
@@ -337,7 +321,6 @@ const Transacciones = ({ navigation, route }) => {
         `${userAuth?.firstName || ''} ${userAuth?.lastName || ''}`.trim() ||
         'Usuario';
     } catch (error) {
-      console.error('Error al obtener nombre de usuario:', error);
       return 'Usuario';
     }
   }, [transaccionValidada, usuarioValidado]);
@@ -352,7 +335,6 @@ const Transacciones = ({ navigation, route }) => {
         userAuth?.correo ||
         '';
     } catch (error) {
-      console.error('Error al obtener email de usuario:', error);
       return '';
     }
   }, [transaccionValidada, usuarioValidado]);
@@ -368,12 +350,11 @@ const Transacciones = ({ navigation, route }) => {
       const pago = transaccionValidada?.pago;
       const factura = transaccionValidada?.factura;
 
-      
       if (pago) {
         try {
           pagoSchema.validateSync(pago);
         } catch (error) {
-          console.warn('Pago inválido en PDF:', error.message);
+          console.warn(error.message);
         }
       }
 
@@ -381,7 +362,7 @@ const Transacciones = ({ navigation, route }) => {
         try {
           facturaSchema.validateSync(factura);
         } catch (error) {
-          console.warn('Factura inválida en PDF:', error.message);
+          console.warn(error.message);
         }
       }
 
@@ -389,7 +370,7 @@ const Transacciones = ({ navigation, route }) => {
         try {
           reservaSchema.validateSync(reserva);
         } catch (error) {
-          console.warn('Reserva inválida en PDF:', error.message);
+          console.warn(error.message);
         }
       }
 
@@ -677,7 +658,7 @@ const Transacciones = ({ navigation, route }) => {
         </html>
       `;
     } catch (error) {
-      console.error('Error al generar contenido PDF:', error);
+      console.error(error);
       throw new Error('Error al generar el comprobante');
     }
   }, [transaccionValidada, obtenerNombreUsuario, obtenerEmailUsuario]);
@@ -696,7 +677,7 @@ const Transacciones = ({ navigation, route }) => {
       });
       await Print.printAsync({ uri });
     } catch (error) {
-      console.error('Error al imprimir:', error);
+      console.error(error);
       const msg = error?.message ?? '';
       if (msg.includes('Printing did not complete')) {
         return;
@@ -722,7 +703,6 @@ const Transacciones = ({ navigation, route }) => {
         base64: false,
       });
 
-      
       const reservaId = transaccionValidada?.reserva?.id ?
         `_${transaccionValidada.reserva.id.slice(-6)}` : '';
       const pagoId = transaccionValidada?.pago?.id ?
@@ -753,7 +733,7 @@ const Transacciones = ({ navigation, route }) => {
       }
 
     } catch (error) {
-      console.error('Error al compartir:', error);
+      console.error(error);
       const msg = error?.message || '';
       if (msg.toLowerCase().includes('cancel') || msg.includes('CANCELLED')) {
         return;
@@ -809,7 +789,6 @@ const Transacciones = ({ navigation, route }) => {
     }
   };
 
-  
   const datosTransaccion = useMemo(() => {
     if (!transaccionValidada) return null;
 
@@ -824,7 +803,6 @@ const Transacciones = ({ navigation, route }) => {
     };
   }, [transaccionValidada, obtenerNombreUsuario, obtenerEmailUsuario]);
 
-  
   if (!transaccionValidada && !erroresValidacion.transaccion) {
     return (
       <SafeAreaView style={styles.container}>
@@ -1173,7 +1151,6 @@ const Transacciones = ({ navigation, route }) => {
                         </View>
                       );
                     } catch (error) {
-                      console.warn(`Servicio ${index} inválido:`, error.message);
                       return null;
                     }
                   })}

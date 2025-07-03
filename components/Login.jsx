@@ -21,13 +21,13 @@ const loginSchema = yup.object({
   email: yup
     .string()
     .required('El usuario es obligatorio')
-    .test('email-or-username', 'Usuario inválido', function(value) {
+    .test('email-or-username', 'Usuario inválido', function (value) {
       if (!value) return false;
-      
+
       if (value.includes('@')) {
         return yup.string().email('Email inválido').isValidSync(value);
       }
-      
+
       return yup.string()
         .min(3, 'El usuario debe tener al menos 3 caracteres')
         .max(50, 'El usuario no puede exceder los 50 caracteres')
@@ -45,7 +45,7 @@ const loginSchema = yup.object({
   tipoUsuario: yup
     .string()
     .required('El tipo de usuario es obligatorio')
-    .test('tipo-usuario-valido', 'Tipo de usuario inválido', function(value) {
+    .test('tipo-usuario-valido', 'Tipo de usuario inválido', function (value) {
       const tiposValidos = ['usuario', 'cliente', 'proveedor', 'administrador'];
       return tiposValidos.includes(value);
     })
@@ -55,7 +55,7 @@ const adminLoginSchema = yup.object({
   email: yup
     .string()
     .required('El usuario administrador es obligatorio')
-    .test('admin-user-valido', 'Usuario de administrador inválido', function(value) {
+    .test('admin-user-valido', 'Usuario de administrador inválido', function (value) {
       return value === 'admin';
     }),
 
@@ -66,7 +66,7 @@ const adminLoginSchema = yup.object({
 
   tipoUsuario: yup
     .string()
-    .test('tipo-admin-valido', 'Debe ser tipo administrador', function(value) {
+    .test('tipo-admin-valido', 'Debe ser tipo administrador', function (value) {
       return value === 'administrador';
     })
 });
@@ -106,26 +106,26 @@ const Login = ({ navigation, setIsLogged }) => {
       };
 
       await schema.validateAt(campo, datosCompletos);
-      
+
       setErrores(prev => ({
         ...prev,
         [campo]: null
       }));
-      
+
       return true;
     } catch (error) {
       setErrores(prev => ({
         ...prev,
         [campo]: error.message
       }));
-      
+
       return false;
     }
   };
 
   const validarFormulario = async () => {
     setValidacionEnCurso(true);
-    
+
     try {
       const schema = tipoUsuario === 'administrador' ? adminLoginSchema : loginSchema;
       const datosValidacion = {
@@ -135,14 +135,14 @@ const Login = ({ navigation, setIsLogged }) => {
       };
 
       await schema.validate(datosValidacion, { abortEarly: false });
-      
+
       setErrores({});
       setValidacionEnCurso(false);
       return true;
-      
+
     } catch (error) {
       const nuevosErrores = {};
-      
+
       if (error.inner) {
         error.inner.forEach(err => {
           nuevosErrores[err.path] = err.message;
@@ -150,7 +150,7 @@ const Login = ({ navigation, setIsLogged }) => {
       } else {
         nuevosErrores.general = error.message;
       }
-      
+
       setErrores(nuevosErrores);
       setValidacionEnCurso(false);
       return false;
@@ -159,7 +159,7 @@ const Login = ({ navigation, setIsLogged }) => {
 
   const handleEmailChange = (text) => {
     setEmail(text);
-    
+
     setTimeout(() => {
       validarCampo('email', text);
     }, 500);
@@ -167,7 +167,7 @@ const Login = ({ navigation, setIsLogged }) => {
 
   const handlePasswordChange = (text) => {
     setPassword(text);
-    
+
     setTimeout(() => {
       validarCampo('password', text);
     }, 500);
@@ -175,12 +175,12 @@ const Login = ({ navigation, setIsLogged }) => {
 
   const handleLogin = async () => {
     const esValido = await validarFormulario();
-    
+
     if (!esValido) {
       const erroresTexto = Object.values(errores)
         .filter(error => error)
         .join('\n');
-      
+
       Alert.alert('Datos incorrectos', erroresTexto || 'Por favor corrige los errores antes de continuar');
       return;
     }
@@ -195,7 +195,7 @@ const Login = ({ navigation, setIsLogged }) => {
       } else if (loginUsuario.rejected.match(result)) {
       }
     } catch (error) {
-      console.error('Error en login:', error);
+      console.error(error);
     }
   };
 
@@ -276,14 +276,14 @@ const Login = ({ navigation, setIsLogged }) => {
               resizeMode="contain"
             />
             <Text style={styles.title}>Officereserve</Text>
-            
+
             <View style={styles.forgotEmailContainer}>
               <Text style={styles.forgotEmailTitle}>¿Olvidaste tu email?</Text>
               <Text style={styles.forgotEmailText}>
                 Contacta a nuestro soporte para recuperar tu cuenta:
               </Text>
               <Text style={styles.forgotEmailContact}>soporte@officereserve.com</Text>
-              
+
               <TouchableOpacity
                 style={styles.backButton}
                 onPress={handleBackToLogin}
@@ -317,7 +317,6 @@ const Login = ({ navigation, setIsLogged }) => {
           <Text style={styles.title}>Officereserve</Text>
           <Text style={styles.subtitle}>Iniciar sesión</Text>
 
-          {/* Mostrar errores generales */}
           {errores.general && (
             <View style={styles.errorAlert}>
               <Text style={styles.errorAlertText}>{errores.general}</Text>
@@ -369,9 +368,9 @@ const Login = ({ navigation, setIsLogged }) => {
             disabled={loading || validacionEnCurso}
           >
             <Text style={styles.buttonText}>
-              {loading ? 'INGRESANDO...' : 
-               validacionEnCurso ? 'VALIDANDO...' : 
-               'INGRESAR'}
+              {loading ? 'INGRESANDO...' :
+                validacionEnCurso ? 'VALIDANDO...' :
+                  'INGRESAR'}
             </Text>
           </TouchableOpacity>
 

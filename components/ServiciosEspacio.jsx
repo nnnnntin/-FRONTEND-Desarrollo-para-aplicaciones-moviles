@@ -27,10 +27,10 @@ const oficinaSchema = yup.object({
   id: yup
     .mixed()
     .required('ID de oficina es requerido')
-    .test('id-valido', 'ID debe ser string o número', function(value) {
+    .test('id-valido', 'ID debe ser string o número', function (value) {
       return typeof value === 'string' || typeof value === 'number';
     }),
-  
+
   nombre: yup
     .string()
     .required('Nombre de oficina es requerido')
@@ -38,16 +38,15 @@ const oficinaSchema = yup.object({
     .max(100, 'El nombre no puede exceder 100 caracteres'),
 });
 
-
 const servicioAdicionalSchema = yup.object({
   id: yup
     .mixed()
     .nullable()
-    .test('id-valido', 'ID debe ser string o número', function(value) {
+    .test('id-valido', 'ID debe ser string o número', function (value) {
       if (value === null || value === undefined) return true;
       return typeof value === 'string' || typeof value === 'number';
     }),
-  
+
   nombre: yup
     .string()
     .required('El nombre del servicio es obligatorio')
@@ -55,46 +54,45 @@ const servicioAdicionalSchema = yup.object({
     .max(50, 'El nombre no puede exceder 50 caracteres')
     .matches(/^[a-zA-ZÀ-ÿ0-9\s\-_.]+$/, 'El nombre contiene caracteres no válidos')
     .trim(),
-  
+
   descripcion: yup
     .string()
     .max(200, 'La descripción no puede exceder 200 caracteres')
     .trim()
     .nullable(),
-  
+
   precio: yup
     .number()
     .min(0, 'El precio no puede ser negativo')
     .max(10000, 'El precio no puede exceder $10,000')
-    .test('decimal-places', 'Máximo 2 decimales', function(value) {
+    .test('decimal-places', 'Máximo 2 decimales', function (value) {
       if (value === undefined || value === null) return true;
       return /^\d+(\.\d{1,2})?$/.test(value.toString());
     }),
-  
+
   tipo: yup
     .string()
-    .test('tipo-servicio-valido', 'Tipo de servicio no válido', function(value) {
+    .test('tipo-servicio-valido', 'Tipo de servicio no válido', function (value) {
       const tiposValidos = [
-        'general', 'tecnologia', 'limpieza', 'catering', 
+        'general', 'tecnologia', 'limpieza', 'catering',
         'seguridad', 'transporte', 'entretenimiento'
       ];
       return tiposValidos.includes(value);
     })
     .required('El tipo de servicio es requerido'),
-  
+
   unidadPrecio: yup
     .string()
-    .test('unidad-precio-valida', 'Unidad de precio no válida', function(value) {
+    .test('unidad-precio-valida', 'Unidad de precio no válida', function (value) {
       const unidadesValidas = ['persona', 'dia', 'hora', 'servicio', 'mes'];
       return unidadesValidas.includes(value);
     })
     .required('La unidad de precio es requerida'),
-  
+
   activo: yup
     .boolean()
     .default(true),
 });
-
 
 const servicioFormSchema = yup.object({
   nombre: yup
@@ -104,41 +102,40 @@ const servicioFormSchema = yup.object({
     .max(50, 'El nombre no puede exceder 50 caracteres')
     .matches(/^[a-zA-ZÀ-ÿ0-9\s\-_.]+$/, 'El nombre contiene caracteres no válidos')
     .trim(),
-  
+
   descripcion: yup
     .string()
     .max(200, 'La descripción no puede exceder 200 caracteres')
     .trim()
     .nullable(),
-  
+
   precio: yup
     .string()
     .required('El precio es requerido')
     .matches(/^\d+(\.\d{1,2})?$/, 'Formato de precio inválido (ej: 10.50)')
-    .test('max-value', 'El precio no puede exceder $10,000', function(value) {
+    .test('max-value', 'El precio no puede exceder $10,000', function (value) {
       return parseFloat(value) <= 10000;
     }),
-  
+
   tipo: yup
     .string()
-    .test('tipo-servicio-valido', 'Tipo de servicio no válido', function(value) {
+    .test('tipo-servicio-valido', 'Tipo de servicio no válido', function (value) {
       const tiposValidos = [
-        'general', 'tecnologia', 'limpieza', 'catering', 
+        'general', 'tecnologia', 'limpieza', 'catering',
         'seguridad', 'transporte', 'entretenimiento'
       ];
       return tiposValidos.includes(value);
     })
     .required('El tipo de servicio es requerido'),
-  
+
   unidadPrecio: yup
     .string()
-    .test('unidad-precio-valida', 'Unidad de precio no válida', function(value) {
+    .test('unidad-precio-valida', 'Unidad de precio no válida', function (value) {
       const unidadesValidas = ['persona', 'dia', 'hora', 'servicio', 'mes'];
       return unidadesValidas.includes(value);
     })
     .required('La unidad de precio es requerida'),
 });
-
 
 const serviciosListSchema = yup.array().of(servicioAdicionalSchema);
 
@@ -146,11 +143,9 @@ const ServiciosEspacio = ({ navigation, route }) => {
   const dispatch = useDispatch();
   const { oficina } = route.params;
 
-  
   const { serviciosPorEspacio, loading, error } = useSelector(state => state.proveedores);
   const serviciosIncluidos = serviciosPorEspacio[oficina.id] || [];
 
-  
   const [modalVisible, setModalVisible] = useState(false);
   const [editingService, setEditingService] = useState(null);
   const [formData, setFormData] = useState({
@@ -161,25 +156,23 @@ const ServiciosEspacio = ({ navigation, route }) => {
     unidadPrecio: 'persona'
   });
 
-  
   const [validationErrors, setValidationErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    
+
     validarOficina();
-    
+
     if (oficina.id) {
       dispatch(obtenerServiciosPorEspacio(oficina.id));
     }
   }, [dispatch, oficina.id]);
 
   useEffect(() => {
-    
+
     validarServiciosIncluidos();
   }, [serviciosIncluidos]);
 
-  
   const validarOficina = async () => {
     try {
       await oficinaSchema.validate(oficina);
@@ -197,7 +190,6 @@ const ServiciosEspacio = ({ navigation, route }) => {
     }
   };
 
-  
   const validarServiciosIncluidos = async () => {
     if (serviciosIncluidos.length === 0) return;
 
@@ -213,26 +205,21 @@ const ServiciosEspacio = ({ navigation, route }) => {
         ...prev,
         serviciosLista: error.message
       }));
-      console.warn('Servicios inválidos encontrados:', error.message);
     }
   };
 
-  
   const validarServicio = async (servicio) => {
     try {
       await servicioAdicionalSchema.validate(servicio);
       return { valido: true, errores: null };
     } catch (error) {
-      console.warn('Servicio inválido:', servicio, error.message);
       return { valido: false, errores: error.message };
     }
   };
 
-  
   const updateFormData = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    
-    
+
     if (validationErrors[field]) {
       setValidationErrors(prev => {
         const newErrors = { ...prev };
@@ -240,8 +227,7 @@ const ServiciosEspacio = ({ navigation, route }) => {
         return newErrors;
       });
     }
-    
-    
+
     const timeoutId = setTimeout(() => {
       validateFormField(field, value);
     }, 500);
@@ -249,7 +235,6 @@ const ServiciosEspacio = ({ navigation, route }) => {
     return () => clearTimeout(timeoutId);
   };
 
-  
   const validateFormField = async (fieldName, value) => {
     try {
       await yup.reach(servicioFormSchema, fieldName).validate(value);
@@ -268,12 +253,10 @@ const ServiciosEspacio = ({ navigation, route }) => {
     }
   };
 
-  
   const validarFormulario = async () => {
     try {
       await servicioFormSchema.validate(formData, { abortEarly: false });
-      
-      
+
       setValidationErrors(prev => {
         const newErrors = { ...prev };
         ['nombre', 'descripcion', 'precio', 'tipo', 'unidadPrecio'].forEach(field => {
@@ -281,7 +264,7 @@ const ServiciosEspacio = ({ navigation, route }) => {
         });
         return newErrors;
       });
-      
+
       return true;
     } catch (error) {
       const errors = {};
@@ -293,27 +276,23 @@ const ServiciosEspacio = ({ navigation, route }) => {
     }
   };
 
-  
   const validacionesAdicionales = () => {
     const errores = {};
 
-    
-    const nombreExistente = serviciosIncluidos.find(s => 
+    const nombreExistente = serviciosIncluidos.find(s =>
       s.nombre.toLowerCase() === formData.nombre.toLowerCase().trim() &&
       (!editingService || s.id !== editingService.id)
     );
-    
+
     if (nombreExistente) {
       errores.nombre = 'Ya existe un servicio con este nombre';
     }
 
-    
     const precio = parseFloat(formData.precio);
     if (precio === 0 && formData.unidadPrecio !== 'servicio') {
       errores.precio = 'Si el servicio es gratuito, la unidad debe ser "servicio"';
     }
 
-    
     if (formData.tipo === 'catering' && precio > 500) {
       errores.precio = 'El precio para catering no puede exceder $500';
     }
@@ -322,7 +301,6 @@ const ServiciosEspacio = ({ navigation, route }) => {
       errores.unidadPrecio = 'Seguridad no se cobra por persona';
     }
 
-    
     if (['tecnologia', 'seguridad'].includes(formData.tipo) && !formData.descripcion.trim()) {
       errores.descripcion = 'Este tipo de servicio requiere descripción detallada';
     }
@@ -337,7 +315,7 @@ const ServiciosEspacio = ({ navigation, route }) => {
 
   const toggleServicio = async (servicioId) => {
     try {
-      
+
       const servicio = serviciosIncluidos.find(s => s.id === servicioId);
       if (!servicio) {
         Alert.alert('Error', 'Servicio no encontrado');
@@ -358,13 +336,12 @@ const ServiciosEspacio = ({ navigation, route }) => {
         Alert.alert('Error', result.error || 'Error al cambiar estado del servicio');
       }
     } catch (error) {
-      console.error('Error en toggleServicio:', error);
       Alert.alert('Error', 'Error al cambiar estado del servicio');
     }
   };
 
   const handleEditServicio = async (servicio) => {
-    
+
     const validacion = await validarServicio(servicio);
     if (!validacion.valido) {
       Alert.alert('Error', 'No se puede editar este servicio: ' + validacion.errores);
@@ -398,14 +375,14 @@ const ServiciosEspacio = ({ navigation, route }) => {
 
   const handleSaveServicio = async () => {
     if (isSubmitting) return;
-    
+
     setIsSubmitting(true);
 
     try {
-      
+
       const formularioValido = await validarFormulario();
       const validacionesExtra = validacionesAdicionales();
-      
+
       if (!formularioValido || !validacionesExtra) {
         Alert.alert('Error de validación', 'Por favor corrige los errores en el formulario');
         return;
@@ -420,7 +397,6 @@ const ServiciosEspacio = ({ navigation, route }) => {
         activo: true
       };
 
-      
       await servicioAdicionalSchema.validate(servicioData);
 
       let result;
@@ -442,14 +418,13 @@ const ServiciosEspacio = ({ navigation, route }) => {
 
         dispatch(obtenerServiciosPorEspacio(oficina.id));
         Alert.alert(
-          'Éxito', 
+          'Éxito',
           editingService ? 'Servicio actualizado correctamente' : 'Servicio creado correctamente'
         );
       } else {
         Alert.alert('Error', result.error || 'Error al guardar el servicio');
       }
     } catch (error) {
-      console.error('Error en handleSaveServicio:', error);
       Alert.alert('Error', 'Error al guardar el servicio: ' + error.message);
     } finally {
       setIsSubmitting(false);
@@ -457,7 +432,7 @@ const ServiciosEspacio = ({ navigation, route }) => {
   };
 
   const handleDeleteServicio = (servicioId) => {
-    
+
     const servicio = serviciosIncluidos.find(s => s.id === servicioId);
     if (!servicio) {
       Alert.alert('Error', 'Servicio no encontrado');
@@ -483,7 +458,6 @@ const ServiciosEspacio = ({ navigation, route }) => {
                 Alert.alert('Error', result.error || 'Error al eliminar el servicio');
               }
             } catch (error) {
-              console.error('Error eliminando servicio:', error);
               Alert.alert('Error', 'Error al eliminar el servicio');
             }
           }
@@ -492,31 +466,18 @@ const ServiciosEspacio = ({ navigation, route }) => {
     );
   };
 
-  
-  const obtenerServiciosValidos = () => {
-    return serviciosIncluidos.filter(async (servicio, index) => {
-      const validacion = await validarServicio(servicio);
-      if (!validacion.valido) {
-        console.warn(`Servicio inválido en posición ${index}:`, validacion.errores);
-        return false;
-      }
-      return true;
-    });
-  };
-
-  
   const ErrorText = ({ error }) => {
     if (!error) return null;
     return <Text style={styles.errorText}>{error}</Text>;
   };
 
   const renderServicio = ({ item: servicio, index }) => {
-    
+
     const validacion = validarServicio(servicio);
-    
+
     return (
       <View style={[
-        styles.servicioItem, 
+        styles.servicioItem,
         !servicio.activo && styles.servicioInactivo,
         !validacion.valido && styles.servicioInvalido
       ]}>
@@ -598,7 +559,6 @@ const ServiciosEspacio = ({ navigation, route }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Mostrar errores de validación */}
       {validationErrors.oficina && (
         <View style={styles.errorContainer}>
           <Ionicons name="warning" size={16} color="#e74c3c" />
@@ -701,7 +661,7 @@ const ServiciosEspacio = ({ navigation, route }) => {
                 <Text style={styles.inputLabel}>Descripción</Text>
                 <TextInput
                   style={[
-                    styles.input, 
+                    styles.input,
                     styles.textArea,
                     validationErrors.descripcion && styles.inputError
                   ]}
@@ -1129,8 +1089,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
-  
-  
+
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',

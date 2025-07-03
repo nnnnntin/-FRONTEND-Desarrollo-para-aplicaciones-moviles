@@ -22,80 +22,80 @@ const servicioSchema = yup.object({
     .min(3, 'El nombre debe tener al menos 3 caracteres')
     .max(100, 'El nombre no puede exceder los 100 caracteres')
     .trim(),
-  
+
   descripcion: yup
     .string()
     .required('La descripción es obligatoria')
     .min(10, 'La descripción debe tener al menos 10 caracteres')
     .max(500, 'La descripción no puede exceder los 500 caracteres')
     .trim(),
-  
+
   tipo: yup
     .string()
     .required('Selecciona una categoría')
-    .test('tipo-valido', 'Categoría inválida', function(value) {
+    .test('tipo-valido', 'Categoría inválida', function (value) {
       const tiposValidos = ['catering', 'limpieza', 'recepcion', 'parking', 'impresion', 'otro'];
       return tiposValidos.includes(value);
     }),
-  
+
   precio: yup
     .number()
     .required('El precio es obligatorio')
     .positive('El precio debe ser mayor que 0')
     .max(99999, 'El precio no puede exceder $99,999')
     .typeError('Ingresa un precio válido'),
-  
+
   unidadPrecio: yup
     .string()
     .required('Selecciona una unidad de precio')
-    .test('unidad-precio-valida', 'Unidad de precio inválida', function(value) {
+    .test('unidad-precio-valida', 'Unidad de precio inválida', function (value) {
       const unidadesValidas = ['por_uso', 'por_hora', 'por_persona', 'por_dia'];
       return unidadesValidas.includes(value);
     }),
-  
+
   disponibilidad: yup.object({
     diasDisponibles: yup
       .array()
-      .of(yup.string().test('dia-valido', 'Día no válido', function(value) {
+      .of(yup.string().test('dia-valido', 'Día no válido', function (value) {
         const diasValidos = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
         return !value || diasValidos.includes(value);
       }))
       .min(1, 'Selecciona al menos un día de disponibilidad')
       .required('Selecciona al menos un día de disponibilidad'),
-    
+
     horaInicio: yup
       .string()
       .nullable()
       .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido (HH:MM)')
-      .test('hora-valida', 'Hora inválida', function(value) {
+      .test('hora-valida', 'Hora inválida', function (value) {
         if (!value) return true;
         const [hora, minuto] = value.split(':').map(Number);
         return hora >= 0 && hora <= 23 && minuto >= 0 && minuto <= 59;
       }),
-    
+
     horaFin: yup
       .string()
       .nullable()
       .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido (HH:MM)')
-      .test('hora-valida', 'Hora inválida', function(value) {
+      .test('hora-valida', 'Hora inválida', function (value) {
         if (!value) return true;
         const [hora, minuto] = value.split(':').map(Number);
         return hora >= 0 && hora <= 23 && minuto >= 0 && minuto <= 59;
       })
-      .test('hora-fin-mayor', 'La hora de fin debe ser posterior a la hora de inicio', function(value) {
+      .test('hora-fin-mayor', 'La hora de fin debe ser posterior a la hora de inicio', function (value) {
         const { horaInicio } = this.parent;
         if (!value || !horaInicio) return true;
-        
+
         const [horaInicioH, horaInicioM] = horaInicio.split(':').map(Number);
         const [horaFinH, horaFinM] = value.split(':').map(Number);
-        
+
         const inicioMinutos = horaInicioH * 60 + horaInicioM;
         const finMinutos = horaFinH * 60 + horaFinM;
-        
+
         return finMinutos > inicioMinutos;
       })
   }),
-  
+
   tiempoAnticipacion: yup
     .number()
     .nullable()
@@ -103,11 +103,11 @@ const servicioSchema = yup.object({
     .min(0, 'El tiempo de anticipación debe ser mayor o igual a 0')
     .max(8760, 'El tiempo de anticipación no puede exceder las 8760 horas (1 año)')
     .typeError('El tiempo de anticipación debe ser un número válido'),
-  
+
   requiereAprobacion: yup
     .boolean()
     .required(),
-  
+
   espaciosDisponibles: yup
     .array()
     .of(yup.string())
@@ -170,26 +170,26 @@ const CrearServicio = ({ navigation }) => {
         ...datosCompletos,
         [campo]: valor
       });
-      
+
       setErrores(prev => ({
         ...prev,
         [campo]: null
       }));
-      
+
       return true;
     } catch (error) {
       setErrores(prev => ({
         ...prev,
         [campo]: error.message
       }));
-      
+
       return false;
     }
   };
 
   const validarFormulario = async () => {
     setValidacionEnCurso(true);
-    
+
     try {
       const datosValidacion = {
         ...formData,
@@ -198,14 +198,14 @@ const CrearServicio = ({ navigation }) => {
       };
 
       await servicioSchema.validate(datosValidacion, { abortEarly: false });
-      
+
       setErrores({});
       setValidacionEnCurso(false);
       return true;
-      
+
     } catch (error) {
       const nuevosErrores = {};
-      
+
       if (error.inner) {
         error.inner.forEach(err => {
           nuevosErrores[err.path] = err.message;
@@ -213,7 +213,7 @@ const CrearServicio = ({ navigation }) => {
       } else {
         nuevosErrores.general = error.message;
       }
-      
+
       setErrores(nuevosErrores);
       setValidacionEnCurso(false);
       return false;
@@ -222,7 +222,7 @@ const CrearServicio = ({ navigation }) => {
 
   const handleSubmit = async () => {
     const esValido = await validarFormulario();
-    
+
     if (!esValido) {
       Alert.alert('Formulario incompleto', 'Por favor corrige los errores antes de continuar');
       return;
@@ -264,7 +264,7 @@ const CrearServicio = ({ navigation }) => {
         Alert.alert('Error', result.payload || 'No se pudo crear el servicio');
       }
     } catch (error) {
-      console.error('Error al crear servicio:', error);
+      console.error(error);
       Alert.alert('Error', 'Ocurrió un error al crear el servicio');
     }
   };
@@ -279,8 +279,8 @@ const CrearServicio = ({ navigation }) => {
       ? formData.disponibilidad.diasDisponibles.filter(d => d !== dia)
       : [...formData.disponibilidad.diasDisponibles, dia];
 
-    const nuevosFormData = { 
-      ...formData, 
+    const nuevosFormData = {
+      ...formData,
       disponibilidad: {
         ...formData.disponibilidad,
         diasDisponibles: nuevaDisponibilidad
@@ -299,7 +299,7 @@ const CrearServicio = ({ navigation }) => {
   const handleInputChange = (campo, valor) => {
     const nuevosFormData = { ...formData, [campo]: valor };
     setFormData(nuevosFormData);
-    
+
     setTimeout(() => {
       validarCampo(campo, valor, nuevosFormData);
     }, 500);
@@ -313,9 +313,9 @@ const CrearServicio = ({ navigation }) => {
         [campoHijo]: valor
       }
     };
-    
+
     setFormData(nuevosFormData);
-    
+
     setTimeout(() => {
       validarCampo(`${campoPadre}.${campoHijo}`, valor, nuevosFormData);
     }, 500);

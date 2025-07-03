@@ -1,7 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
-
-
 const initialState = {
   proveedores: [],
   proveedorSeleccionado: null,
@@ -19,10 +17,6 @@ const initialState = {
   loading: false,
   error: null
 };
-
-
-
-
 
 export const obtenerProveedores = createAsyncThunk(
   'proveedores/obtenerTodos',
@@ -473,8 +467,6 @@ export const filtrarProveedores = createAsyncThunk(
   }
 );
 
-
-
 export const obtenerServiciosAdicionales = createAsyncThunk(
   'serviciosAdicionales/obtenerTodos',
   async (
@@ -514,18 +506,18 @@ export const crearServicioAdicional = createAsyncThunk(
       const state = getState();
       const token = state.auth.token;
       const usuario = state.auth.usuario;
-      
+
       const proveedorId = usuario._id || usuario.id;
-      
+
       if (usuario.tipoUsuario !== 'proveedor') {
         return rejectWithValue('El usuario debe ser de tipo proveedor para crear servicios');
       }
-      
+
       const datosConProveedor = {
         ...datos,
         proveedorId: proveedorId
       };
-      
+
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/servicios-adicionales`,
         {
@@ -537,12 +529,12 @@ export const crearServicioAdicional = createAsyncThunk(
           body: JSON.stringify(datosConProveedor)
         }
       );
-      
+
       if (!response.ok) {
         const err = await response.json();
         return rejectWithValue(err.message || 'Error al crear servicio adicional');
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error(error);
@@ -938,8 +930,6 @@ export const filtrarServiciosAdicionales = createAsyncThunk(
   }
 );
 
-
-
 export const crearSolicitudServicio = createAsyncThunk(
   'solicitudes/crear',
   async (
@@ -981,8 +971,6 @@ export const responderSolicitudServicio = createAsyncThunk(
   }
 );
 
-
-
 const proveedoresSlice = createSlice({
   name: 'proveedores',
   initialState,
@@ -1021,8 +1009,6 @@ const proveedoresSlice = createSlice({
         state.loading = false;
         state.error = payload;
       });
-
-
     builder
       .addCase(crearProveedor.pending, (state) => {
         state.loading = true;
@@ -1036,8 +1022,6 @@ const proveedoresSlice = createSlice({
         state.loading = false;
         state.error = payload;
       });
-
-
     builder
       .addCase(obtenerProveedorPorId.pending, (state) => {
         state.loading = true;
@@ -1051,8 +1035,6 @@ const proveedoresSlice = createSlice({
         state.loading = false;
         state.error = payload;
       });
-
-
     builder
       .addCase(actualizarProveedor.fulfilled, (state, { payload }) => {
         const idx = state.proveedores.findIndex(p => p._id === payload._id);
@@ -1066,8 +1048,6 @@ const proveedoresSlice = createSlice({
           state.proveedorSeleccionado = payload;
         }
       });
-
-
     builder
       .addCase(eliminarProveedor.fulfilled, (state, { payload }) => {
         state.proveedores = state.proveedores.filter(p => p._id !== payload);
@@ -1078,8 +1058,6 @@ const proveedoresSlice = createSlice({
           state.proveedorSeleccionado = null;
         }
       });
-
-
     builder
       .addCase(obtenerProveedoresPorTipo.pending, (state) => {
         state.loading = true;
@@ -1093,8 +1071,6 @@ const proveedoresSlice = createSlice({
         state.loading = false;
         state.error = payload;
       });
-
-
     builder
       .addCase(obtenerProveedoresVerificados.pending, (state) => {
         state.loading = true;
@@ -1108,8 +1084,6 @@ const proveedoresSlice = createSlice({
         state.loading = false;
         state.error = payload;
       });
-
-
     builder
       .addCase(activarProveedor.fulfilled, (state, { payload }) => {
         const idx = state.proveedores.findIndex(p => p._id === payload._id);
@@ -1123,8 +1097,6 @@ const proveedoresSlice = createSlice({
           state.proveedorSeleccionado = payload;
         }
       });
-
-
     builder
       .addCase(verificarProveedor.fulfilled, (state, { payload }) => {
         const idx = state.proveedores.findIndex(p => p._id === payload._id);
@@ -1138,8 +1110,6 @@ const proveedoresSlice = createSlice({
           state.proveedorSeleccionado = payload;
         }
       });
-
-
     builder
       .addCase(actualizarCalificacionProveedor.fulfilled, (state, { payload }) => {
         const idx = state.proveedores.findIndex(p => p._id === payload._id);
@@ -1153,8 +1123,6 @@ const proveedoresSlice = createSlice({
           state.proveedorSeleccionado = payload;
         }
       });
-
-
     builder
       .addCase(actualizarContactoProveedor.fulfilled, (state, { payload }) => {
         const idx = state.proveedores.findIndex(p => p._id === payload._1);
@@ -1168,8 +1136,6 @@ const proveedoresSlice = createSlice({
           state.proveedorSeleccionado = payload;
         }
       });
-
-
     builder
       .addCase(actualizarMetodoPagoProveedor.fulfilled, (state, { payload }) => {
         const idx = state.proveedores.findIndex(p => p._id === payload._id);
@@ -1183,8 +1149,6 @@ const proveedoresSlice = createSlice({
           state.proveedorSeleccionado = payload;
         }
       });
-
-
     builder
       .addCase(obtenerProveedoresPorCalificacion.pending, (state) => {
         state.loading = true;
@@ -1198,8 +1162,6 @@ const proveedoresSlice = createSlice({
         state.loading = false;
         state.error = payload;
       });
-
-
     builder
       .addCase(obtenerRankingProveedores.pending, (state) => {
         state.loading = true;
@@ -1213,8 +1175,6 @@ const proveedoresSlice = createSlice({
         state.loading = false;
         state.error = payload;
       });
-
-
     builder
       .addCase(filtrarProveedores.pending, (state) => {
         state.loading = true;
@@ -1228,8 +1188,6 @@ const proveedoresSlice = createSlice({
         state.loading = false;
         state.error = payload;
       });
-
-
     builder
       .addCase(obtenerServiciosAdicionales.pending, (state) => {
         state.loading = true;
@@ -1246,7 +1204,6 @@ const proveedoresSlice = createSlice({
         state.loading = false;
         state.error = payload;
       });
-
     builder
       .addCase(crearServicioAdicional.pending, (state) => {
         state.loading = true;
@@ -1260,7 +1217,6 @@ const proveedoresSlice = createSlice({
         state.loading = false;
         state.error = payload;
       });
-
     builder
       .addCase(actualizarServicioAdicional.fulfilled, (state, { payload }) => {
         const idx = state.serviciosAdicionales.findIndex(s => s._id === payload._id);
@@ -1268,42 +1224,34 @@ const proveedoresSlice = createSlice({
           state.serviciosAdicionales[idx] = payload;
         }
       });
-
     builder
       .addCase(eliminarServicioAdicional.fulfilled, (state, { payload }) => {
         state.serviciosAdicionales = state.serviciosAdicionales.filter(s => s._id !== payload);
       });
-
     builder
       .addCase(obtenerServiciosPorTipo.fulfilled, (state, { payload }) => {
         state.serviciosAdicionales = payload;
       });
-
     builder
       .addCase(obtenerServiciosPorProveedor.fulfilled, (state, { payload }) => {
         state.serviciosProveedor = payload;
       });
-
     builder
       .addCase(obtenerServiciosPorEspacio.fulfilled, (state, { payload }) => {
         state.serviciosPorEspacio[payload.espacioId] = payload.lista;
       });
-
     builder
       .addCase(obtenerServiciosPorPrecio.fulfilled, (state, { payload }) => {
         state.serviciosAdicionales = payload;
       });
-
     builder
       .addCase(obtenerServiciosPorUnidadPrecio.fulfilled, (state, { payload }) => {
         state.serviciosAdicionales = payload;
       });
-
     builder
       .addCase(obtenerServiciosDisponibles.fulfilled, (state, { payload }) => {
         state.serviciosAdicionales = payload;
       });
-
     builder
       .addCase(toggleServicioAdicional.fulfilled, (state, { payload }) => {
         const idx = state.serviciosAdicionales.findIndex(s => s._id === payload._id);
@@ -1337,8 +1285,6 @@ const proveedoresSlice = createSlice({
       .addCase(filtrarServiciosAdicionales.fulfilled, (state, { payload }) => {
         state.serviciosAdicionales = payload;
       });
-
-
     builder
       .addCase(crearSolicitudServicio.pending, (state) => {
         state.loading = true;

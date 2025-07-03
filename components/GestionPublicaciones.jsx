@@ -23,14 +23,12 @@ const GestionPublicaciones = ({ navigation }) => {
   const [publicacionSeleccionada, setPublicacionSeleccionada] = useState(null);
   const [modalEditar, setModalEditar] = useState(false);
   const dispatch = useDispatch();
-const [form, setForm] = useState({
-  nombre: '',
-  direccion: '',
-  precio: '',
-  capacidad: '',
-  // …cualquier otro campo editable
-});
-
+  const [form, setForm] = useState({
+    nombre: '',
+    direccion: '',
+    precio: '',
+    capacidad: '',
+  });
 
   const {
     espaciosFiltrados = [],
@@ -41,13 +39,10 @@ const [form, setForm] = useState({
     refreshing = false
   } = useSelector(state => state.espacios || {});
 
-  
-
   const capitalize = txt =>
-  typeof txt === 'string' && txt.length
-    ? txt[0].toUpperCase() + txt.slice(1)
-    : '';
-
+    typeof txt === 'string' && txt.length
+      ? txt[0].toUpperCase() + txt.slice(1)
+      : '';
 
   const estadisticas = {
     total: espaciosFiltrados.length,
@@ -61,7 +56,7 @@ const [form, setForm] = useState({
 
   const getPublicacionesFiltradas = () => {
     let filtradas = espaciosFiltrados;
-  
+
     if (tabActiva !== 'todas') {
       filtradas = filtradas.filter(p => {
         if (tabActiva === 'oficina') return p.tipo === 'oficina';
@@ -104,72 +99,65 @@ const [form, setForm] = useState({
   };
 
   const handleGuardarCambios = async () => {
-  // 1. VALIDACIONES BÁSICAS
-  if (!form.nombre.trim()) {
-    Alert.alert('Error', 'El nombre es obligatorio');
-    return;
-  }
-  if (!form.precio.trim() || isNaN(form.precio)) {
-    Alert.alert('Error', 'El precio debe ser un número');
-    return;
-  }
+    if (!form.nombre.trim()) {
+      Alert.alert('Error', 'El nombre es obligatorio');
+      return;
+    }
+    if (!form.precio.trim() || isNaN(form.precio)) {
+      Alert.alert('Error', 'El precio debe ser un número');
+      return;
+    }
 
-  // 2. OBJETO CON LOS CAMPOS A ACTUALIZAR
-  const datosActualizados = {
-    nombre: form.nombre.trim(),
-    capacidad: Number(form.capacidad || 0),
-    // ➜ añade otros campos si tu API los acepta (servicios, descripción, etc.)
+    const datosActualizados = {
+      nombre: form.nombre.trim(),
+      capacidad: Number(form.capacidad || 0),
+    };
+
+    try {
+      await dispatch(
+        actualizarEspacio({
+          id: publicacionSeleccionada.id,
+          tipo: publicacionSeleccionada.tipo,
+          datosActualizados,
+        })
+      ).unwrap();
+
+      setModalEditar(false);
+      Alert.alert('Éxito', 'El espacio fue actualizado correctamente');
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', error || 'No se pudo actualizar el espacio');
+    }
   };
-
-  try {
-    // 3. DISPATCH AL THUNK
-    await dispatch(
-      actualizarEspacio({
-        id: publicacionSeleccionada.id,        // <-- ID del espacio
-        tipo: publicacionSeleccionada.tipo,    // <-- 'oficina' | 'espacio' | …
-        datosActualizados,
-      })
-    ).unwrap(); // .unwrap() lanza si el thunk devuelve rejectWithValue
-
-    // 4. ÉXITO
-    setModalEditar(false);
-    Alert.alert('Éxito', 'El espacio fue actualizado correctamente');
-  } catch (error) {
-    // 5. ERROR
-    console.error('Error al actualizar el espacio:', error);
-    Alert.alert('Error', error || 'No se pudo actualizar el espacio');
-  }
-};
 
   const handleVerDetalles = (publicacion) => {
     setPublicacionSeleccionada(publicacion);
-    console.log('Detalles de la publicación:', publicacion);
     setModalDetalles(true);
   };
 
- const handleEliminarPublicacion = (publicacion) => {
-  Alert.alert(
-    'Eliminar publicación',
-    `¿Estás seguro de eliminar "${publicacion.nombre}"?`,
-    [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: () =>
-          dispatch(
-            eliminarEspacio({
-              id: publicacion.id,      // _id real
-              tipo: publicacion.tipo,  // 'oficina' | 'espacio' ...
-            }),
-          )
-            .unwrap()
-            .then(() => Alert.alert('Éxito', 'Espacio eliminado'))
-            .catch((err) => Alert.alert('Error', err)),
-      },
-    ],
-  );
-};
+  const handleEliminarPublicacion = (publicacion) => {
+    Alert.alert(
+      'Eliminar publicación',
+      `¿Estás seguro de eliminar "${publicacion.nombre}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () =>
+            dispatch(
+              eliminarEspacio({
+                id: publicacion.id,
+                tipo: publicacion.tipo,
+              }),
+            )
+              .unwrap()
+              .then(() => Alert.alert('Éxito', 'Espacio eliminado'))
+              .catch((err) => Alert.alert('Error', err)),
+        },
+      ],
+    );
+  };
 
   const renderPublicacion = ({ item }) => {
     const estadoInfo = getEstadoInfo(item.estado);
@@ -249,9 +237,6 @@ const [form, setForm] = useState({
           <Ionicons name="arrow-back" size={24} color="#2c3e50" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Gestión de Espacios</Text>
-        <TouchableOpacity style={styles.addButton}>
-          <Ionicons name="filter" size={24} color="#4a90e2" />
-        </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>
@@ -287,20 +272,6 @@ const [form, setForm] = useState({
               {estadisticas.sala}
             </Text>
             <Text style={styles.estatLabel}>sala</Text>
-          </View>
-        </View>
-        <View style={styles.estadisticasFinancieras}>
-          <View style={styles.financieraItem}>
-            <Text style={styles.financieraLabel}>Ingresos totales</Text>
-            <Text style={styles.financieraValue}>
-              ${estadisticas.ingresosTotal.toLocaleString()}
-            </Text>
-          </View>
-          <View style={styles.financieraItem}>
-            <Text style={styles.financieraLabel}>Comisiones generadas</Text>
-            <Text style={[styles.financieraValue, { color: '#27ae60' }]}>
-              ${estadisticas.comisionesTotal.toLocaleString()}
-            </Text>
           </View>
         </View>
       </View>
@@ -365,7 +336,7 @@ const [form, setForm] = useState({
                       color={getTipoColor(publicacionSeleccionada.tipo)}
                     />
                     <Text style={styles.modalTipoText}>
-                       {capitalize(publicacionSeleccionada.tipo)}
+                      {capitalize(publicacionSeleccionada.tipo)}
                     </Text>
                   </View>
 
@@ -385,7 +356,7 @@ const [form, setForm] = useState({
                       styles.modalEstadoText,
                       { color: getEstadoInfo(publicacionSeleccionada.datosCompletos.estado).color }
                     ]}>
-                       {capitalize(publicacionSeleccionada.estado)}
+                      {capitalize(publicacionSeleccionada.estado)}
 
                     </Text>
                   </View>
@@ -419,41 +390,9 @@ const [form, setForm] = useState({
                       <Text style={styles.modalGridValue}>{publicacionSeleccionada.capacidad} personas</Text>
                     </View>
                   </View>
-
-                  {publicacionSeleccionada.servicios && (
-                    <View style={styles.serviciosContainer}>
-                      <Text style={styles.serviciosLabel}>Servicios incluidos:</Text>
-                      <View style={styles.serviciosGrid}>
-                        {publicacionSeleccionada.servicios.map((servicio, index) => (
-                          <View key={index} style={styles.servicioChip}>
-                            <Text style={styles.servicioText}>{servicio}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  )}
                 </View>
 
                 <View style={styles.modalAcciones}>
-
-                  <TouchableOpacity
-                    style={[styles.modalBoton, styles.botonEditar]}
-                    onPress={() => {
-                      // Pre‑cargamos los valores del ítem
-                      setForm({
-                        nombre: publicacionSeleccionada.nombre,
-                        direccion: publicacionSeleccionada.direccion,
-                        precio: String(publicacionSeleccionada.precio),
-                        capacidad: String(publicacionSeleccionada.capacidad),
-                      });
-                      setModalDetalles(false);
-                      setModalEditar(true);        // <-- abrimos modal de edición
-                    }}
-                  >
-                    <Ionicons name="create" size={16} color="#fff" />
-                    <Text style={styles.modalBotonText}>Editar</Text>
-                  </TouchableOpacity>
-
                   <TouchableOpacity
                     style={[styles.modalBoton, styles.botonEliminar]}
                     onPress={() => handleEliminarPublicacion(publicacionSeleccionada)}
@@ -468,9 +407,7 @@ const [form, setForm] = useState({
         </View>
       </Modal>
 
-      {/* Modal de edición */} 
-
-            <Modal
+      <Modal
         visible={modalEditar}
         animationType="slide"
         transparent={true}
@@ -489,7 +426,6 @@ const [form, setForm] = useState({
             </View>
 
             <ScrollView style={styles.modalContent}>
-              {/* Nombre */}
               <Text style={styles.inputLabel}>Nombre</Text>
               <TextInput
                 value={form.nombre}
@@ -497,7 +433,6 @@ const [form, setForm] = useState({
                 style={styles.input}
               />
 
-              {/* Capacidad */}
               <Text style={styles.inputLabel}>Capacidad (personas)</Text>
               <TextInput
                 value={form.capacidad}
@@ -506,7 +441,6 @@ const [form, setForm] = useState({
                 style={styles.input}
               />
 
-              {/* Botones */}
               <View style={styles.modalAcciones}>
                 <TouchableOpacity
                   style={[styles.modalBoton, styles.botonEditar]}
@@ -988,21 +922,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   input: {
-  backgroundColor: '#f8f9fa',
-  borderWidth: 1,
-  borderColor: '#e1e5e9',
-  borderRadius: 8,
-  paddingHorizontal: 12,
-  paddingVertical: 10,
-  marginBottom: 16,
-  fontSize: 14,
-  color: '#2c3e50',
-},
-inputLabel: {
-  fontSize: 12,
-  color: '#7f8c8d',
-  marginBottom: 4,
-},
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+    fontSize: 14,
+    color: '#2c3e50',
+  },
+  inputLabel: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginBottom: 4,
+  },
 
 });
 

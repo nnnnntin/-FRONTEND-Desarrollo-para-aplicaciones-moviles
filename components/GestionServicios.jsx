@@ -86,7 +86,7 @@ const GestionServicios = ({ navigation }) => {
   const gestionServiciosSchema = yup.object({
     tabActiva: yup
       .string()
-      .test('tab-valida', t('gestionServicios.validation.tabValid'), function(value) {
+      .test('tab-valida', t('gestionServicios.validation.tabValid'), function (value) {
         const tabsValidas = ['incluidos', 'externos'];
         return tabsValidas.includes(value);
       })
@@ -176,7 +176,7 @@ const GestionServicios = ({ navigation }) => {
         await dispatch(obtenerServiciosPorEspacio(espacioId));
       }
     } catch (error) {
-      console.error('Error cargando datos:', error);
+      console.error(error);
     }
   };
 
@@ -244,7 +244,6 @@ const GestionServicios = ({ navigation }) => {
         }
       }
     } catch (error) {
-      console.error('Error toggling servicio incluido:', error);
       setEspaciosData(prev => prev.map(espacio => {
         if (espacio.id === espacioId) {
           return {

@@ -37,7 +37,7 @@ const servicioEditSchema = Yup.object({
     .max(999999, 'El precio no puede exceder $999,999')
     .typeError('El precio debe ser un número válido'),
   unidadPrecio: Yup.string()
-    .test('unidad-precio-valida', 'Unidad de precio no válida', function(value) {
+    .test('unidad-precio-valida', 'Unidad de precio no válida', function (value) {
       const unidadesValidas = ['por_uso', 'por_hora', 'por_persona', 'por_dia'];
       return unidadesValidas.includes(value);
     })
@@ -50,7 +50,6 @@ const servicioEditSchema = Yup.object({
   requiereAprobacion: Yup.boolean()
 });
 
-
 const servicioSchema = Yup.object({
   _id: Yup.string().required('ID del servicio es requerido'),
   nombre: Yup.string().required('Nombre del servicio es requerido'),
@@ -58,8 +57,8 @@ const servicioSchema = Yup.object({
   tipo: Yup.string().required('Tipo de servicio es requerido'),
   precio: Yup.number().positive('El precio debe ser positivo').required('Precio es requerido'),
   unidadPrecio: Yup.string()
-    .test('unidad-precio-valida', 'Unidad de precio no válida', function(value) {
-      if (!value) return true; 
+    .test('unidad-precio-valida', 'Unidad de precio no válida', function (value) {
+      if (!value) return true;
       const unidadesValidas = ['por_uso', 'por_hora', 'por_persona', 'por_dia'];
       return unidadesValidas.includes(value);
     }),
@@ -72,7 +71,6 @@ const servicioSchema = Yup.object({
   requiereAprobacion: Yup.boolean()
 });
 
-
 const estadisticasSchema = Yup.object({
   activos: Yup.number().min(0).required(),
   pausados: Yup.number().min(0).required(),
@@ -82,7 +80,7 @@ const estadisticasSchema = Yup.object({
 
 const ServiciosProveedor = ({ navigation }) => {
   const dispatch = useDispatch();
-  
+
   const { usuario } = useSelector(state => state.auth);
   const { serviciosProveedor, loading, error } = useSelector(state => state.proveedores);
 
@@ -103,11 +101,9 @@ const ServiciosProveedor = ({ navigation }) => {
     'otro': { color: '#95a5a6', icono: 'ellipse' }
   };
 
-  
   const validarServicios = (servicios) => {
     try {
       if (!Array.isArray(servicios)) {
-        console.warn('Los servicios no son un array válido');
         return [];
       }
 
@@ -116,28 +112,23 @@ const ServiciosProveedor = ({ navigation }) => {
           servicioSchema.validateSync(servicio);
           return true;
         } catch (error) {
-          console.warn(`Servicio inválido filtrado:`, error.message, servicio);
           return false;
         }
       });
     } catch (error) {
-      console.error('Error al validar servicios:', error);
       return [];
     }
   };
 
-  
   const validarEstadisticas = (stats) => {
     try {
       estadisticasSchema.validateSync(stats);
       return stats;
     } catch (error) {
-      console.warn('Estadísticas inválidas, usando valores por defecto:', error.message);
       return { activos: 0, pausados: 0, totalTrabajos: 0, totalSolicitudes: 0 };
     }
   };
 
-  
   const validarFormulario = async (datos) => {
     try {
       await servicioEditSchema.validate(datos, { abortEarly: false });
@@ -170,9 +161,9 @@ const ServiciosProveedor = ({ navigation }) => {
 
     try {
       setLoadingLocal(true);
-      
+
       const result = await dispatch(obtenerServiciosPorProveedor(usuario.id));
-      
+
       if (obtenerServiciosPorProveedor.rejected.match(result)) {
         Alert.alert('Error', result.payload || 'Error al cargar servicios');
       }
@@ -189,9 +180,9 @@ const ServiciosProveedor = ({ navigation }) => {
 
   const handleEditarServicio = (servicio) => {
     try {
-      
+
       servicioSchema.validateSync(servicio);
-      
+
       setServicioSeleccionado(servicio);
       setFormData({
         nombre: servicio.nombre || '',
@@ -211,9 +202,9 @@ const ServiciosProveedor = ({ navigation }) => {
 
   const handleVerDetalles = (servicio) => {
     try {
-      
+
       servicioSchema.validateSync(servicio);
-      
+
       setServicioSeleccionado(servicio);
       setModoEdicion(false);
       setModalVisible(true);
@@ -224,15 +215,15 @@ const ServiciosProveedor = ({ navigation }) => {
 
   const handleToggleEstado = async (servicioId, estadoActual) => {
     try {
-      
+
       if (!servicioId || typeof servicioId !== 'string') {
         throw new Error('ID de servicio inválido');
       }
 
       const nuevoEstado = !estadoActual;
-      const result = await dispatch(toggleServicioAdicional({ 
-        id: servicioId, 
-        activo: nuevoEstado 
+      const result = await dispatch(toggleServicioAdicional({
+        id: servicioId,
+        activo: nuevoEstado
       }));
 
       if (toggleServicioAdicional.fulfilled.match(result)) {
@@ -249,7 +240,7 @@ const ServiciosProveedor = ({ navigation }) => {
 
   const handleEliminarServicio = (servicioId) => {
     try {
-      
+
       if (!servicioId || typeof servicioId !== 'string') {
         throw new Error('ID de servicio inválido');
       }
@@ -265,7 +256,7 @@ const ServiciosProveedor = ({ navigation }) => {
             onPress: async () => {
               try {
                 const result = await dispatch(eliminarServicioAdicional(servicioId));
-                
+
                 if (eliminarServicioAdicional.fulfilled.match(result)) {
                   await cargarServicios();
                   Alert.alert('Éxito', 'Servicio eliminado correctamente');
@@ -287,11 +278,11 @@ const ServiciosProveedor = ({ navigation }) => {
 
   const handleGuardarEdicion = async () => {
     try {
-      
+
       const esValido = await validarFormulario(formData);
-      
+
       if (!esValido) {
-        
+
         const primerError = Object.values(erroresValidacion)[0];
         Alert.alert('Error de validación', primerError);
         return;
@@ -306,7 +297,6 @@ const ServiciosProveedor = ({ navigation }) => {
         requiereAprobacion: formData.requiereAprobacion
       };
 
-      
       await servicioEditSchema.validate(servicioActualizado);
 
       const result = await dispatch(actualizarServicioAdicional({
@@ -342,7 +332,6 @@ const ServiciosProveedor = ({ navigation }) => {
           return serviciosValidados;
       }
     } catch (error) {
-      console.error('Error al filtrar servicios:', error);
       return [];
     }
   };
@@ -359,7 +348,6 @@ const ServiciosProveedor = ({ navigation }) => {
       const stats = { activos, pausados, totalTrabajos, totalSolicitudes };
       return validarEstadisticas(stats);
     } catch (error) {
-      console.error('Error al calcular estadísticas:', error);
       return validarEstadisticas({ activos: 0, pausados: 0, totalTrabajos: 0, totalSolicitudes: 0 });
     }
   };
@@ -370,9 +358,9 @@ const ServiciosProveedor = ({ navigation }) => {
 
   const renderServicio = ({ item: servicio }) => {
     try {
-      
+
       servicioSchema.validateSync(servicio);
-      
+
       const categoria = categorias[servicio.tipo] || { color: '#7f8c8d', icono: 'ellipse' };
 
       return (
@@ -468,24 +456,6 @@ const ServiciosProveedor = ({ navigation }) => {
               <Ionicons name="create-outline" size={16} color="#4a90e2" />
               <Text style={styles.actionButtonText}>Editar</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, styles.toggleButton]}
-              onPress={() => handleToggleEstado(servicio._id, servicio.activo)}
-            >
-              <Ionicons
-                name={servicio.activo ? 'pause' : 'play'}
-                size={16}
-                color={servicio.activo ? '#f39c12' : '#27ae60'}
-              />
-              <Text style={[
-                styles.actionButtonText,
-                { color: servicio.activo ? '#f39c12' : '#27ae60' }
-              ]}>
-                {servicio.activo ? 'Pausar' : 'Activar'}
-              </Text>
-            </TouchableOpacity>
-
             <TouchableOpacity
               style={[styles.actionButton, styles.deleteButton]}
               onPress={() => handleEliminarServicio(servicio._id)}
@@ -497,7 +467,6 @@ const ServiciosProveedor = ({ navigation }) => {
         </View>
       );
     } catch (error) {
-      console.warn('Servicio con datos inválidos no renderizado:', error.message);
       return null;
     }
   };
@@ -1399,7 +1368,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#4a90e2',
     gap: 8,
   },
-    inputError: {
+  inputError: {
     borderColor: '#e74c3c',
     borderWidth: 2,
   },

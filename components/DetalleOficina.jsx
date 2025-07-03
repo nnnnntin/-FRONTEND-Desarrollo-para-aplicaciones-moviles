@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { actualizarEspacio, limpiarDetalle, obtenerDetalleEspacio } from '../store/slices/espaciosSlice';
-import { obtenerServiciosPorEspacio } from '../store/slices/proveedoresSlice';
+import { obtenerServiciosAdicionales, obtenerServiciosPorEspacio } from '../store/slices/proveedoresSlice';
 import MapSelector from './MapSelector';
 
 const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
@@ -766,6 +766,90 @@ const FormularioEdicionCompleta = ({
 
 const DetalleOficina = ({ navigation, route }) => {
   const [shouldNavigateBack, setShouldNavigateBack] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState({
+    nombre: '',
+    descripcion: '',
+    tipo: 'oficina',
+    configuracion: '',
+    superficieM2: '',
+    capacidadPersonas: '',
+    ubicacion: {
+      edificioId: '',
+      piso: '1',
+      numero: '',
+      zona: '',
+      sector: '',
+      coordenadas: {
+        lat: null,
+        lng: null
+      },
+      direccionCompleta: {
+        calle: '',
+        numero: '',
+        ciudad: 'Montevideo',
+        departamento: 'Montevideo',
+        codigoPostal: '11000',
+        pais: 'Uruguay'
+      }
+    },
+    precios: {
+      porHora: '',
+      porDia: '',
+      porMes: ''
+    },
+    disponibilidad: {
+      horario: {
+        apertura: '09:00',
+        cierre: '18:00'
+      },
+      dias: ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
+    },
+    amenidades: [],
+    equipamiento: [],
+    estado: 'disponible'
+  });
+  const [editingImages, setEditingImages] = useState([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [mostrarMapaEdit, setMostrarMapaEdit] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const hoyISO = new Date().toISOString().split('T')[0];
+  const [fechaInput, setFechaInput] = useState(hoyISO);
+  const [horaInicioInput, setHoraInicioInput] = useState('09:00');
+  const [horaFinInput, setHoraFinInput] = useState('17:00');
+  const [cantidadPersonas, setCantidadPersonas] = useState(1);
+  const [serviciosAdicionales, setServiciosAdicionales] = useState([]);
+  const [datosEspacio, setDatosEspacio] = useState(null);
+
+  const dispatch = useDispatch();
+  const { tipoUsuario } = useSelector(state => state.auth);
+  const { serviciosPorEspacio, serviciosAdicionales: serviciosAdicionalesRedux, loading: loadingServicios } = useSelector(state => state.proveedores);
+  const {
+    detalleActual,
+    loadingDetalle,
+    errorDetalle
+  } = useSelector(state => state.espacios);
+
+  const serviciosDisponibles = useMemo(() => {
+    if (!route?.params?.oficina?.id) return [];
+
+    const serviciosEspacio = serviciosPorEspacio[route.params.oficina.id] || [];
+
+    if (serviciosEspacio.length > 0) {
+      return serviciosEspacio;
+    }
+
+    if (serviciosAdicionalesRedux && serviciosAdicionalesRedux.length > 0) {
+      return serviciosAdicionalesRedux;
+    }
+
+    return [
+      { _id: 1, nombre: 'Catering básico', precio: 15, unidadPrecio: 'persona' },
+      { _id: 2, nombre: 'Proyector y pantalla', precio: 50, unidadPrecio: 'día' },
+      { _id: 3, nombre: 'Servicio de café premium', precio: 5, unidadPrecio: 'persona' },
+      { _id: 4, nombre: 'Estacionamiento adicional', precio: 20, unidadPrecio: 'día' }
+    ];
+  }, [serviciosPorEspacio, serviciosAdicionalesRedux, route?.params?.oficina?.id]);
 
   useEffect(() => {
     if (!route?.params?.oficina) {
@@ -816,74 +900,6 @@ const DetalleOficina = ({ navigation, route }) => {
     );
   }
 
-  const dispatch = useDispatch();
-
-  const { tipoUsuario } = useSelector(state => state.auth);
-  const { serviciosPorEspacio, loading: loadingServicios } = useSelector(state => state.proveedores);
-  const {
-    detalleActual,
-    loadingDetalle,
-    errorDetalle
-  } = useSelector(state => state.espacios);
-
-  const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState({
-    nombre: '',
-    descripcion: '',
-    tipo: 'oficina',
-    configuracion: '',
-    superficieM2: '',
-    capacidadPersonas: '',
-    ubicacion: {
-      edificioId: '',
-      piso: '1',
-      numero: '',
-      zona: '',
-      sector: '',
-      coordenadas: {
-        lat: null,
-        lng: null
-      },
-      direccionCompleta: {
-        calle: '',
-        numero: '',
-        ciudad: 'Montevideo',
-        departamento: 'Montevideo',
-        codigoPostal: '11000',
-        pais: 'Uruguay'
-      }
-    },
-    precios: {
-      porHora: '',
-      porDia: '',
-      porMes: ''
-    },
-    disponibilidad: {
-      horario: {
-        apertura: '09:00',
-        cierre: '18:00'
-      },
-      dias: ['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
-    },
-    amenidades: [],
-    equipamiento: [],
-    estado: 'disponible'
-  });
-
-  const [editingImages, setEditingImages] = useState([]);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [mostrarMapaEdit, setMostrarMapaEdit] = useState(false);
-
-  const [modalVisible, setModalVisible] = useState(false);
-  const hoyISO = new Date().toISOString().split('T')[0];
-  const [fechaInput, setFechaInput] = useState(hoyISO);
-  const [horaInicioInput, setHoraInicioInput] = useState('09:00');
-  const [horaFinInput, setHoraFinInput] = useState('17:00');
-  const [cantidadPersonas, setCantidadPersonas] = useState(1);
-  const [serviciosAdicionales, setServiciosAdicionales] = useState([]);
-
-  const [datosEspacio, setDatosEspacio] = useState(null);
-
   useEffect(() => {
     if (espacio || oficina.datosCompletos) {
       const datosDisponibles = espacio || oficina.datosCompletos;
@@ -921,6 +937,7 @@ const DetalleOficina = ({ navigation, route }) => {
   const cargarServiciosEspacio = async () => {
     try {
       await dispatch(obtenerServiciosPorEspacio(oficina.id));
+      await dispatch(obtenerServiciosAdicionales({ skip: 0, limit: 50 }));
     } catch (error) {
       console.error(error);
     }
@@ -1053,27 +1070,8 @@ const DetalleOficina = ({ navigation, route }) => {
     return resultado;
   };
 
-  const getServiciosDisponibles = () => {
-    const serviciosEspacio = serviciosPorEspacio[oficina.id] || [];
-
-    if (serviciosEspacio.length === 0) {
-      return [
-        { _id: 1, nombre: 'Catering básico', precio: 15, unidadPrecio: 'persona' },
-        { _id: 2, nombre: 'Proyector y pantalla', precio: 50, unidadPrecio: 'día' },
-        { _id: 3, nombre: 'Servicio de café premium', precio: 5, unidadPrecio: 'persona' },
-        { _id: 4, nombre: 'Estacionamiento adicional', precio: 20, unidadPrecio: 'día' }
-      ];
-    }
-
-    return serviciosEspacio;
-  };
-
   const handleReservar = () => {
     setModalVisible(true);
-  };
-
-  const handleOfrecerServicios = () => {
-    navigation.navigate('OfrecerServicios', { oficina });
   };
 
   const toggleServicio = servicio => {
@@ -1768,8 +1766,6 @@ const DetalleOficina = ({ navigation, route }) => {
     );
   }
 
-  const serviciosDisponibles = getServiciosDisponibles();
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
@@ -1872,33 +1868,6 @@ const DetalleOficina = ({ navigation, route }) => {
                 <Text style={styles.priceLabel}>Precio</Text>
                 <Text style={styles.price}>{detalle.precio}</Text>
               </View>
-
-              {esPropia && tipoUsuario === 'cliente' && (
-                <View style={styles.serviciosSection}>
-                  <Text style={styles.sectionTitleMain}>Servicios de tu espacio</Text>
-                  <View style={styles.serviciosContainer}>
-                    <View style={styles.serviciosTabs}>
-                      <TouchableOpacity
-                        style={[styles.servicioTab, styles.servicioTabActive]}
-                        onPress={() => navigation.navigate('ServiciosEspacio', { oficina })}
-                      >
-                        <Ionicons name="construct" size={20} color="#4a90e2" />
-                        <Text style={styles.servicioTabText}>Servicios incluidos</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.servicioTab}
-                        onPress={() => navigation.navigate('ServiciosOfrecidos', { oficina })}
-                      >
-                        <Ionicons name="people" size={20} color="#7f8c8d" />
-                        <Text style={[styles.servicioTabText, { color: '#7f8c8d' }]}>Proveedores externos</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <Text style={styles.serviciosDescripcion}>
-                      Gestiona los servicios incluidos en tu espacio y los proveedores externos disponibles
-                    </Text>
-                  </View>
-                </View>
-              )}
             </>
           )}
         </View>
@@ -1912,17 +1881,6 @@ const DetalleOficina = ({ navigation, route }) => {
                 activeOpacity={0.8}
               >
                 <Text style={styles.reservarButtonText}>RESERVAR</Text>
-              </TouchableOpacity>
-            )}
-
-            {tipoUsuario === 'proveedor' && !esPropia && (
-              <TouchableOpacity
-                style={styles.ofrecerServiciosButton}
-                onPress={handleOfrecerServicios}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="construct" size={20} color="#fff" />
-                <Text style={styles.ofrecerServiciosButtonText}>OFRECER SERVICIOS</Text>
               </TouchableOpacity>
             )}
           </>
@@ -2287,27 +2245,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   reservarButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  ofrecerServiciosButton: {
-    backgroundColor: '#27ae60',
-    marginHorizontal: 20,
-    marginTop: 20,
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 10,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  ofrecerServiciosButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',

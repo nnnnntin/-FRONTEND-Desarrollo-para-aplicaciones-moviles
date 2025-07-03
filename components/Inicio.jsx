@@ -26,6 +26,10 @@ import {
   setRefreshing,
   setTextoBusqueda
 } from '../store/slices/espaciosSlice';
+import {
+  clearError as clearReservasError,
+  obtenerReservasPorProveedor
+} from '../store/slices/reservasSlice';
 import HamburgerMenu from './HamburgerMenu';
 
 const Inicio = ({ navigation, setIsLogged, resetSession }) => {
@@ -33,20 +37,17 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const dispatch = useDispatch();
 
-
   const {
     tipoUsuario = 'usuario',
     usuario = {},
     token = null
   } = useSelector(state => state.auth || {});
 
-
   const {
     oficinasPropias = [],
     serviciosContratados = [],
     serviciosOfrecidos = []
   } = useSelector(state => state.usuario || {});
-
 
   const {
     espaciosFiltrados = [],
@@ -57,20 +58,38 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
     refreshing = false
   } = useSelector(state => state.espacios || {});
 
+  const {
+    reservasProveedor = [],
+    resumenProveedor = null,
+    loadingReservasProveedor = false,
+    errorReservasProveedor = null
+  } = useSelector(state => state.reservas || {});
+
   const tipos = [
     { id: 'todos', nombre: 'Todos', icono: 'apps', endpoint: null },
     { id: 'oficina', nombre: 'Oficinas', icono: 'business', endpoint: '/v1/oficinas' },
     { id: 'espacio', nombre: 'Espacios', icono: 'square', endpoint: '/v1/espacios' },
     { id: 'escritorio', nombre: 'Escritorios', icono: 'desktop', endpoint: '/v1/escritorios-flexibles' },
-    { id: 'edificio', nombre: 'Edificios', icono: 'business-outline', endpoint: '/v1/edificios' },
     { id: 'sala', nombre: 'Salas', icono: 'people', endpoint: '/v1/salas-reunion' }
   ];
 
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      cargarDatos();
+    });
+
+    return unsubscribe;
+  }, [navigation, filtroTipo, tipoUsuario]);
 
   useEffect(() => {
-    cargarEspacios();
+    cargarDatos();
   }, [filtroTipo, tipoUsuario]);
 
+  useEffect(() => {
+    if (tipoUsuario === 'proveedor' && usuario?.id) {
+      cargarReservasProveedor();
+    }
+  }, [tipoUsuario, usuario?.id]);
 
   useEffect(() => {
     if (error) {
@@ -79,37 +98,85 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
     }
   }, [error, dispatch]);
 
+  useEffect(() => {
+    if (errorReservasProveedor) {
+      Alert.alert('Error', errorReservasProveedor);
+      dispatch(clearReservasError());
+    }
+  }, [errorReservasProveedor, dispatch]);
+
+  const cargarDatos = async () => {
+    if (tipoUsuario === 'proveedor') {
+      await cargarReservasProveedor();
+    } else {
+      await cargarEspacios();
+    }
+  };
 
   const cargarEspacios = async () => {
     try {
       if (tipoUsuario === 'cliente') {
         const result = await dispatch(cargarEspaciosCliente());
         if (cargarEspaciosCliente.rejected.match(result)) {
+          console.error('Error cargando espacios del cliente:', result.payload);
+        } else {
+          console.log('Espacios del cliente cargados exitosamente');
         }
       } else {
         const result = await dispatch(cargarTodosLosEspacios({ filtroTipo }));
         if (cargarTodosLosEspacios.rejected.match(result)) {
+          console.error('Error cargando todos los espacios:', result.payload);
+        } else {
+          console.log('Todos los espacios cargados exitosamente');
         }
       }
     } catch (error) {
-      console.error(error);
+      console.error('Error inesperado al cargar espacios:', error);
     }
   };
 
+  const cargarReservasProveedor = async () => {
+    try {
+      const usuarioId = usuario?.id || usuario?._id;
+      if (!usuarioId) {
+        console.error('No se encontró ID del usuario proveedor');
+        return;
+      }
+
+      console.log(`Cargando reservas para proveedor: ${usuarioId}`);
+      const result = await dispatch(obtenerReservasPorProveedor(usuarioId));
+
+      if (obtenerReservasPorProveedor.rejected.match(result)) {
+        console.error('Error cargando reservas del proveedor:', result.payload);
+      } else {
+        console.log('Reservas del proveedor cargadas exitosamente');
+      }
+    } catch (error) {
+      console.error('Error inesperado al cargar reservas del proveedor:', error);
+    }
+  };
+
+  const handleCrearPublicacion = () => {
+    navigation.navigate('CrearPublicacion', {
+      onSuccess: () => {
+        setTimeout(() => {
+          cargarDatos();
+        }, 500);
+      }
+    });
+  };
 
   const handleFiltroChange = (nuevoFiltro) => {
     dispatch(setFiltroTipo(nuevoFiltro));
   };
 
-
   const handleSearchChange = (texto) => {
     dispatch(setTextoBusqueda(texto));
   };
 
-
   const onRefresh = async () => {
     dispatch(setRefreshing(true));
-    await cargarEspacios();
+    await cargarDatos();
     dispatch(setRefreshing(false));
   };
 
@@ -122,7 +189,6 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
   };
 
   const verDetalleOficina = (espacio) => {
-
     if (!espacio || !espacio.datosCompletos) {
       Alert.alert('Error', 'No se pudieron cargar los datos del espacio');
       return;
@@ -175,8 +241,16 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
     navigation.navigate('DetalleOficina', params);
   };
 
-  const handleCrearPublicacion = () => {
-    navigation.navigate('CrearPublicacion');
+  const verDetalleReserva = (reserva) => {
+    if (!reserva) {
+      Alert.alert('Error', 'No se pudieron cargar los datos de la reserva');
+      return;
+    }
+
+    navigation.navigate('DetalleReserva', {
+      reserva: reserva,
+      esProveedor: true
+    });
   };
 
   const handleCrearServicio = () => {
@@ -248,10 +322,109 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
       case 'cliente':
         return 'Gestionar';
       case 'proveedor':
-        return 'Ofrecer servicios';
+        return 'Ver detalles';
       default:
         return 'Ver detalles';
     }
+  };
+
+  const getEstadoColor = (estado) => {
+    switch (estado) {
+      case 'confirmada':
+        return '#27ae60';
+      case 'pendiente':
+        return '#f39c12';
+      case 'cancelada':
+        return '#e74c3c';
+      case 'completada':
+        return '#3498db';
+      default:
+        return '#95a5a6';
+    }
+  };
+
+  const formatearFecha = (fecha) => {
+    return new Date(fecha).toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
+  const formatearHora = (fecha) => {
+    return new Date(fecha).toLocaleTimeString('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const ReservaProveedorCard = ({ reserva }) => {
+    if (!reserva) return null;
+
+    const fechaInicio = new Date(reserva.fechaInicio);
+    const fechaFin = new Date(reserva.fechaFin);
+
+    const usuarioId = usuario?.id || usuario?._id;
+    const serviciosDelProveedor = reserva.serviciosAdicionales?.filter(servicio => {
+      const servicioProveedorId = typeof servicio.proveedorId === 'object'
+        ? servicio.proveedorId._id || servicio.proveedorId.toString()
+        : servicio.proveedorId?.toString();
+
+      return servicioProveedorId === usuarioId?.toString();
+    }) || [];
+
+    const ingresosTotales = serviciosDelProveedor.reduce((total, servicio) => {
+      return total + (servicio.precio || 0);
+    }, 0);
+
+    return (
+      <View style={styles.reservaCard}>
+        <View style={styles.reservaHeader}>
+          <View style={styles.reservaInfo}>
+            <Text style={styles.reservaTitulo}>
+              {reserva.entidadReservada?.tipo === 'oficina' ? 'Oficina' :
+                reserva.entidadReservada?.tipo === 'sala_reunion' ? 'Sala de reunión' :
+                  reserva.entidadReservada?.tipo === 'escritorio_flexible' ? 'Escritorio' : 'Espacio'}
+            </Text>
+            <Text style={styles.reservaCliente}>
+              Cliente: {reserva.clienteId?.nombre || 'Cliente'}
+            </Text>
+          </View>
+          <View style={[styles.estadoBadge, { backgroundColor: getEstadoColor(reserva.estado) }]}>
+            <Text style={styles.estadoText}>{reserva.estado}</Text>
+          </View>
+        </View>
+
+        <View style={styles.reservaDetalles}>
+          <View style={styles.fechaContainer}>
+            <View style={styles.fechaItem}>
+              <Ionicons name="calendar" size={16} color="#7f8c8d" />
+              <Text style={styles.fechaText}>
+                {formatearFecha(fechaInicio)} - {formatearFecha(fechaFin)}
+              </Text>
+            </View>
+            <View style={styles.fechaItem}>
+              <Ionicons name="time" size={16} color="#7f8c8d" />
+              <Text style={styles.fechaText}>
+                {formatearHora(fechaInicio)} - {formatearHora(fechaFin)}
+              </Text>
+            </View>
+          </View>
+
+          {serviciosDelProveedor.length > 0 && (
+            <View style={styles.serviciosContainer}>
+              <Text style={styles.serviciosLabel}>Tus servicios:</Text>
+              {serviciosDelProveedor.map((servicio, index) => (
+                <View key={index} style={styles.servicioItem}>
+                  <Text style={styles.servicioNombre}>{servicio.nombre}</Text>
+                  <Text style={styles.servicioPrecio}>${servicio.precio}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      </View>
+    );
   };
 
   const EspacioCard = ({ espacio }) => {
@@ -360,6 +533,19 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
     );
   };
 
+  const reservasFiltradas = reservasProveedor.filter(reserva => {
+    if (!textoBusqueda) return true;
+
+    const textoBusquedaLower = textoBusqueda.toLowerCase();
+    const clienteNombre = reserva.clienteId?.nombre?.toLowerCase() || '';
+    const entidadTipo = reserva.entidadReservada?.tipo?.toLowerCase() || '';
+    const estado = reserva.estado?.toLowerCase() || '';
+
+    return clienteNombre.includes(textoBusquedaLower) ||
+      entidadTipo.includes(textoBusquedaLower) ||
+      estado.includes(textoBusquedaLower);
+  });
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
@@ -372,7 +558,7 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {tipoUsuario === 'cliente' ? 'Mis espacios' :
-            tipoUsuario === 'proveedor' ? 'Oportunidades de servicio' : 'Reservar espacios'}
+            tipoUsuario === 'proveedor' ? 'Mis reservas de servicios' : 'Reservar espacios'}
         </Text>
         <TouchableOpacity
           style={styles.notificationButton}
@@ -387,7 +573,7 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
         style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing || loadingReservasProveedor} onRefresh={onRefresh} />
         }
       >
         <View style={styles.searchContainer}>
@@ -397,7 +583,7 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
             placeholder={
               tipoUsuario === 'usuario' ? 'Buscar espacios...' :
                 tipoUsuario === 'cliente' ? 'Buscar en mis espacios...' :
-                  'Buscar oportunidades...'
+                  'Buscar en mis reservas...'
             }
             placeholderTextColor="#999"
             value={textoBusqueda}
@@ -405,7 +591,27 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
           />
         </View>
 
-        {(tipoUsuario === 'usuario' || tipoUsuario === 'proveedor' || tipoUsuario === 'administrador') && (
+        {tipoUsuario === 'proveedor' && resumenProveedor && (
+          <View style={styles.estadisticasContainer}>
+            <Text style={styles.estadisticasTitle}>Resumen de servicios</Text>
+            <View style={styles.estadisticasGrid}>
+              <View style={styles.estadisticaItem}>
+                <Text style={styles.estadisticaNumero}>{resumenProveedor.totalReservas}</Text>
+                <Text style={styles.estadisticaLabel}>Total reservas</Text>
+              </View>
+              <View style={styles.estadisticaItem}>
+                <Text style={styles.estadisticaNumero}>{resumenProveedor.reservasConfirmadas}</Text>
+                <Text style={styles.estadisticaLabel}>Confirmadas</Text>
+              </View>
+              <View style={styles.estadisticaItem}>
+                <Text style={styles.estadisticaNumero}>${resumenProveedor.ingresosPotenciales || 0}</Text>
+                <Text style={styles.estadisticaLabel}>Ingresos</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {(tipoUsuario === 'usuario' || tipoUsuario === 'administrador') && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -446,59 +652,83 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
           </TouchableOpacity>
         )}
 
-        {loading ? (
+        {tipoUsuario === 'proveedor' && (
+          <TouchableOpacity
+            style={styles.crearServicioButton}
+            onPress={handleCrearServicio}
+          >
+            <Ionicons name="add-circle" size={24} color="#fff" />
+            <Text style={styles.crearServicioText}>Crear nuevo servicio</Text>
+          </TouchableOpacity>
+        )}
+
+        {loading || loadingReservasProveedor ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#4a90e2" />
-            <Text style={styles.loadingText}>Cargando espacios...</Text>
-          </View>
-        ) : !Array.isArray(espaciosFiltrados) || espaciosFiltrados.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons
-              name={
-                tipoUsuario === 'cliente' ? 'business-outline' :
-                  tipoUsuario === 'proveedor' ? 'construct-outline' :
-                    'search-outline'
-              }
-              size={60}
-              color="#bdc3c7"
-            />
-            <Text style={styles.emptyText}>
-              {tipoUsuario === 'cliente' ? 'No tienes espacios publicados' :
-                tipoUsuario === 'proveedor' ? 'No hay oportunidades disponibles' :
-                  textoBusqueda ? 'No se encontraron espacios con ese criterio' : 'No hay espacios disponibles'}
+            <Text style={styles.loadingText}>
+              {tipoUsuario === 'proveedor' ? 'Cargando reservas...' : 'Cargando espacios...'}
             </Text>
-            <Text style={styles.emptySubtext}>
-              {tipoUsuario === 'cliente' ? 'Publica tu primer espacio y comienza a recibir reservas' :
-                tipoUsuario === 'proveedor' ? 'Crea un servicio para empezar a ofrecerlo en espacios' :
-                  'Intenta ajustar los filtros de búsqueda'}
-            </Text>
-            {tipoUsuario === 'cliente' && (
-              <TouchableOpacity
-                style={styles.emptyButton}
-                onPress={handleCrearPublicacion}
-              >
-                <Text style={styles.emptyButtonText}>Publicar espacio</Text>
-              </TouchableOpacity>
-            )}
-            {tipoUsuario === 'proveedor' && (
-              <TouchableOpacity
-                style={styles.emptyButton}
-                onPress={handleCrearServicio}
-              >
-                <Text style={styles.emptyButtonText}>Crear servicio</Text>
-              </TouchableOpacity>
-            )}
           </View>
+        ) : tipoUsuario === 'proveedor' ? (
+          !Array.isArray(reservasFiltradas) || reservasFiltradas.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="calendar-outline" size={60} color="#bdc3c7" />
+              <Text style={styles.emptyText}>
+                {textoBusqueda ? 'No se encontraron reservas con ese criterio' : 'No tienes reservas con servicios'}
+              </Text>
+              <Text style={styles.emptySubtext}>
+                Las reservas que incluyan tus servicios aparecerán aquí
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.reservasContainer}>
+              <Text style={styles.reservasCount}>
+                {reservasFiltradas.length} reserva{reservasFiltradas.length !== 1 ? 's' : ''}
+                {textoBusqueda ? ` encontrada${reservasFiltradas.length !== 1 ? 's' : ''}` : ' con tus servicios'}
+              </Text>
+              {reservasFiltradas.map((reserva) => (
+                <ReservaProveedorCard key={reserva._id || reserva.id || Math.random()} reserva={reserva} />
+              ))}
+            </View>
+          )
         ) : (
-          <View style={styles.espaciosContainer}>
-            <Text style={styles.espaciosCount}>
-              {espaciosFiltrados.length} espacio{espaciosFiltrados.length !== 1 ? 's' : ''}
-              {textoBusqueda ? ` encontrado${espaciosFiltrados.length !== 1 ? 's' : ''}` : ' disponible'}
-            </Text>
-            {espaciosFiltrados.map((espacio) => (
-              <EspacioCard key={espacio.id || Math.random()} espacio={espacio} />
-            ))}
-          </View>
+          !Array.isArray(espaciosFiltrados) || espaciosFiltrados.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons
+                name={
+                  tipoUsuario === 'cliente' ? 'business-outline' : 'search-outline'
+                }
+                size={60}
+                color="#bdc3c7"
+              />
+              <Text style={styles.emptyText}>
+                {tipoUsuario === 'cliente' ? 'No tienes espacios publicados' :
+                  textoBusqueda ? 'No se encontraron espacios con ese criterio' : 'No hay espacios disponibles'}
+              </Text>
+              <Text style={styles.emptySubtext}>
+                {tipoUsuario === 'cliente' ? 'Publica tu primer espacio y comienza a recibir reservas' :
+                  'Intenta ajustar los filtros de búsqueda'}
+              </Text>
+              {tipoUsuario === 'cliente' && (
+                <TouchableOpacity
+                  style={styles.emptyButton}
+                  onPress={handleCrearPublicacion}
+                >
+                  <Text style={styles.emptyButtonText}>Publicar espacio</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : (
+            <View style={styles.espaciosContainer}>
+              <Text style={styles.espaciosCount}>
+                {espaciosFiltrados.length} espacio{espaciosFiltrados.length !== 1 ? 's' : ''}
+                {textoBusqueda ? ` encontrado${espaciosFiltrados.length !== 1 ? 's' : ''}` : ' disponible'}
+              </Text>
+              {espaciosFiltrados.map((espacio) => (
+                <EspacioCard key={espacio.id || Math.random()} espacio={espacio} />
+              ))}
+            </View>
+          )
         )}
       </ScrollView>
 
@@ -597,6 +827,163 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     color: '#2c3e50',
   },
+
+  estadisticasContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  estadisticasTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  estadisticasGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  estadisticaItem: {
+    alignItems: 'center',
+  },
+  estadisticaNumero: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#4a90e2',
+  },
+  estadisticaLabel: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginTop: 4,
+  },
+  reservaCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 15,
+    padding: 15,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  reservaHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  reservaInfo: {
+    flex: 1,
+  },
+  reservaTitulo: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 4,
+  },
+  reservaCliente: {
+    fontSize: 14,
+    color: '#7f8c8d',
+  },
+  estadoBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  estadoText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textTransform: 'capitalize',
+  },
+  reservaDetalles: {
+    marginBottom: 15,
+  },
+  fechaContainer: {
+    marginBottom: 12,
+  },
+  fechaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  fechaText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#5a6c7d',
+  },
+  serviciosContainer: {
+    marginBottom: 12,
+  },
+  serviciosLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  servicioItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  servicioNombre: {
+    fontSize: 14,
+    color: '#2c3e50',
+    flex: 1,
+  },
+  servicioPrecio: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#27ae60',
+  },
+  resumenFinanciero: {
+    borderTopWidth: 1,
+    borderTopColor: '#ecf0f1',
+    paddingTop: 12,
+  },
+  ingresoItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  ingresoLabel: {
+    fontSize: 14,
+    color: '#7f8c8d',
+  },
+  ingresoMonto: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#27ae60',
+  },
+  verReservaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4a90e2',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    gap: 8,
+  },
+  verReservaButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+
   filtrosContainer: {
     marginBottom: 20,
     marginTop: -10,
@@ -646,6 +1033,27 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontFamily: 'System',
   },
+  crearServicioButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#27ae60',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  crearServicioText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+    fontFamily: 'System',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -662,6 +1070,15 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   espaciosCount: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    marginBottom: 15,
+    fontFamily: 'System',
+  },
+  reservasContainer: {
+    paddingBottom: 20,
+  },
+  reservasCount: {
     fontSize: 14,
     color: '#7f8c8d',
     marginBottom: 15,
@@ -863,17 +1280,6 @@ const styles = StyleSheet.create({
     height: 200,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
-  },
-
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 20,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
 });
 

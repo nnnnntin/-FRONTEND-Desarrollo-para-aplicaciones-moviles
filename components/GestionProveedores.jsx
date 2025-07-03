@@ -116,58 +116,39 @@ const GestionProveedores = ({ navigation }) => {
     setModalDetalles(true);
   };
 
-const handleCambiarEstado = (proveedor, nuevoEstado) => {
-  const body = {};
+  const handleCambiarEstado = (proveedor, nuevoEstado) => {
+    const body = {};
 
-  if (nuevoEstado === 'activo') {
-    body.activo = true;
-    body.verificado = true;
-  } else if (nuevoEstado === 'pendiente') {
-    body.verificado = false;
-  } else if (nuevoEstado === 'suspendido') {
-    body.activo = false;
-  }
+    if (nuevoEstado === 'activo') {
+      body.activo = true;
+      body.verificado = true;
+    } else if (nuevoEstado === 'pendiente') {
+      body.verificado = false;
+    } else if (nuevoEstado === 'suspendido') {
+      body.activo = false;
+    }
 
-  Alert.alert(
-    'Cambiar estado',
-    `¿Cambiar el estado de ${proveedor.empresa || proveedor.nombre} a ${nuevoEstado}?`,
-    [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Confirmar',
-        onPress: async () => {
-          try {
-            await dispatch(
-              actualizarProveedor({ id: proveedor._id, datos: body })
-            ).unwrap();        // ← lanza si hay error
-
-            Alert.alert('Éxito', 'Estado actualizado');
-            setModalDetalles(false);
-            // ya no hace falta recargar, el slice se actualiza solo (ver punto 3)
-          } catch (err) {
-            console.error(err);
-            Alert.alert('Error', err || 'No se pudo actualizar');
-          }
-        },
-      },
-    ]
-  );
-};
-
-
-  const handleVerDocumentos = (proveedor) => {
-    setModalDetalles(false);
-    Alert.alert('Documentos', 'Funcionalidad de ver documentos en desarrollo');
-  };
-
-  const handleContactar = (proveedor) => {
     Alert.alert(
-      'Contactar proveedor',
-      `¿Cómo deseas contactar a ${proveedor.nombre}?`,
+      'Cambiar estado',
+      `¿Cambiar el estado de ${proveedor.empresa || proveedor.nombre} a ${nuevoEstado}?`,
       [
-        { text: 'Email', onPress: () => console.log('Abrir email') },
-        { text: 'Teléfono', onPress: () => console.log('Llamar') },
-        { text: 'Cancelar', style: 'cancel' }
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Confirmar',
+          onPress: async () => {
+            try {
+              await dispatch(
+                actualizarProveedor({ id: proveedor._id, datos: body })
+              ).unwrap();
+
+              Alert.alert('Éxito', 'Estado actualizado');
+              setModalDetalles(false);
+            } catch (error) {
+              console.error(error);
+              Alert.alert('Error', err || 'No se pudo actualizar');
+            }
+          },
+        },
       ]
     );
   };
@@ -264,9 +245,6 @@ const handleCambiarEstado = (proveedor, nuevoEstado) => {
           <Ionicons name="arrow-back" size={24} color="#2c3e50" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Gestión de Proveedores</Text>
-        <TouchableOpacity style={styles.addButton}>
-          <Ionicons name="add" size={24} color="#4a90e2" />
-        </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>
@@ -400,52 +378,17 @@ const handleCambiarEstado = (proveedor, nuevoEstado) => {
                     <Ionicons name="calendar" size={16} color="#4a90e2" />
                     <Text style={styles.modalInfoValue}>
                       Registrado el {proveedorSeleccionado.createdAt
-                                      ? new Date(proveedorSeleccionado.createdAt).toLocaleString('es-UY', {
-                                          day: '2-digit',
-                                          month: '2-digit',
-                                          year: 'numeric',
-                                          hour: '2-digit',
-                                          minute: '2-digit',
-                                        })
-                                      : 'Fecha no disponible'}
+                        ? new Date(proveedorSeleccionado.createdAt).toLocaleString('es-UY', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                        : 'Fecha no disponible'}
                     </Text>
                   </View>
                 </View>
-
-                <View style={styles.modalSeccion}>
-                  <Text style={styles.modalSeccionTitle}>Servicios ofrecidos</Text>
-                  <View style={styles.modalServiciosGrid}>
-                    {(proveedorSeleccionado.servicios || []).map((servicio, index) => (
-                      <View key={index} style={styles.modalServicioChip}>
-                        <Text style={styles.modalServicioText}>{servicio.nombre}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-
-                {getEstadoInfo(proveedorSeleccionado).texto === 'activo' && (
-                  <View style={styles.modalSeccion}>
-                    <Text style={styles.modalSeccionTitle}>Estadísticas</Text>
-                    <View style={styles.modalEstadisticas}>
-                      <View style={styles.modalEstatItem}>
-                        <Ionicons name="star" size={20} color="#f39c12" />
-                        <Text style={styles.modalEstatValor}>{proveedorSeleccionado.calificacion || 0}</Text>
-                        <Text style={styles.modalEstatLabel}>Calificación</Text>
-                      </View>
-                      <View style={styles.modalEstatItem}>
-                        <Ionicons name="construct" size={20} color="#4a90e2" />
-                        <Text style={styles.modalEstatValor}>{proveedorSeleccionado.trabajosCompletados || 0}</Text>
-                        <Text style={styles.modalEstatLabel}>Servicios</Text>
-                      </View>
-                      <View style={styles.modalEstatItem}>
-                        <Ionicons name="cash" size={20} color="#27ae60" />
-                        <Text style={styles.modalEstatValor}>${proveedorSeleccionado.gananciasGeneradas || 0}</Text>
-                        <Text style={styles.modalEstatLabel}>Ganancias</Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
-
                 <View style={styles.modalAcciones}>
                   {getEstadoInfo(proveedorSeleccionado).texto === 'pendiente' && (
                     <TouchableOpacity
@@ -456,33 +399,6 @@ const handleCambiarEstado = (proveedor, nuevoEstado) => {
                       <Text style={styles.modalBotonText}>Aprobar</Text>
                     </TouchableOpacity>
                   )}
-
-                  {getEstadoInfo(proveedorSeleccionado).texto === 'activo' && (
-                    <TouchableOpacity
-                      style={[styles.modalBoton, styles.botonSuspender]}
-                      onPress={() => handleCambiarEstado(proveedorSeleccionado, 'suspendido')}
-                    >
-                      <Ionicons name="pause" size={16} color="#fff" />
-                      <Text style={styles.modalBotonText}>Suspender</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {getEstadoInfo(proveedorSeleccionado).texto === 'suspendido' && (
-                    <TouchableOpacity
-                      style={[styles.modalBoton, styles.botonActivar]}
-                      onPress={() => handleCambiarEstado(proveedorSeleccionado, 'activo')}
-                    >
-                      <Ionicons name="play" size={16} color="#fff" />
-                      <Text style={styles.modalBotonText}>Activar</Text>
-                    </TouchableOpacity>
-                  )}
-                  <TouchableOpacity
-                    style={[styles.modalBoton, styles.botonContactar]}
-                    onPress={() => handleContactar(proveedorSeleccionado)}
-                  >
-                    <Ionicons name="call" size={16} color="#fff" />
-                    <Text style={styles.modalBotonText}>Contactar</Text>
-                  </TouchableOpacity>
                 </View>
               </ScrollView>
             )}

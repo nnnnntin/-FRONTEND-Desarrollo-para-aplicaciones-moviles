@@ -24,7 +24,6 @@ import { actualizarUsuario } from '../store/slices/usuarioSlice';
 const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
-
 const userProfileSchema = yup.object({
   nombre: yup
     .string()
@@ -32,51 +31,51 @@ const userProfileSchema = yup.object({
     .min(2, 'El nombre debe tener al menos 2 caracteres')
     .max(50, 'El nombre no puede exceder 50 caracteres')
     .matches(/^[a-zA-ZÀ-ÿ\s]+$/, 'El nombre solo puede contener letras y espacios'),
-  
+
   apellidos: yup
     .string()
     .max(50, 'Los apellidos no pueden exceder 50 caracteres')
     .matches(/^[a-zA-ZÀ-ÿ\s]*$/, 'Los apellidos solo pueden contener letras y espacios'),
-  
+
   email: yup
     .string()
     .email('Ingrese un email válido')
     .required('El email es obligatorio'),
-  
+
   telefono: yup
     .string()
     .matches(/^(\+598\s?)?[0-9\s\-()]{8,15}$/, 'Ingrese un teléfono válido (+598 9X XXX XXX)')
     .nullable(),
-  
+
   documentoIdentidad: yup
     .string()
     .min(7, 'El documento debe tener al menos 7 caracteres')
     .max(15, 'El documento no puede exceder 15 caracteres')
     .matches(/^[0-9A-Z\-]+$/, 'El documento solo puede contener números, letras mayúsculas y guiones')
     .nullable(),
-  
+
   calle: yup
     .string()
     .max(100, 'La dirección no puede exceder 100 caracteres')
     .nullable(),
-  
+
   ciudad: yup
     .string()
     .max(50, 'La ciudad no puede exceder 50 caracteres')
     .matches(/^[a-zA-ZÀ-ÿ\s]*$/, 'La ciudad solo puede contener letras y espacios')
     .nullable(),
-  
+
   codigoPostal: yup
     .string()
     .matches(/^[0-9]{4,6}$/, 'El código postal debe tener entre 4 y 6 dígitos')
     .nullable(),
-  
+
   pais: yup
     .string()
     .max(50, 'El país no puede exceder 50 caracteres')
     .matches(/^[a-zA-ZÀ-ÿ\s]*$/, 'El país solo puede contener letras y espacios')
     .nullable(),
-  
+
   password: yup
     .string()
     .min(8, 'La contraseña debe tener al menos 8 caracteres')
@@ -86,14 +85,14 @@ const userProfileSchema = yup.object({
       'La contraseña debe contener al menos una minúscula, una mayúscula y un número'
     )
     .nullable(),
-  
+
   confirmPassword: yup
     .string()
     .when('password', {
       is: (password) => password && password.length > 0,
       then: (schema) => schema
         .required('Debe confirmar la contraseña')
-        .test('passwords-match', 'Las contraseñas deben coincidir', function(value) {
+        .test('passwords-match', 'Las contraseñas deben coincidir', function (value) {
           return value === this.parent.password;
         }),
       otherwise: (schema) => schema.nullable(),
@@ -152,7 +151,6 @@ const MiCuenta = ({ navigation }) => {
     }
   }, [usuario]);
 
-  
   const validateField = async (fieldName, value) => {
     try {
       await yup.reach(userProfileSchema, fieldName).validate(value);
@@ -171,7 +169,6 @@ const MiCuenta = ({ navigation }) => {
     }
   };
 
-  
   const validateForm = async (data) => {
     try {
       await userProfileSchema.validate(data, { abortEarly: false });
@@ -187,13 +184,11 @@ const MiCuenta = ({ navigation }) => {
     }
   };
 
-  
   const handleInputChange = (fieldName, value) => {
     if (!isEditing) return;
-    
+
     setEditData(prev => ({ ...prev, [fieldName]: value }));
-    
-    
+
     const timeoutId = setTimeout(() => {
       validateField(fieldName, value);
     }, 500);
@@ -203,15 +198,14 @@ const MiCuenta = ({ navigation }) => {
 
   const handleEdit = async () => {
     if (isEditing) {
-      
+
       const isValid = await validateForm(editData);
-      
+
       if (!isValid) {
         Alert.alert('Error de validación', 'Por favor corrige los errores en el formulario');
         return;
       }
 
-      
       if (!editData.nombre.trim() || !editData.email.trim()) {
         Alert.alert('Error', 'El nombre y email son obligatorios');
         return;
@@ -519,7 +513,6 @@ const MiCuenta = ({ navigation }) => {
     );
   };
 
-  
   const ErrorText = ({ error }) => {
     if (!error) return null;
     return <Text style={styles.errorText}>{error}</Text>;
@@ -570,7 +563,7 @@ const MiCuenta = ({ navigation }) => {
                 <Text style={styles.label}>Nombre *</Text>
                 <TextInput
                   style={[
-                    styles.input, 
+                    styles.input,
                     !isEditing && styles.inputDisabled,
                     validationErrors.nombre && styles.inputError
                   ]}
@@ -581,12 +574,12 @@ const MiCuenta = ({ navigation }) => {
                 />
                 <ErrorText error={validationErrors.nombre} />
               </View>
-              
+
               <View style={styles.halfInputContainer}>
                 <Text style={styles.label}>Apellidos</Text>
                 <TextInput
                   style={[
-                    styles.input, 
+                    styles.input,
                     !isEditing && styles.inputDisabled,
                     validationErrors.apellidos && styles.inputError
                   ]}
@@ -619,7 +612,7 @@ const MiCuenta = ({ navigation }) => {
                 <Text style={styles.label}>Teléfono</Text>
                 <TextInput
                   style={[
-                    styles.input, 
+                    styles.input,
                     !isEditing && styles.inputDisabled,
                     validationErrors.telefono && styles.inputError
                   ]}
@@ -631,12 +624,12 @@ const MiCuenta = ({ navigation }) => {
                 />
                 <ErrorText error={validationErrors.telefono} />
               </View>
-              
+
               <View style={styles.halfInputContainer}>
                 <Text style={styles.label}>Documento</Text>
                 <TextInput
                   style={[
-                    styles.input, 
+                    styles.input,
                     !isEditing && styles.inputDisabled,
                     validationErrors.documentoIdentidad && styles.inputError
                   ]}
@@ -655,7 +648,7 @@ const MiCuenta = ({ navigation }) => {
               <Text style={styles.label}>Calle y número</Text>
               <TextInput
                 style={[
-                  styles.input, 
+                  styles.input,
                   !isEditing && styles.inputDisabled,
                   validationErrors.calle && styles.inputError
                 ]}
@@ -672,7 +665,7 @@ const MiCuenta = ({ navigation }) => {
                 <Text style={styles.label}>Ciudad</Text>
                 <TextInput
                   style={[
-                    styles.input, 
+                    styles.input,
                     !isEditing && styles.inputDisabled,
                     validationErrors.ciudad && styles.inputError
                   ]}
@@ -683,12 +676,12 @@ const MiCuenta = ({ navigation }) => {
                 />
                 <ErrorText error={validationErrors.ciudad} />
               </View>
-              
+
               <View style={styles.halfInputContainer}>
                 <Text style={styles.label}>Código Postal</Text>
                 <TextInput
                   style={[
-                    styles.input, 
+                    styles.input,
                     !isEditing && styles.inputDisabled,
                     validationErrors.codigoPostal && styles.inputError
                   ]}
@@ -706,7 +699,7 @@ const MiCuenta = ({ navigation }) => {
               <Text style={styles.label}>País</Text>
               <TextInput
                 style={[
-                  styles.input, 
+                  styles.input,
                   !isEditing && styles.inputDisabled,
                   validationErrors.pais && styles.inputError
                 ]}
@@ -795,11 +788,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
-    inputError: {
+  inputError: {
     borderColor: '#e74c3c',
     borderWidth: 2,
   },
-  
+
   errorText: {
     fontSize: 12,
     color: '#e74c3c',

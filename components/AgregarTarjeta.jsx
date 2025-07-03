@@ -37,7 +37,7 @@ const AgregarTarjeta = ({ navigation, route }) => {
   const tarjetaSchema = Yup.object({
     numeroTarjeta: Yup.string()
       .required(t('addPaymentMethodForm.validation.cardNumberRequired'))
-      .test('tarjeta-valida', t('addPaymentMethodForm.validation.cardNumberInvalid'), function(value) {
+      .test('tarjeta-valida', t('addPaymentMethodForm.validation.cardNumberInvalid'), function (value) {
         if (!value) return false;
         const numeroLimpio = value.replace(/\s/g, '');
         return /^\d{13,19}$/.test(numeroLimpio);
@@ -50,7 +50,7 @@ const AgregarTarjeta = ({ navigation, route }) => {
     fechaExpiracion: Yup.string()
       .required(t('addPaymentMethodForm.validation.expirationDateRequired'))
       .matches(/^(0[1-9]|1[0-2])\/\d{2}$/, t('addPaymentMethodForm.validation.expirationDateFormat'))
-      .test('fecha-valida', t('addPaymentMethodForm.validation.cardExpired'), function(value) {
+      .test('fecha-valida', t('addPaymentMethodForm.validation.cardExpired'), function (value) {
         if (!value || !value.includes('/')) return false;
 
         const [mes, año] = value.split('/');
@@ -134,12 +134,6 @@ const AgregarTarjeta = ({ navigation, route }) => {
       return false;
     }
   };
-
-  useEffect(() => {
-    if (errorMetodosPago) {
-      console.log('Error previo en métodos pago:', errorMetodosPago);
-    }
-  }, [usuario, usuarioId, auth?.token, loadingMetodosPago, errorMetodosPago]);
 
   useEffect(() => {
     limpiarErrores();
@@ -287,111 +281,105 @@ const AgregarTarjeta = ({ navigation, route }) => {
     validarCampo('nombreTitular', texto);
   };
 
- const handleAgregar = async () => {
-  const esValido = await validarFormulario();
-  if (!esValido) return;
+  const handleAgregar = async () => {
+    const esValido = await validarFormulario();
+    if (!esValido) return;
 
-  const metodoPagoData = {
-    numeroTarjeta: numeroTarjeta,
-    cvc,
-    fechaExpiracion,
-    nombreTitular: nombreTitular.trim(),
-    predeterminado,
-    marca: detectarTipoTarjeta(numeroTarjeta),
-  };
+    const metodoPagoData = {
+      numeroTarjeta: numeroTarjeta,
+      cvc,
+      fechaExpiracion,
+      nombreTitular: nombreTitular.trim(),
+      predeterminado,
+      marca: detectarTipoTarjeta(numeroTarjeta),
+    };
 
-  const erroresValidacion = validarDatosMetodoPago(metodoPagoData);
-  if (erroresValidacion.length > 0) {
-    Alert.alert(
-      t('addPaymentMethodForm.alerts.validationError'),
-      erroresValidacion.join('\n'),
-      [{ text: t('addPaymentMethodForm.common.ok') }]
-    );
-    return;
-  }
-
-  const tipoTarjeta = detectarTipoTarjeta(numeroTarjeta);
-  const ultimosCuatroDigitos = numeroTarjeta.replace(/\s/g, '').slice(-4);
-  const userId = usuarioId || usuario?.id || usuario?._id;
-
-  if (!userId) {
-    return Alert.alert(t('addPaymentMethodForm.common.error'), t('addPaymentMethodForm.alerts.userError'));
-  }
-
-  const fechaRegex = /^(0[1-9]|1[0-2])\/\d{2}$/;
-  if (!fechaRegex.test(fechaExpiracion)) {
-    Alert.alert(
-      t('addPaymentMethodForm.alerts.formatError'),
-      t('addPaymentMethodForm.alerts.dateFormatError'),
-      [{ text: t('addPaymentMethodForm.common.ok') }]
-    );
-    return;
-  }
-
-  try {
-    const payload = await dispatch(
-      agregarMetodoPago({ usuarioId: userId, metodoPago: metodoPagoData })
-    ).unwrap();
-
-    Alert.alert(
-      t('addPaymentMethodForm.alerts.cardAdded'),
-      `${(tipoTarjeta || 'Tarjeta').toUpperCase()} •••• ${ultimosCuatroDigitos} ${t('addPaymentMethodForm.alerts.cardAddedSuccess')}`,
-      [{
-        text: t('addPaymentMethodForm.common.ok'), onPress: () => {
-          if (onTarjetaAgregada) {
-            onTarjetaAgregada();
-          }
-          navigation.goBack();
-        }
-      }]
-    );
-
-  } catch (error) {
-    console.error('=== ERROR AL AGREGAR TARJETA ===');
-    console.error('Error type:', typeof error);
-    console.error('Error content:', error);
-
-    let mensaje = t('addPaymentMethodForm.alerts.unknownError');
-
-    if (typeof error === 'string') {
-      if (error.includes('Error de validación')) {
-        mensaje = error;
-      } else if (error.includes('fetch') || error.includes('network')) {
-        mensaje = t('addPaymentMethodForm.alerts.connectionError');
-      } else if (error.includes('401') || error.includes('Unauthorized')) {
-        mensaje = t('addPaymentMethodForm.alerts.sessionExpired');
-      } else if (error.includes('400') || error.includes('Bad Request')) {
-        mensaje = t('addPaymentMethodForm.alerts.invalidCardData');
-      } else if (error.includes('500') || error.includes('Internal Server Error')) {
-        mensaje = t('addPaymentMethodForm.alerts.serverError');
-      } else {
-        mensaje = error;
-      }
-    } else if (error?.message) {
-      mensaje = error.message;
+    const erroresValidacion = validarDatosMetodoPago(metodoPagoData);
+    if (erroresValidacion.length > 0) {
+      Alert.alert(
+        t('addPaymentMethodForm.alerts.validationError'),
+        erroresValidacion.join('\n'),
+        [{ text: t('addPaymentMethodForm.common.ok') }]
+      );
+      return;
     }
 
-    Alert.alert(
-      t('addPaymentMethodForm.alerts.addCardError'),
-      mensaje,
-      [
-        {
-          text: t('addPaymentMethodForm.buttons.retry'),
-          onPress: () => {
-            handleAgregar();
+    const tipoTarjeta = detectarTipoTarjeta(numeroTarjeta);
+    const ultimosCuatroDigitos = numeroTarjeta.replace(/\s/g, '').slice(-4);
+    const userId = usuarioId || usuario?.id || usuario?._id;
+
+    if (!userId) {
+      return Alert.alert(t('addPaymentMethodForm.common.error'), t('addPaymentMethodForm.alerts.userError'));
+    }
+
+    const fechaRegex = /^(0[1-9]|1[0-2])\/\d{2}$/;
+    if (!fechaRegex.test(fechaExpiracion)) {
+      Alert.alert(
+        t('addPaymentMethodForm.alerts.formatError'),
+        t('addPaymentMethodForm.alerts.dateFormatError'),
+        [{ text: t('addPaymentMethodForm.common.ok') }]
+      );
+      return;
+    }
+
+    try {
+      const payload = await dispatch(
+        agregarMetodoPago({ usuarioId: userId, metodoPago: metodoPagoData })
+      ).unwrap();
+
+      Alert.alert(
+        t('addPaymentMethodForm.alerts.cardAdded'),
+        `${(tipoTarjeta || 'Tarjeta').toUpperCase()} •••• ${ultimosCuatroDigitos} ${t('addPaymentMethodForm.alerts.cardAddedSuccess')}`,
+        [{
+          text: t('addPaymentMethodForm.common.ok'), onPress: () => {
+            if (onTarjetaAgregada) {
+              onTarjetaAgregada();
+            }
+            navigation.goBack();
           }
-        },
-        {
-          text: t('addPaymentMethodForm.buttons.cancel'),
-          style: 'cancel',
-          onPress: () => {
-            console.log('Usuario canceló después del error');
-          }
+        }]
+      );
+
+    } catch (error) {
+
+      let mensaje = t('addPaymentMethodForm.alerts.unknownError');
+
+      if (typeof error === 'string') {
+        if (error.includes('Error de validación')) {
+          mensaje = error;
+        } else if (error.includes('fetch') || error.includes('network')) {
+          mensaje = t('addPaymentMethodForm.alerts.connectionError');
+        } else if (error.includes('401') || error.includes('Unauthorized')) {
+          mensaje = t('addPaymentMethodForm.alerts.sessionExpired');
+        } else if (error.includes('400') || error.includes('Bad Request')) {
+          mensaje = t('addPaymentMethodForm.alerts.invalidCardData');
+        } else if (error.includes('500') || error.includes('Internal Server Error')) {
+          mensaje = t('addPaymentMethodForm.alerts.serverError');
+        } else {
+          mensaje = error;
         }
-      ]
-    );
-  }
-};
+      } else if (error?.message) {
+        mensaje = error.message;
+      }
+
+      Alert.alert(
+        t('addPaymentMethodForm.alerts.addCardError'),
+        mensaje,
+        [
+          {
+            text: t('addPaymentMethodForm.buttons.retry'),
+            onPress: () => {
+              handleAgregar();
+            }
+          },
+          {
+            text: t('addPaymentMethodForm.buttons.cancel'),
+            style: 'cancel'
+          }
+        ]
+      );
+    }
+  };
 
   const handleAgregarConVerificacion = async () => {
     const hayConectividad = await verificarConectividad();
@@ -586,6 +574,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4a90e2',
+    marginTop: 20,
   },
   header: {
     flexDirection: 'row',

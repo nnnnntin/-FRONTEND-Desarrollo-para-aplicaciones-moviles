@@ -28,9 +28,9 @@ export const crearPago = createAsyncThunk(
         `${process.env.EXPO_PUBLIC_API_URL}/v1/pagos`,
         {
           method: 'POST',
-          headers: { 
-            Authorization: `Bearer ${auth.token}`, 
-            'Content-Type': 'application/json' 
+          headers: {
+            Authorization: `Bearer ${auth.token}`,
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify(pagoData)
         }

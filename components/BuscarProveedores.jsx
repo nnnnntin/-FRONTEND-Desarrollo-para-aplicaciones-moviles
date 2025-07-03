@@ -25,19 +25,19 @@ const busquedaSchema = Yup.object({
   searchText: Yup.string()
     .max(100, 'La búsqueda no puede tener más de 100 caracteres')
     .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s]*$/, 'Solo se permiten letras, números y espacios'),
-  
+
   filtroCategoria: Yup.string()
-    .test('categoria-valida', 'Categoría no válida', function(value) {
+    .test('categoria-valida', 'Categoría no válida', function (value) {
       const categorias = ['todos', 'limpieza', 'tecnologia', 'catering', 'seguridad', 'mantenimiento', 'eventos'];
       return !value || categorias.includes(value);
     }),
-  
+
   filtroCalificacion: Yup.number()
     .min(0, 'La calificación mínima es 0')
     .max(5, 'La calificación máxima es 5'),
-  
+
   filtroPrecio: Yup.string()
-    .test('precio-valido', 'Filtro de precio no válido', function(value) {
+    .test('precio-valido', 'Filtro de precio no válido', function (value) {
       const precios = ['todos', 'bajo', 'medio', 'alto'];
       return !value || precios.includes(value);
     })
@@ -47,18 +47,18 @@ const solicitudSchema = Yup.object({
   proveedorId: Yup.string()
     .required('El ID del proveedor es requerido')
     .min(1, 'ID de proveedor inválido'),
-  
+
   espacioId: Yup.string()
     .required('El ID del espacio es requerido')
     .min(1, 'ID de espacio inválido'),
-  
+
   mensaje: Yup.string()
     .required('El mensaje es requerido')
     .min(10, 'El mensaje debe tener al menos 10 caracteres')
     .max(500, 'El mensaje no puede tener más de 500 caracteres'),
-  
+
   estado: Yup.string()
-    .test('estado-valido', 'Estado no válido', function(value) {
+    .test('estado-valido', 'Estado no válido', function (value) {
       const estados = ['enviada', 'pendiente', 'aceptada', 'rechazada'];
       return !value || estados.includes(value);
     })
@@ -140,7 +140,6 @@ const BuscarProveedores = ({ navigation, route }) => {
     try {
       await dispatch(obtenerProveedores(0, 50));
     } catch (error) {
-      console.error('Error al cargar proveedores:', error);
       Alert.alert('Error', 'No se pudieron cargar los proveedores');
     }
   };
@@ -166,7 +165,7 @@ const BuscarProveedores = ({ navigation, route }) => {
 
       await dispatch(filtrarProveedores(filtros));
     } catch (error) {
-      console.error('Error al aplicar filtros:', error);
+      console.error(error);
     }
   };
 
@@ -205,14 +204,14 @@ const BuscarProveedores = ({ navigation, route }) => {
       Alert.alert('Error', 'Proveedor no válido');
       return;
     }
-    
+
     dispatch(setProveedorSeleccionado(proveedor));
     setModalVisible(true);
   };
 
   const handleCambioTexto = async (texto) => {
     setSearchText(texto);
-    
+
     try {
       await busquedaSchema.validateAt('searchText', { searchText: texto });
       setErrores(prev => ({ ...prev, searchText: null }));
@@ -223,7 +222,7 @@ const BuscarProveedores = ({ navigation, route }) => {
 
   const handleCambioCategoria = async (categoria) => {
     setFiltroCategoria(categoria);
-    
+
     try {
       await busquedaSchema.validateAt('filtroCategoria', { filtroCategoria: categoria });
       setErrores(prev => ({ ...prev, filtroCategoria: null }));
@@ -234,7 +233,7 @@ const BuscarProveedores = ({ navigation, route }) => {
 
   const handleCambioCalificacion = async (calificacion) => {
     setFiltroCalificacion(calificacion);
-    
+
     try {
       await busquedaSchema.validateAt('filtroCalificacion', { filtroCalificacion: calificacion });
       setErrores(prev => ({ ...prev, filtroCalificacion: null }));
@@ -245,7 +244,7 @@ const BuscarProveedores = ({ navigation, route }) => {
 
   const handleCambioPrecio = async (precio) => {
     setFiltroPrecio(precio);
-    
+
     try {
       await busquedaSchema.validateAt('filtroPrecio', { filtroPrecio: precio });
       setErrores(prev => ({ ...prev, filtroPrecio: null }));
@@ -280,35 +279,6 @@ const BuscarProveedores = ({ navigation, route }) => {
       Alert.alert('Error de validación', erroresTexto);
       return;
     }
-
-    Alert.alert(
-      'Enviar solicitud',
-      `¿Quieres enviar una solicitud a ${proveedor.nombre} (${proveedor.empresa}) para ofrecer servicios en "${oficina.nombre}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Enviar solicitud',
-          onPress: async () => {
-            try {
-              const result = await dispatch(crearSolicitudServicio(solicitudData));
-
-              if (result.success) {
-                Alert.alert(
-                  'Solicitud enviada',
-                  `Tu solicitud ha sido enviada a ${proveedor.nombre}. Te notificaremos cuando responda.`,
-                  [{ text: 'OK', onPress: () => navigation.goBack() }]
-                );
-              } else {
-                Alert.alert('Error', 'No se pudo enviar la solicitud. Inténtalo de nuevo.');
-              }
-            } catch (error) {
-              console.error('Error al enviar solicitud:', error);
-              Alert.alert('Error', 'No se pudo enviar la solicitud. Inténtalo de nuevo.');
-            }
-          }
-        }
-      ]
-    );
   };
 
   const renderProveedor = ({ item: proveedor }) => (
@@ -492,7 +462,7 @@ const BuscarProveedores = ({ navigation, route }) => {
         <View style={styles.filtrosRow}>
           <TouchableOpacity
             style={[
-              styles.filtroChip, 
+              styles.filtroChip,
               filtroCalificacion >= 4.5 && styles.filtroChipActive,
               errores.filtroCalificacion && styles.filtroChipError
             ]}
@@ -506,7 +476,7 @@ const BuscarProveedores = ({ navigation, route }) => {
 
           <TouchableOpacity
             style={[
-              styles.filtroChip, 
+              styles.filtroChip,
               filtroPrecio === 'bajo' && styles.filtroChipActive,
               errores.filtroPrecio && styles.filtroChipError
             ]}
@@ -519,7 +489,7 @@ const BuscarProveedores = ({ navigation, route }) => {
 
           <TouchableOpacity
             style={[
-              styles.filtroChip, 
+              styles.filtroChip,
               filtroPrecio === 'medio' && styles.filtroChipActive,
               errores.filtroPrecio && styles.filtroChipError
             ]}
@@ -670,7 +640,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
-    searchInputError: {
+  searchInputError: {
     borderColor: '#e74c3c',
   },
   categoriaButtonError: {

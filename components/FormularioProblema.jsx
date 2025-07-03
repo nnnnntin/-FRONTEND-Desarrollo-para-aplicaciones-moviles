@@ -55,26 +55,26 @@ const FormularioProblema = ({ navigation }) => {
       };
 
       await problemaSchema.validateAt(campo, datosCompletos);
-      
+
       setErrores(prev => ({
         ...prev,
         [campo]: null
       }));
-      
+
       return true;
     } catch (error) {
       setErrores(prev => ({
         ...prev,
         [campo]: error.message
       }));
-      
+
       return false;
     }
   };
 
   const validarFormulario = async () => {
     setValidacionEnCurso(true);
-    
+
     try {
       const datosValidacion = {
         email: email.trim(),
@@ -83,14 +83,14 @@ const FormularioProblema = ({ navigation }) => {
       };
 
       await problemaSchema.validate(datosValidacion, { abortEarly: false });
-      
+
       setErrores({});
       setValidacionEnCurso(false);
       return true;
-      
+
     } catch (error) {
       const nuevosErrores = {};
-      
+
       if (error.inner) {
         error.inner.forEach(err => {
           nuevosErrores[err.path] = err.message;
@@ -98,7 +98,7 @@ const FormularioProblema = ({ navigation }) => {
       } else {
         nuevosErrores.general = error.message;
       }
-      
+
       setErrores(nuevosErrores);
       setValidacionEnCurso(false);
       return false;
@@ -111,7 +111,7 @@ const FormularioProblema = ({ navigation }) => {
 
   const handleEmailChange = (text) => {
     setEmail(text);
-    
+
     setTimeout(() => {
       validarCampo('email', text);
     }, 500);
@@ -119,7 +119,7 @@ const FormularioProblema = ({ navigation }) => {
 
   const handleAsuntoChange = (text) => {
     setAsunto(text);
-    
+
     setTimeout(() => {
       validarCampo('asunto', text);
     }, 500);
@@ -127,7 +127,7 @@ const FormularioProblema = ({ navigation }) => {
 
   const handleMensajeChange = (text) => {
     setMensaje(text);
-    
+
     setTimeout(() => {
       validarCampo('mensaje', text);
     }, 500);
@@ -135,12 +135,12 @@ const FormularioProblema = ({ navigation }) => {
 
   const handleEnviar = async () => {
     const esValido = await validarFormulario();
-    
+
     if (!esValido) {
       const erroresTexto = Object.values(errores)
         .filter(error => error)
         .join('\n');
-      
+
       Alert.alert('Formulario incompleto', erroresTexto || 'Por favor corrige los errores antes de continuar');
       return;
     }
@@ -199,7 +199,6 @@ const FormularioProblema = ({ navigation }) => {
             Te ayudaremos a resolverlo lo antes posible
           </Text>
 
-          {/* Mostrar errores generales */}
           {errores.general && (
             <View style={styles.errorAlert}>
               <Ionicons name="alert-circle" size={20} color="#e74c3c" />
@@ -264,7 +263,6 @@ const FormularioProblema = ({ navigation }) => {
             </Text>
           </View>
 
-          {/* Indicador de validación */}
           {!tieneErrores && email && asunto && mensaje && (
             <View style={styles.validacionExitosa}>
               <Ionicons name="checkmark-circle" size={16} color="#27ae60" />
@@ -276,7 +274,7 @@ const FormularioProblema = ({ navigation }) => {
 
           <TouchableOpacity
             style={[
-              styles.botonEnviar, 
+              styles.botonEnviar,
               (enviando || validacionEnCurso) && styles.botonEnviandoDisabled
             ]}
             onPress={handleEnviar}
@@ -305,7 +303,6 @@ const FormularioProblema = ({ navigation }) => {
             </Text>
           </View>
 
-          {/* Consejos para reportar problemas */}
           <View style={styles.consejosContainer}>
             <Text style={styles.consejosTitulo}>💡 Consejos para un mejor reporte</Text>
             <View style={styles.consejoItem}>
@@ -433,7 +430,7 @@ const styles = StyleSheet.create({
     color: '#065f46',
     fontWeight: '500',
   },
-  
+
   inputContainer: {
     marginBottom: 20,
   },

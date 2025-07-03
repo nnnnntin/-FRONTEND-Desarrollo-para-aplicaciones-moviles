@@ -125,17 +125,47 @@ export const obtenerReservasPorCliente = createAsyncThunk(
   }
 );
 
+export const obtenerReservasPorProveedor = createAsyncThunk(
+  'reservas/obtenerPorProveedor',
+  async (proveedorId, { getState, rejectWithValue }) => {
+    try {
+      const { auth } = getState();
+
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/v1/reservas/proveedor/${proveedorId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${auth.token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return rejectWithValue(errorData.message || 'Error al obtener reservas por proveedor');
+      }
+
+      const data = await response.json();
+
+      return data;
+    } catch (error) {
+      return rejectWithValue('Error de conexión');
+    }
+  }
+);
+
 export const obtenerEstadisticasGananciasCliente = createAsyncThunk(
   'reservas/obtenerEstadisticasGanancias',
   async ({ clienteId, fechaInicio, fechaFin }, { getState, rejectWithValue }) => {
     try {
       const { auth } = getState();
       let url = `${process.env.EXPO_PUBLIC_API_URL}/v1/reservas/cliente/${clienteId}/estadisticas`;
-      
+
       const params = new URLSearchParams();
       if (fechaInicio) params.append('fechaInicio', fechaInicio);
       if (fechaFin) params.append('fechaFin', fechaFin);
-      
+
       if (params.toString()) {
         url += `?${params.toString()}`;
       }
@@ -332,6 +362,12 @@ const initialState = {
   loadingReservasCliente: false,
   errorReservasCliente: null,
 
+  reservasProveedor: [],
+  proveedorSeleccionado: null,
+  resumenProveedor: null,
+  loadingReservasProveedor: false,
+  errorReservasProveedor: null,
+
   estadisticasCliente: null,
   loadingEstadisticas: false,
   errorEstadisticas: null,
@@ -363,7 +399,8 @@ const reservasSlice = createSlice({
       state.error = null;
       state.errorDetalle = null;
       state.errorCrearReserva = null;
-      state.errorReservasCliente = null; 
+      state.errorReservasCliente = null;
+      state.errorReservasProveedor = null;
       state.errorEstadisticas = null;
     },
 
@@ -381,6 +418,13 @@ const reservasSlice = createSlice({
       state.errorReservasCliente = null;
     },
 
+    clearReservasProveedor: (state) => {
+      state.reservasProveedor = [];
+      state.proveedorSeleccionado = null;
+      state.resumenProveedor = null;
+      state.errorReservasProveedor = null;
+    },
+
     clearEstadisticasCliente: (state) => {
       state.estadisticasCliente = null;
       state.errorEstadisticas = null;
@@ -396,6 +440,10 @@ const reservasSlice = createSlice({
 
     seleccionarCliente: (state, action) => {
       state.clienteSeleccionado = action.payload;
+    },
+
+    seleccionarProveedor: (state, action) => {
+      state.proveedorSeleccionado = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -453,6 +501,22 @@ const reservasSlice = createSlice({
         state.reservasCliente = [];
       })
 
+      .addCase(obtenerReservasPorProveedor.pending, (state) => {
+        state.loadingReservasProveedor = true;
+        state.errorReservasProveedor = null;
+      })
+      .addCase(obtenerReservasPorProveedor.fulfilled, (state, action) => {
+        state.loadingReservasProveedor = false;
+        state.reservasProveedor = action.payload.reservas || [];
+        state.proveedorSeleccionado = action.payload.proveedor || null;
+        state.resumenProveedor = action.payload.estadisticas || null;
+      })
+      .addCase(obtenerReservasPorProveedor.rejected, (state, action) => {
+        state.loadingReservasProveedor = false;
+        state.errorReservasProveedor = action.payload;
+        state.reservasProveedor = [];
+      })
+
       .addCase(obtenerEstadisticasGananciasCliente.pending, (state) => {
         state.loadingEstadisticas = true;
         state.errorEstadisticas = null;
@@ -493,10 +557,10 @@ const reservasSlice = createSlice({
 
         state.reservas.unshift(reservaCreada);
 
-        if (state.clienteSeleccionado && 
-            reservaCreada.clienteId === state.clienteSeleccionado.id) {
+        if (state.clienteSeleccionado &&
+          reservaCreada.clienteId === state.clienteSeleccionado.id) {
           state.reservasCliente.unshift(reservaCreada);
-          
+
           if (state.resumenCliente) {
             state.resumenCliente.totalReservas += 1;
             if (reservaCreada.estado === 'confirmada') {
@@ -538,6 +602,14 @@ const reservasSlice = createSlice({
           state.reservasCliente[idxCliente] = reservaActualizada;
         }
 
+        const idxProveedor = state.reservasProveedor.findIndex(r =>
+          (r._id || r.id) === reservaId
+        );
+
+        if (idxProveedor !== -1) {
+          state.reservasProveedor[idxProveedor] = reservaActualizada;
+        }
+
         if (state.reservaSeleccionada &&
           (state.reservaSeleccionada._id || state.reservaSeleccionada.id) === reservaId) {
           state.reservaSeleccionada = reservaActualizada;
@@ -562,6 +634,10 @@ const reservasSlice = createSlice({
         );
 
         state.reservasCliente = state.reservasCliente.filter(r =>
+          (r._id || r.id) !== reservaId
+        );
+
+        state.reservasProveedor = state.reservasProveedor.filter(r =>
           (r._id || r.id) !== reservaId
         );
 
@@ -610,6 +686,19 @@ const reservasSlice = createSlice({
           };
         }
 
+        const idxProveedor = state.reservasProveedor.findIndex(r =>
+          (r._id || r.id) === reservaId
+        );
+
+        if (idxProveedor !== -1) {
+          state.reservasProveedor[idxProveedor] = {
+            ...state.reservasProveedor[idxProveedor],
+            estado: 'cancelada',
+            fechaCancelacion: action.payload.fecha,
+            motivoCancelacion: action.payload.motivo
+          };
+        }
+
         if (state.reservaSeleccionada &&
           (state.reservaSeleccionada._id || state.reservaSeleccionada.id) === reservaId) {
           state.reservaSeleccionada = {
@@ -651,6 +740,14 @@ const reservasSlice = createSlice({
           state.reservasCliente[idxCliente] = reservaConfirmada;
         }
 
+        const idxProveedor = state.reservasProveedor.findIndex(r =>
+          (r._id || r.id) === reservaId
+        );
+
+        if (idxProveedor !== -1) {
+          state.reservasProveedor[idxProveedor] = reservaConfirmada;
+        }
+
         if (state.reservaSeleccionada &&
           (state.reservaSeleccionada._id || state.reservaSeleccionada.id) === reservaId) {
           state.reservaSeleccionada = reservaConfirmada;
@@ -667,11 +764,13 @@ export const {
   setPaginacion,
   clearError,
   clearReservas,
-  clearReservasCliente, 
-  clearEstadisticasCliente, 
+  clearReservasCliente,
+  clearReservasProveedor,
+  clearEstadisticasCliente,
   clearUltimaReservaCreada,
   seleccionarReserva,
-  seleccionarCliente
+  seleccionarCliente,
+  seleccionarProveedor
 } = reservasSlice.actions;
 
 export const selectReservas = (state) => state.reservas.reservas;
@@ -687,6 +786,12 @@ export const selectClienteSeleccionado = (state) => state.reservas.clienteSelecc
 export const selectResumenCliente = (state) => state.reservas.resumenCliente;
 export const selectLoadingReservasCliente = (state) => state.reservas.loadingReservasCliente;
 export const selectErrorReservasCliente = (state) => state.reservas.errorReservasCliente;
+
+export const selectReservasProveedor = (state) => state.reservas.reservasProveedor;
+export const selectProveedorSeleccionado = (state) => state.reservas.proveedorSeleccionado;
+export const selectResumenProveedor = (state) => state.reservas.resumenProveedor;
+export const selectLoadingReservasProveedor = (state) => state.reservas.loadingReservasProveedor;
+export const selectErrorReservasProveedor = (state) => state.reservas.errorReservasProveedor;
 
 export const selectEstadisticasCliente = (state) => state.reservas.estadisticasCliente;
 export const selectLoadingEstadisticas = (state) => state.reservas.loadingEstadisticas;
@@ -714,30 +819,80 @@ export const selectReservasPasadas = (state) => {
 export const selectReservasClientePorEstado = (estado) => (state) =>
   state.reservas.reservasCliente.filter(reserva => reserva.estado === estado);
 
+export const selectReservasProveedorPorEstado = (estado) => (state) =>
+  state.reservas.reservasProveedor.filter(reserva => reserva.estado === estado);
+
 export const selectGananciasClienteTotal = (state) => {
   return state.reservas.reservasCliente
     ?.filter(r => ['confirmada', 'completada'].includes(r.estado))
     ?.reduce((total, r) => total + (r.precioFinalPagado || 0), 0) || 0;
 };
+
+export const selectGananciasProveedorTotal = (state) => {
+  return state.reservas.reservasProveedor
+    ?.filter(r => ['confirmada', 'completada'].includes(r.estado))
+    ?.reduce((total, r) => {
+      let ingresosServiciosProveedor = 0;
+      if (r.serviciosAdicionales) {
+        r.serviciosAdicionales.forEach(servicio => {
+          if (servicio.precio) {
+            ingresosServiciosProveedor += servicio.precio;
+          }
+        });
+      }
+      return total + ingresosServiciosProveedor;
+    }, 0) || 0;
+};
+
 export const selectReservasClientePorMes = (state) => {
   const reservasPorMes = {};
   state.reservas.reservasCliente.forEach(reserva => {
     const fecha = new Date(reserva.fechaInicio);
     const mesAno = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
-    
+
     if (!reservasPorMes[mesAno]) {
       reservasPorMes[mesAno] = {
         cantidad: 0,
         ingresos: 0
       };
     }
-    
+
     reservasPorMes[mesAno].cantidad += 1;
     if (['confirmada', 'completada'].includes(reserva.estado)) {
       reservasPorMes[mesAno].ingresos += (reserva.precioFinalPagado || 0);
     }
   });
-  
+
+  return reservasPorMes;
+};
+
+export const selectReservasProveedorPorMes = (state) => {
+  const reservasPorMes = {};
+  state.reservas.reservasProveedor.forEach(reserva => {
+    const fecha = new Date(reserva.fechaInicio);
+    const mesAno = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
+
+    if (!reservasPorMes[mesAno]) {
+      reservasPorMes[mesAno] = {
+        cantidad: 0,
+        ingresos: 0
+      };
+    }
+
+    reservasPorMes[mesAno].cantidad += 1;
+    if (['confirmada', 'completada'].includes(reserva.estado)) {
+      let ingresosServiciosProveedor = 0;
+      if (reserva.serviciosAdicionales) {
+        reserva.serviciosAdicionales.forEach(servicio => {
+          if (servicio.precio) {
+            ingresosServiciosProveedor += servicio.precio;
+          }
+        });
+      }
+      reservasPorMes[mesAno].ingresos += ingresosServiciosProveedor;
+    }
+  });
+
   return reservasPorMes;
 };
 

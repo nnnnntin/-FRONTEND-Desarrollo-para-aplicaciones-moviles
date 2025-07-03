@@ -33,7 +33,6 @@ const oficinaSchema = yup.object({
     .max(100, 'El nombre no puede exceder 100 caracteres'),
 });
 
-
 const usuarioSchema = yup.object({
   id: yup
     .mixed()
@@ -53,7 +52,6 @@ const usuarioSchema = yup.object({
 }).test('tiene-id', 'Usuario debe tener ID', function (value) {
   return value?.id || value?._id;
 });
-
 
 const proveedorExternoSchema = yup.object({
   id: yup
@@ -103,7 +101,7 @@ const proveedorExternoSchema = yup.object({
   categoria: yup
     .string()
     .test('categoria-valida', 'Categoría no válida', function (value) {
-      if (!value) return true; 
+      if (!value) return true;
       const categoriasValidas = [
         'limpieza', 'tecnologia', 'catering', 'seguridad',
         'transporte', 'entretenimiento', 'mantenimiento'
@@ -115,7 +113,7 @@ const proveedorExternoSchema = yup.object({
   tipo: yup
     .string()
     .test('tipo-valido', 'Tipo no válido', function (value) {
-      if (!value) return true; 
+      if (!value) return true;
       const tiposValidos = [
         'limpieza', 'tecnologia', 'catering', 'seguridad',
         'transporte', 'entretenimiento', 'mantenimiento'
@@ -181,9 +179,7 @@ const proveedorExternoSchema = yup.object({
     }),
 });
 
-
 const proveedoresListSchema = yup.array().of(proveedorExternoSchema);
-
 
 const categoriaSchema = yup.object({
   id: yup
@@ -204,7 +200,6 @@ const categoriaSchema = yup.object({
     .required('Icono de categoría es requerido')
     .matches(/^[a-z-]+$/, 'Formato de icono inválido'),
 });
-
 
 const filtroSchema = yup.object().shape({
   categoria: yup
@@ -227,20 +222,16 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
   const dispatch = useDispatch();
   const { oficina } = route.params;
 
-  
   const { proveedores, loading, error } = useSelector(state => state.proveedores);
   const { user } = useSelector(state => state.auth);
 
-  
   const [filtroCategoria, setFiltroCategoria] = useState('todos');
   const [validationErrors, setValidationErrors] = useState({});
 
-  
   const proveedoresExternos = proveedores.filter(p =>
     p.usuarioId === user?.id || p.propietarioId === user?.id
   );
 
-  
   const categorias = [
     { id: 'todos', nombre: 'Todos', icono: 'apps' },
     { id: 'limpieza', nombre: 'Limpieza', icono: 'sparkles' },
@@ -252,26 +243,23 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
   ];
 
   useEffect(() => {
-    
+
     validarDatosIniciales();
     dispatch(obtenerProveedores());
   }, [dispatch]);
 
   useEffect(() => {
-    
+
     validarProveedoresExternos();
   }, [proveedores, user]);
 
-  
   const validarDatosIniciales = async () => {
     try {
-      
+
       await oficinaSchema.validate(oficina);
 
-      
       await usuarioSchema.validate(user);
 
-      
       await yup.array().of(categoriaSchema).validate(categorias);
 
       setValidationErrors(prev => {
@@ -286,11 +274,9 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
         ...prev,
         [error.path]: error.message
       }));
-      console.warn('Error en validación inicial:', error.message);
     }
   };
 
-  
   const validarProveedoresExternos = async () => {
     if (proveedoresExternos.length === 0) return;
 
@@ -306,22 +292,18 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
         ...prev,
         proveedores: error.message
       }));
-      console.warn('Proveedores inválidos encontrados:', error.message);
     }
   };
 
-  
   const validarProveedor = async (proveedor) => {
     try {
       await proveedorExternoSchema.validate(proveedor);
       return { valido: true, errores: null };
     } catch (error) {
-      console.warn('Proveedor inválido:', proveedor, error.message);
       return { valido: false, errores: error.message };
     }
   };
 
-  
   const validarFiltroCategoria = async (categoria) => {
     try {
       await filtroSchema.fields.categoria.validate(categoria);
@@ -335,18 +317,13 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
     }
   };
 
-  
   const obtenerProveedoresValidos = () => {
     return proveedoresExternos.filter(async (proveedor) => {
       const validacion = await validarProveedor(proveedor);
-      if (!validacion.valido) {
-        console.warn('Proveedor inválido filtrado:', validacion.errores);
-      }
       return validacion.valido;
     });
   };
 
-  
   const obtenerDatosProveedor = (proveedor) => {
     try {
       return {
@@ -363,14 +340,13 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
         activo: Boolean(proveedor.activo),
       };
     } catch (error) {
-      console.error('Error normalizando datos de proveedor:', error);
       return null;
     }
   };
 
   const toggleProveedor = async (proveedorId) => {
     try {
-      
+
       const proveedor = proveedoresExternos.find(p => p.id === proveedorId);
       if (!proveedor) {
         Alert.alert('Error', 'Proveedor no encontrado');
@@ -388,7 +364,6 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
         activo: !proveedor.activo
       };
 
-      
       const validacionActualizada = await validarProveedor(proveedorActualizado);
       if (!validacionActualizada.valido) {
         Alert.alert('Error', 'Datos actualizados inválidos: ' + validacionActualizada.errores);
@@ -403,13 +378,12 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
         Alert.alert('Error', result.error || 'Error al cambiar estado del proveedor');
       }
     } catch (error) {
-      console.error('Error en toggleProveedor:', error);
       Alert.alert('Error', 'Error al cambiar estado del proveedor');
     }
   };
 
   const handleRemoveProveedor = (proveedorId) => {
-    
+
     const proveedor = proveedoresExternos.find(p => p.id === proveedorId);
     if (!proveedor) {
       Alert.alert('Error', 'Proveedor no encontrado');
@@ -441,7 +415,6 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
                 Alert.alert('Error', result.error || 'Error al remover el proveedor');
               }
             } catch (error) {
-              console.error('Error eliminando proveedor:', error);
               Alert.alert('Error', 'Error al remover el proveedor');
             }
           }
@@ -451,7 +424,7 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
   };
 
   const handleViewProfile = async (proveedor) => {
-    
+
     const validacion = await validarProveedor(proveedor);
     if (!validacion.valido) {
       Alert.alert('Error', 'No se puede ver el perfil: datos de proveedor inválidos');
@@ -462,7 +435,7 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
   };
 
   const handleBuscarProveedores = () => {
-    
+
     oficinaSchema.validate(oficina).then(() => {
       navigation.navigate('BuscarProveedores', { oficina });
     }).catch((error) => {
@@ -471,7 +444,7 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
   };
 
   const handleCrearProveedor = () => {
-    
+
     oficinaSchema.validate(oficina).then(() => {
       navigation.navigate('CrearProveedor', { oficina });
     }).catch((error) => {
@@ -509,7 +482,6 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
     });
   };
 
-  
   const ErrorText = ({ error, titulo }) => {
     if (!error) return null;
     return (
@@ -523,7 +495,6 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
   const renderProveedor = ({ item: proveedor, index }) => {
     const datos = obtenerDatosProveedor(proveedor);
 
-    
     if (!datos) {
       return (
         <View style={styles.proveedorInvalido}>
@@ -606,11 +577,10 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
   };
 
   const renderCategoria = ({ item: categoria }) => {
-    
+
     try {
       categoriaSchema.validateSync(categoria);
     } catch (error) {
-      console.warn('Categoría inválida:', categoria, error.message);
       return null;
     }
 
@@ -661,7 +631,6 @@ const ServiciosOfrecidos = ({ navigation, route }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Mostrar errores de validación */}
       <ErrorText error={validationErrors.oficina} titulo="Oficina" />
       <ErrorText error={validationErrors.usuario} titulo="Usuario" />
       <ErrorText error={validationErrors.proveedores} titulo="Proveedores" />
@@ -1074,8 +1043,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
-
-  
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',

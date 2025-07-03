@@ -38,10 +38,10 @@ const Mapa = ({ navigation }) => {
   });
 
   const { tipoUsuario, usuario } = useSelector(state => state.auth || {});
-  const { 
-    espaciosMapeados = [], 
+  const {
+    espaciosMapeados = [],
     loading: loadingEspacios,
-    error: errorEspacios 
+    error: errorEspacios
   } = useSelector(state => state.espacios || {});
 
   const calcularDistancia = (lat1, lon1, lat2, lon2) => {
@@ -94,7 +94,6 @@ const Mapa = ({ navigation }) => {
         );
 
       } catch (error) {
-        console.error('Error obteniendo ubicación:', error);
         setUbicacion({
           latitude: -34.9011,
           longitude: -56.1645,
@@ -116,7 +115,7 @@ const Mapa = ({ navigation }) => {
           await dispatch(cargarTodosLosEspacios({ filtroTipo: filtroActivo }));
         }
       } catch (error) {
-        console.error('Error cargando espacios:', error);
+        console.error(error);
       }
     };
 
@@ -158,7 +157,7 @@ const Mapa = ({ navigation }) => {
 
   const handleReservar = () => {
     setModalVisible(false);
-    navigation.navigate('DetalleOficina', { 
+    navigation.navigate('DetalleOficina', {
       oficina: {
         id: selectedEspacio.id,
         nombre: selectedEspacio.nombre,
@@ -228,13 +227,13 @@ const Mapa = ({ navigation }) => {
       const userId = usuario?.id || usuario?._id;
       if (userId) {
         espaciosFiltrados = espaciosFiltrados.filter(espacio => {
-          const propietarioId = espacio.datosCompletos?.propietarioId || 
-                               espacio.datosCompletos?.usuarioId;
-          
+          const propietarioId = espacio.datosCompletos?.propietarioId ||
+            espacio.datosCompletos?.usuarioId;
+
           if (typeof propietarioId === 'object') {
             return propietarioId._id === userId || propietarioId.$oid === userId;
           }
-          
+
           return propietarioId?.toString() === userId?.toString();
         });
       }
@@ -285,7 +284,7 @@ const Mapa = ({ navigation }) => {
     const count = marcadores.length;
     const tipo = tipoUsuario === 'proveedor' ? 'espacios disponibles' : 'espacios';
     const distancia = (tipoUsuario === 'usuario' || tipoUsuario === 'proveedor') ? ` en ${radioKm} km` : '';
-    
+
     return `${count} ${tipo}${distancia}`;
   };
 
@@ -297,7 +296,6 @@ const Mapa = ({ navigation }) => {
     { id: 'espacio', nombre: 'Espacios', icono: 'square' },
     { id: 'sala', nombre: 'Salas', icono: 'people' },
     { id: 'escritorio', nombre: 'Escritorios', icono: 'desktop' },
-    { id: 'edificio', nombre: 'Edificios', icono: 'business-outline' }
   ];
 
   const radiosDisponibles = [1, 2, 5, 10, 15, 25];
@@ -323,15 +321,15 @@ const Mapa = ({ navigation }) => {
 
   const esEspacioPropio = (espacio) => {
     if (tipoUsuario !== 'cliente') return false;
-    
+
     const userId = usuario?.id || usuario?._id;
-    const propietarioId = espacio.datosCompletos?.propietarioId || 
-                         espacio.datosCompletos?.usuarioId;
-    
+    const propietarioId = espacio.datosCompletos?.propietarioId ||
+      espacio.datosCompletos?.usuarioId;
+
     if (typeof propietarioId === 'object') {
       return propietarioId._id === userId || propietarioId.$oid === userId;
     }
-    
+
     return propietarioId?.toString() === userId?.toString();
   };
 
@@ -596,7 +594,7 @@ const Mapa = ({ navigation }) => {
                     onPress={handleReservar}
                   >
                     <Text style={styles.modalButtonText}>
-                      {tipoUsuario === 'proveedor' ? 'Ofrecer servicios' : 'Reservar ahora'}
+                      {tipoUsuario === 'proveedor' ? 'Ver detalles' : 'Reservar ahora'}
                     </Text>
                   </TouchableOpacity>
                 )}

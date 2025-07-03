@@ -170,7 +170,7 @@ export const recargarNotificacionesDesdeBackend = (usuarioId, token, opciones = 
       const state = getState();
       const lastFetch = state.notificaciones.lastFetch;
       const ahora = new Date();
-      
+
       if (lastFetch) {
         const tiempoTranscurrido = ahora - new Date(lastFetch);
       }
@@ -179,7 +179,7 @@ export const recargarNotificacionesDesdeBackend = (usuarioId, token, opciones = 
         silencioso: true,
         limit: 50
       }));
-      
+
       return notificaciones;
     } catch (error) {
       console.error(error);
@@ -279,11 +279,11 @@ export const crearNotificacionLocal = (datosNotificacion) => {
 
 export const sincronizarNotificacionesPostAccion = (usuarioId, token, tipoAccion = 'general') => {
   return async (dispatch) => {
-    try {      
+    try {
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       await dispatch(recargarNotificacionesDesdeBackend(usuarioId, token, { forzar: true }));
-          } catch (error) {
+    } catch (error) {
       console.error(error);
     }
   };

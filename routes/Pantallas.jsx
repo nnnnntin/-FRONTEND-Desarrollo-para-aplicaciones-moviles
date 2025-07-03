@@ -9,8 +9,6 @@ import Pila from './Pila';
 
 const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
   const [isInitializing, setIsInitializing] = useState(true);
-
-
   const isLoggedIn = useSelector(state => state.auth.isLoggedIn);
   const tipoUsuario = useSelector(state => state.auth.tipoUsuario);
   const usuario = useSelector(state => state.auth.usuario);
@@ -27,7 +25,6 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
 
         if (sesionGuardada === 'true' && usuarioGuardado && tipoGuardado) {
           const datosUsuarioParseados = JSON.parse(usuarioGuardado);
-
 
           dispatch(loguear({
             usuario: datosUsuarioParseados,
@@ -54,11 +51,9 @@ const Pantallas = ({ isLogged, setIsLogged, resetSession }) => {
     }
   }, [dispatch, setIsLogged, isLogged]);
 
-
   useEffect(() => {
     if (isLoggedIn && !isLogged) {
       setIsLogged(true);
-
 
       const guardarSesion = async () => {
         try {

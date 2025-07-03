@@ -26,88 +26,85 @@ import {
   selectTotalNoLeidas
 } from '../store/slices/notificacionesSlice';
 
-
 const notificacionSchema = yup.object({
   id: yup
     .mixed()
     .required('ID de notificación es requerido')
-    .test('id-valido', 'ID debe ser string o número', function(value) {
+    .test('id-valido', 'ID debe ser string o número', function (value) {
       return typeof value === 'string' || typeof value === 'number';
     }),
-  
+
   titulo: yup
     .string()
     .required('El título es requerido')
     .min(3, 'El título debe tener al menos 3 caracteres')
     .max(100, 'El título no puede exceder 100 caracteres')
     .trim(),
-  
+
   mensaje: yup
     .string()
     .required('El mensaje es requerido')
     .min(10, 'El mensaje debe tener al menos 10 caracteres')
     .max(500, 'El mensaje no puede exceder 500 caracteres')
     .trim(),
-  
+
   leida: yup
     .boolean()
     .required('El estado de lectura es requerido'),
-  
+
   prioridad: yup
     .string()
-    .test('prioridad-valida', 'Prioridad debe ser: baja, media o alta', function(value) {
-      if (!value) return true; 
+    .test('prioridad-valida', 'Prioridad debe ser: baja, media o alta', function (value) {
+      if (!value) return true;
       const prioridadesValidas = ['baja', 'media', 'alta'];
       return prioridadesValidas.includes(value);
     })
     .default('media'),
-  
+
   icono: yup
     .string()
     .required('El icono es requerido')
     .matches(/^[\w-]+$/, 'Formato de icono inválido'),
-  
+
   color: yup
     .string()
     .required('El color es requerido')
     .matches(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Formato de color hexadecimal inválido'),
 });
 
-
 const notificacionesListSchema = yup.array().of(notificacionSchema);
-
 
 const cargarNotificacionesParamsSchema = yup.object({
   usuarioId: yup
     .mixed()
     .required('ID de usuario es requerido')
-    .test('usuario-id-valido', 'ID de usuario debe ser string o número', function(value) {
+    .test('usuario-id-valido', 'ID de usuario debe ser string o número', function (value) {
       return typeof value === 'string' || typeof value === 'number';
     }),
-  
+
   token: yup
     .string()
     .required('Token de autenticación es requerido')
     .min(10, 'Token inválido'),
-  
+
   opciones: yup.object({
     limit: yup
       .number()
       .positive('El límite debe ser positivo')
       .max(100, 'El límite máximo es 100')
       .default(50),
-    
+
     leidas: yup
       .boolean()
       .default(false),
-    
+
     desde: yup
       .date()
       .max(new Date(), 'La fecha no puede ser futura'),
-    
+
     hasta: yup
       .date()
-      .test('fecha-hasta-valida', 'La fecha hasta debe ser posterior a la fecha desde', function(value) {
+      .test('fecha-hasta-valida', 'La fecha hasta debe ser posterior a la fecha desde', function (value) {
         const { desde } = this.parent;
         if (!value || !desde) return true;
         return new Date(value) >= new Date(desde);
@@ -118,14 +115,12 @@ const cargarNotificacionesParamsSchema = yup.object({
 const Notificaciones = ({ navigation }) => {
   const dispatch = useDispatch();
 
-  
   const { usuario, token } = useSelector(state => state.auth);
   const notificaciones = useSelector(selectNotificaciones);
   const totalNoLeidas = useSelector(selectTotalNoLeidas);
   const isLoading = useSelector(selectIsLoading);
   const error = useSelector(selectError);
 
-  
   const [validationErrors, setValidationErrors] = useState({});
   const [filtrosPagina, setFiltrosPagina] = useState({
     limit: 50,
@@ -143,7 +138,6 @@ const Notificaciones = ({ navigation }) => {
     }
   }, [error]);
 
-  
   const validarParametrosCarga = async (usuarioId, token, opciones = {}) => {
     try {
       await cargarNotificacionesParamsSchema.validate({
@@ -153,7 +147,6 @@ const Notificaciones = ({ navigation }) => {
       });
       return true;
     } catch (error) {
-      console.error('Error de validación en parámetros:', error.message);
       setValidationErrors(prev => ({
         ...prev,
         parametros: error.message
@@ -162,32 +155,27 @@ const Notificaciones = ({ navigation }) => {
     }
   };
 
-  
   const validarNotificacion = async (notificacion) => {
     try {
       await notificacionSchema.validate(notificacion);
       return true;
     } catch (error) {
-      console.error('Error de validación en notificación:', error.message);
       return false;
     }
   };
 
-  
   const validarListaNotificaciones = async (listaNotificaciones) => {
     try {
       await notificacionesListSchema.validate(listaNotificaciones);
-      
-      
+
       setValidationErrors(prev => {
         const newErrors = { ...prev };
         delete newErrors.lista;
         return newErrors;
       });
-      
+
       return true;
     } catch (error) {
-      console.error('Error de validación en lista:', error.message);
       setValidationErrors(prev => ({
         ...prev,
         lista: error.message
@@ -196,18 +184,14 @@ const Notificaciones = ({ navigation }) => {
     }
   };
 
-  
   const obtenerNotificacionesValidas = () => {
     if (!notificaciones || notificaciones.length === 0) {
       return [];
     }
 
     return notificaciones.filter(notificacion => {
-      
+
       const esValida = validarNotificacion(notificacion);
-      if (!esValida) {
-        console.warn('Notificación inválida filtrada:', notificacion);
-      }
       return esValida;
     });
   };
@@ -230,7 +214,6 @@ const Notificaciones = ({ navigation }) => {
       return;
     }
 
-    
     const parametrosValidos = await validarParametrosCarga(usuarioId, token, filtrosPagina);
     if (!parametrosValidos) {
       Alert.alert('Error de validación', 'Los parámetros de carga no son válidos');
@@ -239,13 +222,11 @@ const Notificaciones = ({ navigation }) => {
 
     try {
       const resultado = await dispatch(cargarNotificacionesUsuario(usuarioId, token, filtrosPagina));
-      
-      
+
       if (resultado.payload) {
         await validarListaNotificaciones(resultado.payload);
       }
     } catch (error) {
-      console.error('Error al cargar notificaciones:', error);
       setValidationErrors(prev => ({
         ...prev,
         carga: 'Error al cargar notificaciones'
@@ -256,14 +237,12 @@ const Notificaciones = ({ navigation }) => {
   const manejarMarcarComoLeida = async (item) => {
     if (item.leida) return;
 
-    
     const esValida = await validarNotificacion(item);
     if (!esValida) {
       Alert.alert('Error', 'La notificación no es válida');
       return;
     }
 
-    
     if (!token) {
       Alert.alert('Error', 'No se encontró token de autenticación');
       return;
@@ -272,15 +251,14 @@ const Notificaciones = ({ navigation }) => {
     try {
       await dispatch(marcarNotificacionComoLeida(item.id, token));
     } catch (error) {
-      console.error('Error al marcar como leída:', error);
       Alert.alert('Error', 'No se pudo marcar la notificación como leída');
     }
   };
 
   const manejarEliminarNotificacion = async (notificacionId) => {
-    
+
     try {
-      await yup.oneOf ([yup.string(), yup.number()])
+      await yup.oneOf([yup.string(), yup.number()])
         .required('ID de notificación es requerido')
         .validate(notificacionId);
     } catch (error) {
@@ -296,7 +274,6 @@ const Notificaciones = ({ navigation }) => {
     try {
       await dispatch(eliminarNotificacionPorId(notificacionId, token));
     } catch (error) {
-      console.error('Error al eliminar notificación:', error);
       Alert.alert('Error', 'No se pudo eliminar la notificación');
     }
   };
@@ -315,7 +292,6 @@ const Notificaciones = ({ navigation }) => {
       return;
     }
 
-    
     const parametrosValidos = await validarParametrosCarga(usuarioId, token);
     if (!parametrosValidos) {
       Alert.alert('Error', 'Parámetros inválidos para marcar todas como leídas');
@@ -325,7 +301,6 @@ const Notificaciones = ({ navigation }) => {
     try {
       await dispatch(marcarTodasNotificacionesComoLeidas(usuarioId, token));
     } catch (error) {
-      console.error('Error al marcar todas como leídas:', error);
       Alert.alert('Error', 'No se pudieron marcar todas como leídas');
     }
   };
@@ -340,27 +315,8 @@ const Notificaciones = ({ navigation }) => {
     }
   };
 
-  
-  const actualizarFiltros = async (nuevosFiltros) => {
-    try {
-      await cargarNotificacionesParamsSchema.fields.opciones.validate(nuevosFiltros);
-      setFiltrosPagina(prev => ({ ...prev, ...nuevosFiltros }));
-      setValidationErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors.filtros;
-        return newErrors;
-      });
-    } catch (error) {
-      setValidationErrors(prev => ({
-        ...prev,
-        filtros: error.message
-      }));
-      Alert.alert('Error', 'Filtros inválidos: ' + error.message);
-    }
-  };
-
   const renderNotificacion = ({ item }) => {
-    
+
     if (!validarNotificacion(item)) {
       return null;
     }
@@ -402,7 +358,6 @@ const Notificaciones = ({ navigation }) => {
     );
   };
 
-  
   const ErrorValidacion = ({ error, style }) => {
     if (!error) return null;
     return (
@@ -413,7 +368,6 @@ const Notificaciones = ({ navigation }) => {
     );
   };
 
-  
   const notificacionesValidas = obtenerNotificacionesValidas();
 
   return (
@@ -445,7 +399,6 @@ const Notificaciones = ({ navigation }) => {
         {totalNoLeidas === 0 && <View style={styles.placeholder} />}
       </View>
 
-      {/* Mostrar errores de validación si los hay */}
       <ErrorValidacion error={validationErrors.autenticacion} />
       <ErrorValidacion error={validationErrors.usuario} />
       <ErrorValidacion error={validationErrors.parametros} />
@@ -631,8 +584,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'System',
   },
-  
-  
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',

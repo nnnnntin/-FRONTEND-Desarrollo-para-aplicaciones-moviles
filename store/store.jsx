@@ -8,6 +8,7 @@ import notificacionesReducer from './slices/notificacionesSlice';
 import proveedoresReducer from './slices/proveedoresSlice';
 import reservasReducer from './slices/reservasSlice';
 import usuarioReducer from './slices/usuarioSlice';
+import configurationReducer from './slices/configurationSlice';
 
 const rootReducer = combineReducers({
   auth: authReducer,
@@ -16,7 +17,8 @@ const rootReducer = combineReducers({
   membresias: membresiaReducer,
   notificaciones: notificacionesReducer,
   reservas: reservasReducer,
-  proveedores: proveedoresReducer
+  proveedores: proveedoresReducer,
+  configuration: configurationReducer
 });
 
 const enhancer = composeWithDevTools(

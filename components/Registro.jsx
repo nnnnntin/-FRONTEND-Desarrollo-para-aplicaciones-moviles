@@ -22,7 +22,6 @@ import { crearEmpresaInmobiliaria, crearProveedor } from '../store/slices/usuari
 const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
-
 const usuarioBaseSchema = yup.object({
   username: yup
     .string()
@@ -31,7 +30,7 @@ const usuarioBaseSchema = yup.object({
     .max(30, 'El nombre de usuario no puede exceder 30 caracteres')
     .matches(/^[a-zA-Z0-9_-]+$/, 'Solo se permiten letras, números, guiones y guiones bajos')
     .trim(),
-  
+
   nombre: yup
     .string()
     .min(2, 'El nombre debe tener al menos 2 caracteres')
@@ -43,20 +42,20 @@ const usuarioBaseSchema = yup.object({
       then: (schema) => schema.required('El nombre es obligatorio si no hay nombre de usuario'),
       otherwise: (schema) => schema,
     }),
-  
+
   apellidos: yup
     .string()
     .max(50, 'Los apellidos no pueden exceder 50 caracteres')
     .matches(/^[a-zA-ZÀ-ÿ\s]*$/, 'Los apellidos solo pueden contener letras y espacios')
     .trim(),
-  
+
   email: yup
     .string()
     .email('El formato del correo electrónico no es válido')
     .required('El correo electrónico es obligatorio')
     .lowercase()
     .trim(),
-  
+
   password: yup
     .string()
     .required('La contraseña es obligatoria')
@@ -66,62 +65,60 @@ const usuarioBaseSchema = yup.object({
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
       'La contraseña debe contener al menos una minúscula, una mayúscula y un número'
     ),
-  
+
   confirmPassword: yup
     .string()
     .required('Debe confirmar la contraseña')
-    .test('passwords-match', 'Las contraseñas no coinciden', function(value) {
+    .test('passwords-match', 'Las contraseñas no coinciden', function (value) {
       return value === this.parent.password;
     }),
-  
+
   tipoUsuario: yup
     .string()
-    .test('tipo-usuario-valido', 'Tipo de usuario no válido', function(value) {
+    .test('tipo-usuario-valido', 'Tipo de usuario no válido', function (value) {
       const tiposValidos = ['usuario', 'cliente', 'proveedor'];
       return tiposValidos.includes(value);
     })
     .required('Debe seleccionar un tipo de usuario'),
 });
 
-
 const datosPersonalesSchema = yup.object({
   telefono: yup
     .string()
     .matches(/^(\+598\s?)?[0-9\s\-()]{8,15}$/, 'Formato de teléfono inválido (+598 9X XXX XXX)')
     .nullable(),
-  
+
   documentoIdentidad: yup
     .string()
     .min(7, 'El documento debe tener al menos 7 caracteres')
     .max(15, 'El documento no puede exceder 15 caracteres')
     .matches(/^[0-9A-Z\-]+$/, 'El documento solo puede contener números, letras mayúsculas y guiones')
     .nullable(),
-  
+
   profileImage: yup
     .string()
     .url('La URL de la imagen no es válida')
     .nullable(),
 });
 
-
 const direccionSchema = yup.object({
   calle: yup
     .string()
     .max(100, 'La dirección no puede exceder 100 caracteres')
     .nullable(),
-  
+
   ciudad: yup
     .string()
     .max(50, 'La ciudad no puede exceder 50 caracteres')
     .matches(/^[a-zA-ZÀ-ÿ\s]*$/, 'La ciudad solo puede contener letras y espacios')
     .default('Montevideo')
     .nullable(),
-  
+
   codigoPostal: yup
     .string()
     .matches(/^[0-9]{4,6}$/, 'El código postal debe tener entre 4 y 6 dígitos')
     .nullable(),
-  
+
   pais: yup
     .string()
     .max(50, 'El país no puede exceder 50 caracteres')
@@ -129,7 +126,6 @@ const direccionSchema = yup.object({
     .default('Uruguay')
     .nullable(),
 });
-
 
 const empresaSchema = yup.object({
   nombreEmpresa: yup
@@ -143,7 +139,7 @@ const empresaSchema = yup.object({
       otherwise: (schema) => schema.nullable(),
     })
     .trim(),
-  
+
   identificacionFiscal: yup
     .string()
     .when('tipoUsuario', {
@@ -158,7 +154,6 @@ const empresaSchema = yup.object({
     .trim(),
 });
 
-
 const proveedorSchema = yup.object({
   tipoServicio: yup
     .string()
@@ -171,17 +166,16 @@ const proveedorSchema = yup.object({
       otherwise: (schema) => schema.nullable(),
     })
     .trim(),
-  
+
   tipoProveedor: yup
     .string()
-    .test('tipo-proveedor-valido', 'Tipo de proveedor no válido', function(value) {
-      if (!value) return true; 
+    .test('tipo-proveedor-valido', 'Tipo de proveedor no válido', function (value) {
+      if (!value) return true;
       const tiposValidos = ['empresa', 'persona'];
       return tiposValidos.includes(value);
     })
     .default('empresa'),
 });
-
 
 const registroCompletoSchema = usuarioBaseSchema
   .concat(datosPersonalesSchema)
@@ -190,7 +184,7 @@ const registroCompletoSchema = usuarioBaseSchema
   .concat(proveedorSchema);
 
 const Registro = ({ navigation }) => {
-  
+
   const [formData, setFormData] = useState({
     username: '',
     nombre: '',
@@ -220,11 +214,9 @@ const Registro = ({ navigation }) => {
   const { loading: isRegistering, error } = useSelector(state => state.auth);
   const { loadingEmpresa, loadingProveedor } = useSelector(state => state.usuario);
 
-  
   const updateFormData = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    
-    
+
     const timeoutId = setTimeout(() => {
       validateField(field, value);
     }, 500);
@@ -232,7 +224,6 @@ const Registro = ({ navigation }) => {
     return () => clearTimeout(timeoutId);
   };
 
-  
   const validateField = async (fieldName, value) => {
     try {
       await yup.reach(registroCompletoSchema, fieldName).validate(value);
@@ -251,7 +242,6 @@ const Registro = ({ navigation }) => {
     }
   };
 
-  
   const validateForm = async () => {
     try {
       await registroCompletoSchema.validate(formData, { abortEarly: false });
@@ -267,22 +257,18 @@ const Registro = ({ navigation }) => {
     }
   };
 
-  
   const validarCamposAdicionales = () => {
     const errores = {};
 
-    
     if (formData.username.includes(' ')) {
       errores.username = 'El nombre de usuario no puede contener espacios';
     }
 
-    
     const emailsProhibidos = ['admin@test.com', 'test@test.com'];
     if (emailsProhibidos.includes(formData.email.toLowerCase())) {
       errores.email = 'Este email no está disponible';
     }
 
-    
     if (formData.tipoUsuario === 'cliente' && !formData.nombreEmpresa.trim()) {
       errores.nombreEmpresa = 'El nombre de la empresa es obligatorio para clientes';
     }
@@ -305,7 +291,7 @@ const Registro = ({ navigation }) => {
 
   const crearEmpresaInmobiliariaAutomatica = async (usuarioId) => {
     try {
-      
+
       const empresaData = {
         nombre: formData.nombreEmpresa.trim(),
         identificacionFiscal: formData.identificacionFiscal.trim(),
@@ -348,7 +334,6 @@ const Registro = ({ navigation }) => {
         throw new Error(result.payload || 'Error al crear empresa inmobiliaria');
       }
     } catch (error) {
-      console.error('Error creando empresa:', error);
       if (error.message.includes('validation')) {
         Alert.alert('Error de validación', 'Los datos de la empresa no son válidos');
       }
@@ -358,7 +343,7 @@ const Registro = ({ navigation }) => {
 
   const crearProveedorAutomatico = async (usuarioId) => {
     try {
-      
+
       const proveedorData = {
         tipoServicio: formData.tipoServicio.trim(),
         identificacionFiscal: formData.identificacionFiscal.trim(),
@@ -400,7 +385,6 @@ const Registro = ({ navigation }) => {
         throw new Error(result.payload || 'Error al crear proveedor');
       }
     } catch (error) {
-      console.error('Error creando proveedor:', error);
       if (error.message.includes('validation')) {
         Alert.alert('Error de validación', 'Los datos del proveedor no son válidos');
       }
@@ -409,10 +393,10 @@ const Registro = ({ navigation }) => {
   };
 
   const registrarse = async () => {
-    
+
     const isFormValid = await validateForm();
     const isAdditionalValid = validarCamposAdicionales();
-    
+
     if (!isFormValid || !isAdditionalValid) {
       Alert.alert('Error de validación', 'Por favor corrige los errores en el formulario');
       return;
@@ -424,7 +408,7 @@ const Registro = ({ navigation }) => {
 
     try {
       dispatch(clearError());
-      
+
       const registrationData = {
         tipoUsuario: formData.tipoUsuario,
         username: formData.username.trim(),
@@ -466,7 +450,6 @@ const Registro = ({ navigation }) => {
         };
       }
 
-      
       if (registrationData.datosPersonales) {
         Object.keys(registrationData.datosPersonales).forEach(key => {
           if (registrationData.datosPersonales[key] === undefined) {
@@ -506,7 +489,7 @@ const Registro = ({ navigation }) => {
               proveedor = await crearProveedorAutomatico(usuarioId);
             }
           } catch (error) {
-            console.error('Error creando entidad asociada:', error);
+            console.error(error);
           }
         }
 
@@ -528,7 +511,6 @@ const Registro = ({ navigation }) => {
       }
 
     } catch (error) {
-      console.error('Error en registro:', error);
       Alert.alert('Error', 'Error de conexión. Por favor intenta nuevamente.');
     }
   };
@@ -584,7 +566,6 @@ const Registro = ({ navigation }) => {
         throw new Error('Error al subir imagen a Cloudinary');
       }
     } catch (error) {
-      console.error('Error subiendo imagen:', error);
       throw error;
     }
   };
@@ -609,7 +590,6 @@ const Registro = ({ navigation }) => {
         Alert.alert('Éxito', 'Foto subida correctamente');
       }
     } catch (error) {
-      console.error('Error tomando foto:', error);
       Alert.alert('Error', 'No se pudo tomar la foto');
     } finally {
       setUploadingImage(false);
@@ -636,7 +616,6 @@ const Registro = ({ navigation }) => {
         Alert.alert('Éxito', 'Foto subida correctamente');
       }
     } catch (error) {
-      console.error('Error seleccionando foto:', error);
       Alert.alert('Error', 'No se pudo seleccionar la foto');
     } finally {
       setUploadingImage(false);
@@ -669,7 +648,6 @@ const Registro = ({ navigation }) => {
 
   const isLoading = isRegistering || loadingEmpresa || loadingProveedor;
 
-  
   const ErrorText = ({ error }) => {
     if (!error) return null;
     return <Text style={styles.errorText}>{error}</Text>;

@@ -96,7 +96,7 @@ const authSlice = createSlice({
         const usuarioActualizado = action.payload;
         state.usuario = usuarioActualizado;
         state.tipoUsuario = usuarioActualizado.tipoUsuario;
-        
+
         if (usuarioActualizado.tipoUsuario === 'administrador') {
           state.esAdmin = true;
           state.permisos = ['all'];
@@ -104,7 +104,7 @@ const authSlice = createSlice({
           state.esAdmin = false;
           state.permisos = [];
         }
-      
+
       }
     },
 

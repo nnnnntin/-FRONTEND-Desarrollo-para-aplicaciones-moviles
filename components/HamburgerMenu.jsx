@@ -15,7 +15,6 @@ import { useSelector } from 'react-redux';
 const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation }) => {
   const slideAnim = React.useRef(new Animated.Value(-300)).current;
 
-
   const { tipoUsuario, usuario } = useSelector(state => state.auth);
 
   React.useEffect(() => {
@@ -68,6 +67,12 @@ const HamburgerMenu = ({ visible, onClose, onLogout, isLoggingOut, navigation })
         title: 'Notificaciones',
         icon: 'notifications-outline',
         onPress: () => handleNavigation('Notificaciones')
+      },
+      {
+        id: 8,
+        title: 'Configuración',
+        icon: 'settings-outline',
+        onPress: () => handleNavigation('Configuracion')
       }
     ];
 

@@ -24,45 +24,44 @@ import {
 const reservaBackendSchema = yup.object({
   _id: yup.string().nullable(),
   id: yup.string().nullable(),
-  
-  
+
   fechaInicio: yup.date().nullable(),
-  fecha: yup.date().nullable(), 
+  fecha: yup.date().nullable(),
   fechaReserva: yup.date().nullable(),
-  
+
   horaInicio: yup
     .string()
     .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido')
     .nullable(),
-  
+
   horaFin: yup
     .string()
     .matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido')
     .nullable(),
-  
+
   estado: yup
     .string()
-    .test('estado-reserva-valido', 'Estado de reserva no válido', function(value) {
-      if (!value) return true; 
+    .test('estado-reserva-valido', 'Estado de reserva no válido', function (value) {
+      if (!value) return true;
       const estadosValidos = [
-        'pendiente', 'confirmada', 'aprobada', 'finalizada', 
+        'pendiente', 'confirmada', 'aprobada', 'finalizada',
         'completada', 'cancelada', 'rechazada'
       ];
       return estadosValidos.includes(value);
     })
     .default('pendiente'),
-  
+
   cantidadPersonas: yup
     .number()
     .min(1, 'Debe haber al menos 1 persona')
     .max(100, 'Cantidad de personas excesiva')
     .integer('Debe ser un número entero')
     .default(1),
-  
+
   precioTotal: yup.number().min(0, 'El precio no puede ser negativo').nullable(),
   montoTotal: yup.number().min(0, 'El monto no puede ser negativo').nullable(),
   precio: yup.number().min(0, 'El precio no puede ser negativo').nullable(),
-  
+
   entidadReservada: yup.object({
     id: yup.string().nullable(),
     nombre: yup.string().nullable(),
@@ -73,39 +72,38 @@ const reservaBackendSchema = yup.object({
     fotos: yup.array().of(yup.string().url()).nullable(),
     imagenes: yup.array().of(yup.string().url()).nullable(),
   }).nullable(),
-  
+
   metodoPago: yup.string().nullable(),
   notas: yup.string().max(1000, 'Las notas no pueden exceder 1000 caracteres').nullable(),
   observaciones: yup.string().max(1000, 'Las observaciones no pueden exceder 1000 caracteres').nullable(),
-  
+
   reseña: yup.boolean().nullable(),
   calificacion: yup.number().min(1).max(5).nullable(),
   yaReseñada: yup.boolean().nullable(),
 });
 
-
 const reservaMapeadaSchema = yup.object({
   id: yup.string().required('ID de reserva es requerido'),
-  
+
   fechaReserva: yup
     .string()
     .required('Fecha de reserva es requerida'),
-  
+
   fechaReservaRaw: yup
     .date()
     .required('Fecha raw es requerida'),
-  
+
   estado: yup
     .string()
-    .test('estado-mapeado-valido', 'Estado no válido', function(value) {
+    .test('estado-mapeado-valido', 'Estado no válido', function (value) {
       const estadosValidos = [
-        'pendiente', 'confirmada', 'aprobada', 'finalizada', 
+        'pendiente', 'confirmada', 'aprobada', 'finalizada',
         'completada', 'cancelada', 'rechazada'
       ];
       return estadosValidos.includes(value);
     })
     .required('Estado es requerido'),
-  
+
   oficina: yup.object({
     id: yup.string().required('ID de oficina es requerido'),
     nombre: yup.string().required('Nombre de oficina es requerido'),
@@ -114,18 +112,17 @@ const reservaMapeadaSchema = yup.object({
     imagen: yup.string().url('URL de imagen inválida').nullable(),
     capacidad: yup.number().min(1).required('Capacidad es requerida'),
   }).required('Datos de oficina son requeridos'),
-  
+
   precio: yup.number().min(0).required('Precio es requerido'),
   cantidadPersonas: yup.number().min(1).required('Cantidad de personas es requerida'),
-  
+
   horario: yup.string().nullable(),
   duracion: yup.string().nullable(),
   puedeReseñar: yup.boolean().required('Flag de reseña es requerido'),
   yaReseñada: yup.boolean().required('Flag de ya reseñada es requerido'),
-  
+
   codigoReserva: yup.string().required('Código de reserva es requerido'),
 });
-
 
 const reseñaSchema = yup.object({
   calificacion: yup
@@ -134,40 +131,39 @@ const reseñaSchema = yup.object({
     .min(1, 'La calificación mínima es 1 estrella')
     .max(5, 'La calificación máxima es 5 estrellas')
     .integer('La calificación debe ser un número entero'),
-  
+
   comentario: yup
     .string()
     .max(500, 'El comentario no puede exceder 500 caracteres')
     .nullable(),
-  
+
   reservaId: yup
     .string()
     .required('ID de reserva es requerido'),
 });
 
-
 const filtroReservasSchema = yup.object({
   tipo: yup
     .string()
-    .test('tipo-filtro-valido', 'Tipo de filtro no válido', function(value) {
-      if (!value) return true; 
+    .test('tipo-filtro-valido', 'Tipo de filtro no válido', function (value) {
+      if (!value) return true;
       const tiposValidos = ['todas', 'proximas', 'pasadas'];
       return tiposValidos.includes(value);
     })
     .default('todas'),
-  
+
   estado: yup
     .string()
-    .test('estado-filtro-valido', 'Estado de filtro no válido', function(value) {
-      if (!value) return true; 
+    .test('estado-filtro-valido', 'Estado de filtro no válido', function (value) {
+      if (!value) return true;
       const estadosValidos = [
-        'todos', 'pendiente', 'confirmada', 'aprobada', 
+        'todos', 'pendiente', 'confirmada', 'aprobada',
         'finalizada', 'completada', 'cancelada', 'rechazada'
       ];
       return estadosValidos.includes(value);
     })
     .default('todos'),
-  
+
   fechaDesde: yup.date().nullable(),
   fechaHasta: yup.date().nullable(),
 });
@@ -178,7 +174,6 @@ const Reservas = ({ navigation }) => {
   const reservasRaw = useSelector(state => state.reservas.reservas);
   const loading = useSelector(state => state.reservas.loading);
 
-  
   const [modalReseña, setModalReseña] = useState(false);
   const [reservaSeleccionada, setReservaSeleccionada] = useState(null);
   const [datosReseña, setDatosReseña] = useState({
@@ -187,8 +182,7 @@ const Reservas = ({ navigation }) => {
   });
   const [filtroActivo, setFiltroActivo] = useState('todas');
   const [enviandoReseña, setEnviandoReseña] = useState(false);
-  
-  
+
   const [validationErrors, setValidationErrors] = useState({});
 
   useEffect(() => {
@@ -198,21 +192,19 @@ const Reservas = ({ navigation }) => {
     }
   }, [usuario, dispatch]);
 
-  
   useEffect(() => {
     validarUsuario();
   }, [usuario]);
 
-  
   const validarUsuario = async () => {
     try {
       await yup.object().shape({
         id: yup.string().nullable(),
         _id: yup.string().nullable(),
-      }).test('tiene-id', 'Usuario debe tener ID', function(value) {
+      }).test('tiene-id', 'Usuario debe tener ID', function (value) {
         return value.id || value._id;
       }).validate(usuario);
-      
+
       setValidationErrors(prev => {
         const newErrors = { ...prev };
         delete newErrors.usuario;
@@ -226,29 +218,24 @@ const Reservas = ({ navigation }) => {
     }
   };
 
-  
   const validarReservaBackend = async (reserva) => {
     try {
       await reservaBackendSchema.validate(reserva);
       return { valida: true, errores: null };
     } catch (error) {
-      console.warn('Reserva inválida del backend:', reserva, error.message);
       return { valida: false, errores: error.message };
     }
   };
 
-  
   const validarReservaMapeada = async (reserva) => {
     try {
       await reservaMapeadaSchema.validate(reserva);
       return { valida: true, errores: null };
     } catch (error) {
-      console.warn('Reserva mapeada inválida:', reserva, error.message);
       return { valida: false, errores: error.message };
     }
   };
 
-  
   const validarReseña = async (datos) => {
     try {
       await reseñaSchema.validate(datos);
@@ -274,14 +261,12 @@ const Reservas = ({ navigation }) => {
     }
   };
 
-  
   const updateDatosReseña = (field, value) => {
     setDatosReseña(prev => ({ ...prev, [field]: value }));
-    
-    
+
     const timeoutId = setTimeout(() => {
-      const datosCompletos = { 
-        ...datosReseña, 
+      const datosCompletos = {
+        ...datosReseña,
         [field]: value,
         reservaId: reservaSeleccionada?.id || ''
       };
@@ -293,14 +278,13 @@ const Reservas = ({ navigation }) => {
 
   const formatearFecha = fecha => {
     if (!fecha) return 'Fecha no disponible';
-    
-    
+
     try {
       yup.date().required().validateSync(fecha);
     } catch (error) {
       return 'Fecha no disponible';
     }
-    
+
     const fechaObj = new Date(fecha);
     if (isNaN(fechaObj.getTime())) return 'Fecha no disponible';
 
@@ -312,19 +296,18 @@ const Reservas = ({ navigation }) => {
   };
 
   const formatearHorario = (horaInicio, horaFin) => {
-    
+
     const horaRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    
+
     if (!horaInicio || !horaFin) return '';
     if (!horaRegex.test(horaInicio) || !horaRegex.test(horaFin)) return '';
-    
+
     return `${horaInicio} - ${horaFin}`;
   };
 
   const calcularDuracion = (horaInicio, horaFin) => {
     if (!horaInicio || !horaFin) return '';
 
-    
     const horaRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
     if (!horaRegex.test(horaInicio) || !horaRegex.test(horaFin)) return '';
 
@@ -353,45 +336,7 @@ const Reservas = ({ navigation }) => {
         return `${minutos} minutos`;
       }
     } catch (error) {
-      console.error('Error calculando duración:', error);
       return '';
-    }
-  };
-
-  const obtenerNombreEspacio = (entidadReservada) => {
-    if (!entidadReservada) return 'Espacio no especificado';
-
-    
-    try {
-      yup.object().shape({
-        nombre: yup.string().nullable(),
-        tipo: yup.string().nullable(),
-        id: yup.string().nullable(),
-      }).validateSync(entidadReservada);
-    } catch (error) {
-      return 'Espacio inválido';
-    }
-
-    const { tipo, nombre, id } = entidadReservada;
-
-    if (nombre && nombre.trim()) return nombre.trim();
-
-    const idCorto = id ? id.slice(-4) : 'XXXX';
-
-    switch (tipo?.toLowerCase()) {
-      case 'oficina':
-        return `Oficina ${idCorto}`;
-      case 'sala':
-      case 'sala_reuniones':
-        return `Sala de reuniones ${idCorto}`;
-      case 'escritorio':
-        return `Escritorio ${idCorto}`;
-      case 'sala_conferencias':
-        return `Sala de conferencias ${idCorto}`;
-      case 'coworking':
-        return `Espacio coworking ${idCorto}`;
-      default:
-        return `${tipo || 'Espacio'} ${idCorto}`;
     }
   };
 
@@ -400,12 +345,10 @@ const Reservas = ({ navigation }) => {
 
     const imageArrays = ['fotos', 'imagenes', 'fotosPrincipales'];
 
-    
     for (const arrayName of imageArrays) {
       if (Array.isArray(entidadReservada[arrayName]) && entidadReservada[arrayName].length > 0) {
         const imagen = entidadReservada[arrayName][0];
-        
-        
+
         try {
           if (typeof imagen === 'string' && imagen.trim()) {
             yup.string().url().validateSync(imagen.trim());
@@ -422,7 +365,6 @@ const Reservas = ({ navigation }) => {
             }
           }
         } catch (error) {
-          console.warn('URL de imagen inválida:', imagen);
           continue;
         }
       }
@@ -430,11 +372,10 @@ const Reservas = ({ navigation }) => {
 
     const imageProperties = ['imagen', 'foto', 'picture', 'thumbnail'];
 
-    
     for (const propName of imageProperties) {
       if (entidadReservada[propName]) {
         const imagen = entidadReservada[propName];
-        
+
         try {
           if (typeof imagen === 'string' && imagen.trim()) {
             yup.string().url().validateSync(imagen.trim());
@@ -451,7 +392,6 @@ const Reservas = ({ navigation }) => {
             }
           }
         } catch (error) {
-          console.warn('URL de imagen inválida:', imagen);
           continue;
         }
       }
@@ -460,11 +400,84 @@ const Reservas = ({ navigation }) => {
     return null;
   };
 
+  const extraerInfoDelProposito = (proposito) => {
+    if (!proposito || typeof proposito !== 'string') {
+      return { nombre: null, tipo: null };
+    }
+
+    const propositoLower = proposito.toLowerCase();
+
+    if (propositoLower.includes('oficina')) {
+      return { nombre: proposito, tipo: 'oficina' };
+    }
+    if (propositoLower.includes('sala') || propositoLower.includes('reunión')) {
+      return { nombre: proposito, tipo: 'sala_reuniones' };
+    }
+    if (propositoLower.includes('escritorio')) {
+      return { nombre: proposito, tipo: 'escritorio' };
+    }
+    if (propositoLower.includes('coworking')) {
+      return { nombre: proposito, tipo: 'coworking' };
+    }
+
+    return { nombre: proposito, tipo: 'oficina' };
+  };
+
+  const obtenerNombreEspacio = (entidadReservada, proposito, entidadId) => {
+    if (entidadReservada && typeof entidadReservada === 'object' && entidadReservada.nombre) {
+      return entidadReservada.nombre.trim();
+    }
+
+    if (proposito) {
+      const infoProposito = extraerInfoDelProposito(proposito);
+      if (infoProposito.nombre) {
+        return infoProposito.nombre;
+      }
+    }
+
+    const idCorto = entidadId ? entidadId.slice(-4).toUpperCase() : 'XXXX';
+
+    if (entidadReservada && typeof entidadReservada === 'object' && entidadReservada.tipo) {
+      const tipo = entidadReservada.tipo.toLowerCase();
+      switch (tipo) {
+        case 'oficina':
+          return `Oficina ${idCorto}`;
+        case 'sala':
+        case 'sala_reuniones':
+          return `Sala de reuniones ${idCorto}`;
+        case 'escritorio':
+          return `Escritorio ${idCorto}`;
+        case 'sala_conferencias':
+          return `Sala de conferencias ${idCorto}`;
+        case 'coworking':
+          return `Espacio coworking ${idCorto}`;
+        default:
+          return `${tipo || 'Espacio'} ${idCorto}`;
+      }
+    }
+
+    if (proposito) {
+      const infoProposito = extraerInfoDelProposito(proposito);
+      switch (infoProposito.tipo) {
+        case 'oficina':
+          return `Oficina ${idCorto}`;
+        case 'sala_reuniones':
+          return `Sala de reuniones ${idCorto}`;
+        case 'escritorio':
+          return `Escritorio ${idCorto}`;
+        case 'coworking':
+          return `Espacio coworking ${idCorto}`;
+        default:
+          return `Espacio ${idCorto}`;
+      }
+    }
+
+    return `Oficina ${idCorto}`;
+  };
+
   const mapearReserva = async (reservaBackend) => {
-    
     const validacionBackend = await validarReservaBackend(reservaBackend);
     if (!validacionBackend.valida) {
-      console.warn('Reserva del backend inválida:', validacionBackend.errores);
       return null;
     }
 
@@ -473,13 +486,38 @@ const Reservas = ({ navigation }) => {
       const fechaReserva = formatearFecha(fuente);
       const fechaReservaRaw = fuente ? new Date(fuente) : new Date();
 
-      const nombreEspacio = obtenerNombreEspacio(reservaBackend.entidadReservada);
-      const tipoEspacio = reservaBackend.entidadReservada?.tipo || 'oficina';
-      const ubicacionEspacio = reservaBackend.entidadReservada?.ubicacion ||
-        reservaBackend.ubicacion ||
-        'Ubicación no especificada';
+      const entidadReservada = reservaBackend.entidadReservada;
+      const proposito = reservaBackend.proposito || reservaBackend.notas || reservaBackend.observaciones;
 
-      const imagenEspacio = obtenerImagenEspacio(reservaBackend.entidadReservada);
+      let espacioId = '';
+      if (typeof entidadReservada === 'string') {
+        espacioId = entidadReservada;
+      } else if (entidadReservada && typeof entidadReservada === 'object') {
+        espacioId = entidadReservada._id || entidadReservada.id || '';
+      }
+
+      const nombreEspacio = obtenerNombreEspacio(entidadReservada, proposito, espacioId);
+
+      let tipoEspacio = 'oficina';
+      if (entidadReservada && typeof entidadReservada === 'object' && entidadReservada.tipo) {
+        tipoEspacio = entidadReservada.tipo;
+      } else if (proposito) {
+        const infoProposito = extraerInfoDelProposito(proposito);
+        tipoEspacio = infoProposito.tipo || 'oficina';
+      }
+
+      let ubicacionEspacio = 'Ubicación no especificada';
+      if (entidadReservada && typeof entidadReservada === 'object') {
+        ubicacionEspacio = entidadReservada.ubicacion ||
+          entidadReservada.direccion ||
+          entidadReservada.address ||
+          'Ubicación no especificada';
+      }
+
+      const imagenEspacio = obtenerImagenEspacio(entidadReservada);
+
+      const capacidadEspacio = (entidadReservada && typeof entidadReservada === 'object' && entidadReservada.capacidad) ||
+        reservaBackend.cantidadPersonas || 1;
 
       const horario = formatearHorario(reservaBackend.horaInicio, reservaBackend.horaFin);
       const duracion = calcularDuracion(reservaBackend.horaInicio, reservaBackend.horaFin);
@@ -491,7 +529,8 @@ const Reservas = ({ navigation }) => {
         false;
       const puedeReseñar = ['completada', 'finalizada'].includes(estado) && !yaReseñada;
 
-      const precio = reservaBackend.precioTotal ||
+      const precio = reservaBackend.precioFinalPagado ||
+        reservaBackend.precioTotal ||
         reservaBackend.montoTotal ||
         reservaBackend.precio ||
         0;
@@ -503,22 +542,19 @@ const Reservas = ({ navigation }) => {
         duracion,
         horario,
         oficina: {
-          id: reservaBackend.entidadReservada?.id || '',
+          id: espacioId,
           nombre: nombreEspacio,
           tipo: tipoEspacio,
           ubicacion: ubicacionEspacio,
           imagen: imagenEspacio,
-          capacidad: reservaBackend.entidadReservada?.capacidad || reservaBackend.cantidadPersonas || 1
+          capacidad: capacidadEspacio
         },
         estado,
         puedeReseñar,
         yaReseñada,
         precio,
         metodoPago: reservaBackend.metodoPago || '',
-        notas: reservaBackend.notas ||
-          reservaBackend.observaciones ||
-          reservaBackend.proposito ||
-          '',
+        notas: proposito || '',
         cantidadPersonas: reservaBackend.cantidadPersonas || 1,
         tipoReserva: reservaBackend.tipoReserva || 'dia',
         descuento: reservaBackend.descuento || null,
@@ -530,17 +566,51 @@ const Reservas = ({ navigation }) => {
         datosCompletos: reservaBackend
       };
 
-      
       const validacionMapeada = await validarReservaMapeada(reservaMapeada);
       if (!validacionMapeada.valida) {
-        console.warn('Reserva mapeada inválida:', validacionMapeada.errores);
-        return null;
+        return {
+          ...reservaMapeada,
+          oficina: {
+            id: espacioId || 'unknown',
+            nombre: nombreEspacio || 'Espacio desconocido',
+            tipo: 'oficina',
+            ubicacion: 'Ubicación no especificada',
+            imagen: null,
+            capacidad: 1
+          }
+        };
       }
 
       return reservaMapeada;
     } catch (error) {
-      console.error('Error mapeando reserva:', error);
-      return null;
+      return {
+        id: reservaBackend._id || reservaBackend.id || `error-${Date.now()}`,
+        fechaReserva: formatearFecha(reservaBackend.fechaInicio || new Date()),
+        fechaReservaRaw: new Date(reservaBackend.fechaInicio || new Date()),
+        duracion: '',
+        horario: '',
+        oficina: {
+          id: 'error',
+          nombre: 'Error al cargar espacio',
+          tipo: 'oficina',
+          ubicacion: 'Error',
+          imagen: null,
+          capacidad: 1
+        },
+        estado: reservaBackend.estado || 'pendiente',
+        puedeReseñar: false,
+        yaReseñada: false,
+        precio: reservaBackend.precioFinalPagado || reservaBackend.precioTotal || 0,
+        metodoPago: '',
+        notas: reservaBackend.proposito || '',
+        cantidadPersonas: reservaBackend.cantidadPersonas || 1,
+        tipoReserva: reservaBackend.tipoReserva || 'dia',
+        descuento: null,
+        codigoReserva: `ERR-${Date.now()}`,
+        fechaCreacion: reservaBackend.createdAt,
+        fechaActualizacion: reservaBackend.updatedAt,
+        datosCompletos: reservaBackend
+      };
     }
   };
 
@@ -556,7 +626,6 @@ const Reservas = ({ navigation }) => {
       })
     );
 
-    
     const reservasValidas = reservasMapeadas
       .filter(reserva => reserva !== null)
       .sort((a, b) => b.fechaReservaRaw - a.fechaReservaRaw);
@@ -564,16 +633,14 @@ const Reservas = ({ navigation }) => {
     return reservasValidas;
   }, [reservasRaw]);
 
-  
   const [reservasProcesadas, setReservasProcesadas] = useState([]);
 
-  
   useEffect(() => {
     const procesarReservas = async () => {
       const reservasResult = await reservas;
       setReservasProcesadas(reservasResult);
     };
-    
+
     procesarReservas();
   }, [reservas]);
 
@@ -591,11 +658,10 @@ const Reservas = ({ navigation }) => {
   };
 
   const getReservasFiltradas = () => {
-    
+
     try {
       filtroReservasSchema.fields.tipo.validateSync(filtroActivo);
     } catch (error) {
-      console.warn('Filtro inválido, usando "todas":', error.message);
       setFiltroActivo('todas');
       return reservasProcesadas;
     }
@@ -618,7 +684,7 @@ const Reservas = ({ navigation }) => {
   const handleVolver = () => navigation.popToTop();
 
   const handleReservaPress = reserva => {
-    
+
     validarReservaMapeada(reserva).then(resultado => {
       if (resultado.valida) {
         navigation.navigate('DetalleReserva', {
@@ -632,7 +698,7 @@ const Reservas = ({ navigation }) => {
   };
 
   const handleReseñar = reserva => {
-    
+
     if (!reserva.puedeReseñar) {
       Alert.alert('Error', 'Esta reserva no se puede reseñar');
       return;
@@ -653,7 +719,7 @@ const Reservas = ({ navigation }) => {
   };
 
   const handleEnviarReseña = async () => {
-    
+
     const datosCompletos = {
       ...datosReseña,
       reservaId: reservaSeleccionada?.id || ''
@@ -672,8 +738,7 @@ const Reservas = ({ navigation }) => {
 
     try {
       setEnviandoReseña(true);
-      
-      
+
       await new Promise(res => setTimeout(res, 1000));
 
       Alert.alert('Reseña enviada', 'Gracias por tu opinión', [
@@ -688,7 +753,6 @@ const Reservas = ({ navigation }) => {
         }
       ]);
     } catch (error) {
-      console.error('Error enviando reseña:', error);
       Alert.alert('Error', 'No se pudo enviar la reseña');
     } finally {
       setEnviandoReseña(false);
@@ -696,7 +760,7 @@ const Reservas = ({ navigation }) => {
   };
 
   const handleFiltroChange = async (filtro) => {
-    
+
     try {
       await filtroReservasSchema.fields.tipo.validate(filtro);
       setFiltroActivo(filtro);
@@ -706,9 +770,9 @@ const Reservas = ({ navigation }) => {
   };
 
   const getEstadoBadge = estado => {
-    
+
     const estadosValidos = [
-      'pendiente', 'confirmada', 'aprobada', 'finalizada', 
+      'pendiente', 'confirmada', 'aprobada', 'finalizada',
       'completada', 'cancelada', 'rechazada'
     ];
 
@@ -736,7 +800,7 @@ const Reservas = ({ navigation }) => {
   };
 
   const getIconoTipoEspacio = (tipo) => {
-    
+
     if (!tipo || typeof tipo !== 'string') {
       return 'business';
     }
@@ -755,7 +819,6 @@ const Reservas = ({ navigation }) => {
     }
   };
 
-  
   const ErrorText = ({ error }) => {
     if (!error) return null;
     return <Text style={styles.errorText}>{error}</Text>;
@@ -778,7 +841,6 @@ const Reservas = ({ navigation }) => {
               source={{ uri: reserva.oficina.imagen }}
               style={styles.imagenReserva}
               resizeMode="cover"
-              onError={() => console.warn('Error cargando imagen de reserva')}
             />
           ) : (
             <View style={styles.imagenPlaceholder}>
@@ -862,7 +924,6 @@ const Reservas = ({ navigation }) => {
         <View style={styles.placeholder} />
       </View>
 
-      {/* Mostrar errores de validación */}
       {validationErrors.usuario && (
         <View style={styles.errorContainer}>
           <Ionicons name="warning" size={16} color="#e74c3c" />
@@ -993,7 +1054,7 @@ const Reservas = ({ navigation }) => {
             <Text style={styles.inputLabel}>Comentario (opcional)</Text>
             <TextInput
               style={[
-                styles.input, 
+                styles.input,
                 styles.textArea,
                 validationErrors.comentario && styles.inputError
               ]}
@@ -1246,8 +1307,7 @@ const styles = StyleSheet.create({
   star: {
     marginHorizontal: 2,
   },
-  
-  
+
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',

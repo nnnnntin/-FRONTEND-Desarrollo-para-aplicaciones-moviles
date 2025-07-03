@@ -34,7 +34,7 @@ const reservaSchema = yup.object({
   horario: yup
     .string()
     .nullable()
-    .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]\s*-\s*([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 
+    .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]\s*-\s*([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
       'El horario debe tener el formato HH:MM - HH:MM'),
 
   cantidadPersonas: yup
@@ -53,7 +53,7 @@ const reservaSchema = yup.object({
   estado: yup
     .string()
     .required('El estado de la reserva es obligatorio')
-    .test('estado-valido', 'Estado de reserva inválido', function(value) {
+    .test('estado-valido', 'Estado de reserva inválido', function (value) {
       const estadosValidos = ['pendiente', 'confirmada', 'aprobada', 'finalizada', 'completada', 'cancelada', 'rechazada'];
       return estadosValidos.includes(value);
     }),
@@ -61,8 +61,8 @@ const reservaSchema = yup.object({
   metodoPago: yup
     .string()
     .nullable()
-    .test('metodo-pago-valido', 'Método de pago inválido', function(value) {
-      if (!value) return true; 
+    .test('metodo-pago-valido', 'Método de pago inválido', function (value) {
+      if (!value) return true;
       const metodosValidos = ['tarjeta_credito', 'tarjeta_debito', 'efectivo', 'transferencia', 'paypal', 'tarjeta', 'credit_card', 'debit_card', 'cash', 'transfer'];
       return metodosValidos.includes(value);
     }),
@@ -75,7 +75,7 @@ const reservaSchema = yup.object({
   duracion: yup
     .string()
     .nullable()
-    .matches(/^\d+\s*(hora|horas|minuto|minutos|día|días)$/, 
+    .matches(/^\d+\s*(hora|horas|minuto|minutos|día|días)$/,
       'La duración debe tener el formato: "2 horas", "30 minutos", etc.'),
 
   fechaCreacion: yup
@@ -87,33 +87,33 @@ const reservaSchema = yup.object({
     id: yup
       .string()
       .required('El ID de la oficina es obligatorio'),
-    
+
     nombre: yup
       .string()
       .required('El nombre de la oficina es obligatorio')
       .min(2, 'El nombre debe tener al menos 2 caracteres')
       .max(100, 'El nombre no puede exceder los 100 caracteres'),
-    
+
     tipo: yup
       .string()
       .required('El tipo de oficina es obligatorio')
-      .test('tipo-oficina-valido', 'Tipo de oficina inválido', function(value) {
+      .test('tipo-oficina-valido', 'Tipo de oficina inválido', function (value) {
         const tiposValidos = ['oficina', 'sala', 'escritorio', 'coworking', 'espacio', 'sala_reuniones'];
         return tiposValidos.includes(value);
       }),
-    
+
     ubicacion: yup
       .string()
       .nullable()
       .max(200, 'La ubicación no puede exceder los 200 caracteres'),
-    
+
     capacidad: yup
       .number()
       .nullable()
       .integer('La capacidad debe ser un número entero')
       .min(1, 'La capacidad debe ser mayor a 0')
       .max(500, 'La capacidad no puede exceder 500 personas'),
-    
+
     imagen: yup
       .string()
       .nullable()
@@ -137,8 +137,8 @@ const edicionReservaSchema = yup.object({
   metodoPago: yup
     .string()
     .nullable()
-    .test('metodo-pago-valido', 'Método de pago inválido', function(value) {
-      if (!value) return true; 
+    .test('metodo-pago-valido', 'Método de pago inválido', function (value) {
+      if (!value) return true;
       const metodosValidos = ['tarjeta_credito', 'tarjeta_debito', 'efectivo', 'transferencia', 'paypal'];
       return metodosValidos.includes(value);
     })
@@ -150,7 +150,7 @@ const DetalleReserva = ({ navigation, route }) => {
   const [loadingDetalle, setLoadingDetalle] = useState(false);
   const [erroresValidacion, setErroresValidacion] = useState({});
   const [validacionCompleta, setValidacionCompleta] = useState(false);
-  
+
   const [modoEdicion, setModoEdicion] = useState(false);
   const [datosEdicion, setDatosEdicion] = useState({
     cantidadPersonas: '',
@@ -185,7 +185,7 @@ const DetalleReserva = ({ navigation, route }) => {
     } catch (error) {
       setValidacionCompleta(false);
       const errores = {};
-      
+
       if (error.inner) {
         error.inner.forEach(err => {
           errores[err.path] = err.message;
@@ -193,9 +193,8 @@ const DetalleReserva = ({ navigation, route }) => {
       } else {
         errores.general = error.message;
       }
-      
+
       setErroresValidacion(errores);
-      console.warn('Errores de validación en reserva:', errores);
     }
   };
 
@@ -205,7 +204,7 @@ const DetalleReserva = ({ navigation, route }) => {
       return { valido: true, errores: {} };
     } catch (error) {
       const errores = {};
-      
+
       if (error.inner) {
         error.inner.forEach(err => {
           errores[err.path] = err.message;
@@ -213,7 +212,7 @@ const DetalleReserva = ({ navigation, route }) => {
       } else {
         errores.general = error.message;
       }
-      
+
       return { valido: false, errores };
     }
   };
@@ -245,7 +244,6 @@ const DetalleReserva = ({ navigation, route }) => {
             setDetalleEspacio(result.payload.data);
           }
         } catch (error) {
-          console.error('Error cargando detalle del espacio:', error);
           Alert.alert('Error', 'No se pudo cargar la información del espacio');
         } finally {
           setLoadingDetalle(false);
@@ -488,8 +486,7 @@ const DetalleReserva = ({ navigation, route }) => {
           <View style={styles.imageOverlay}>
             <Text style={styles.imageText}>{nombreEspacio}</Text>
           </View>
-          
-          {/* Badge de estado */}
+
           <View style={[styles.estadoBadgeDetalle, { backgroundColor: estadoInfo.color }]}>
             <Text style={styles.estadoTextDetalle}>{estadoInfo.texto}</Text>
           </View>
@@ -621,7 +618,7 @@ const DetalleReserva = ({ navigation, route }) => {
     </SafeAreaView>
   );
 };
-                              
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -663,7 +660,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  
+
   errorContainer: {
     backgroundColor: '#fef2f2',
     borderColor: '#fecaca',
@@ -703,7 +700,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     marginTop: 4,
   },
-  
+
   imageContainer: {
     paddingHorizontal: 20,
     paddingTop: 20,
@@ -862,7 +859,7 @@ const styles = StyleSheet.create({
     color: '#e74c3c',
     marginTop: 4,
   },
-  
+
   validacionExitosa: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -880,7 +877,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontWeight: '500',
   },
-  
+
   loadingImageText: {
     color: 'white',
     fontSize: 14,

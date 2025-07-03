@@ -15,7 +15,7 @@ import {
   View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { cancelarReserva, obtenerReservas, selectErrorReservas, selectLoadingReservas, selectReservas } from '../store/slices/reservasSlice'; // ejemplo de ruta
+import { cancelarReserva, obtenerReservas, selectErrorReservas, selectLoadingReservas, selectReservas } from '../store/slices/reservasSlice';
 
 const GestionReservas = ({ navigation }) => {
   const [tabActiva, setTabActiva] = useState('todas');
@@ -23,50 +23,44 @@ const GestionReservas = ({ navigation }) => {
   const [modalDetalle, setModalDetalle] = useState(false);
   const [reservaSeleccionada, setReservaSeleccionada] = useState(null);
   const [modalFiltros, setModalFiltros] = useState(false);
-  const dispatch = useDispatch(); 
+  const dispatch = useDispatch();
   const reservas = useSelector(selectReservas);
   const loadingReservas = useSelector(selectLoadingReservas);
-  const errorReservas   = useSelector(selectErrorReservas);
+  const errorReservas = useSelector(selectErrorReservas);
 
-useEffect(() => {
-  // al montar el componente traigo las 50 primeras (ajusta a tu gusto)
-  dispatch(obtenerReservas({ skip: 0, limit: 50 }));
-}, [dispatch]);
-  
+  useEffect(() => {
+    dispatch(obtenerReservas({ skip: 0, limit: 50 }));
+  }, [dispatch]);
 
-const estadisticas = useMemo(() => {
-  // Estado inicial con solo las claves necesarias
-  const base = {
-    total: 0,
-    confirmadas: 0,
-    pendientes: 0,
-    canceladas: 0,
-    ingresosTotales: 0,
-    comisionesTotales: 0,
-  };
+  const estadisticas = useMemo(() => {
+    const base = {
+      total: 0,
+      confirmadas: 0,
+      pendientes: 0,
+      canceladas: 0,
+      ingresosTotales: 0,
+      comisionesTotales: 0,
+    };
 
-  // Relaciona el valor singular que llega en r.estado
-  // con la clave plural que queremos incrementar
-  const keyMap = {
-    confirmada: 'confirmadas',
-    pendiente : 'pendientes',
-    cancelada : 'canceladas',
-  };
+    const keyMap = {
+      confirmada: 'confirmadas',
+      pendiente: 'pendientes',
+      cancelada: 'canceladas',
+    };
 
-  return reservas.reduce((acc, r) => {
-    acc.total += 1;
+    return reservas.reduce((acc, r) => {
+      acc.total += 1;
 
-    const key = keyMap[r.estado];      // 'confirmadas', 'pendientes' o 'canceladas'
-    if (key) acc[key] += 1;            // solo si el estado está mapeado
+      const key = keyMap[r.estado];
+      if (key) acc[key] += 1;
 
-    if (r.estado !== 'cancelada') {    // solo sumamos ingresos cuando no está cancelada
-      acc.ingresosTotales   += r.precioTotal   ?? 0;
-      acc.comisionesTotales += r.comision      ?? 0;
-    }
-    return acc;
-  }, base);
-}, [reservas]);
-
+      if (r.estado !== 'cancelada') {
+        acc.ingresosTotales += r.precioTotal ?? 0;
+        acc.comisionesTotales += r.comision ?? 0;
+      }
+      return acc;
+    }, base);
+  }, [reservas]);
 
   const getEstadoInfo = (estado) => {
     switch (estado) {
@@ -100,7 +94,6 @@ const estadisticas = useMemo(() => {
 
   const getReservasFiltradas = () => {
     let filtradas = reservas;
-    console.log('reservas', reservas);
     if (tabActiva !== 'todas') {
       filtradas = filtradas.filter(r => r.estado === tabActiva);
     }
@@ -119,28 +112,27 @@ const estadisticas = useMemo(() => {
 
   const handleVerDetalle = (reserva) => {
     setReservaSeleccionada(reserva);
-    console.log('reserva seleccionada', reserva);
     setModalDetalle(true);
   };
 
-const handleCancelarReserva = (reserva) => {
-  Alert.alert(
-    'Cancelar reserva',
-    '¿Estás seguro de cancelar esta reserva? Se procesará el reembolso correspondiente.',
-    [
-      { text: 'No', style: 'cancel' },
-      {
-        text: 'Sí, cancelar',
-        style: 'destructive',
-        onPress: () => {
-          dispatch(cancelarReserva({ reservaId: reserva._id, motivo: 'Cancelada desde app' }));
-          setModalDetalle(false);
+  const handleCancelarReserva = (reserva) => {
+    Alert.alert(
+      'Cancelar reserva',
+      '¿Estás seguro de cancelar esta reserva? Se procesará el reembolso correspondiente.',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: () => {
+            dispatch(cancelarReserva({ reservaId: reserva._id, motivo: 'Cancelada desde app' }));
+            setModalDetalle(false);
+          }
         }
-      }
-    ]
-  );
-};
-   
+      ]
+    );
+  };
+
   const renderReserva = ({ item }) => {
     const estadoInfo = getEstadoInfo(item.estado);
     const tipoInfo = getTipoEspacioInfo(item.entidadReservada.tipo);
@@ -183,28 +175,28 @@ const handleCancelarReserva = (reserva) => {
               <Ionicons name="calendar" size={14} color="#7f8c8d" />
               <Text style={styles.fechas}>
                 {new Date(item.fechaInicio).toLocaleDateString('es-UY', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric',
-                  })}
-                  {item.dias > 1 && (
-                    <>
-                      {' al '}
-                      {new Date(item.fechaFin).toLocaleDateString('es-UY', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    </>
-                  )}
-                  {' '}({item.dias} día{item.dias > 1 ? 's' : ''})
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+                {item.dias > 1 && (
+                  <>
+                    {' al '}
+                    {new Date(item.fechaFin).toLocaleDateString('es-UY', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </>
+                )}
+                {' '}({item.dias} día{item.dias > 1 ? 's' : ''})
               </Text>
             </View>
             <View style={styles.detalleRow}>
               <Ionicons name="time" size={14} color="#7f8c8d" />
-           <Text style={styles.horario}>
-                    {item.horaInicio} a {item.horaFin}
-          </Text>
+              <Text style={styles.horario}>
+                {item.horaInicio} a {item.horaFin}
+              </Text>
 
             </View>
           </View>
@@ -232,12 +224,6 @@ const handleCancelarReserva = (reserva) => {
           <Ionicons name="arrow-back" size={24} color="#2c3e50" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Gestión de Reservas</Text>
-        <TouchableOpacity
-          onPress={() => setModalFiltros(true)}
-          style={styles.filterButton}
-        >
-          <Ionicons name="filter" size={24} color="#4a90e2" />
-        </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>
@@ -267,7 +253,7 @@ const handleCancelarReserva = (reserva) => {
           </Text>
           <Text style={styles.estatLabel}>Pendientes</Text>
         </View>
-         <View style={styles.estatItem}>
+        <View style={styles.estatItem}>
           <Text style={[styles.estatNumero, { color: '#27ae60' }]}>
             {estadisticas.canceladas}
           </Text>
@@ -302,7 +288,7 @@ const handleCancelarReserva = (reserva) => {
         contentContainerStyle={styles.listaContent}
       />
       {loadingReservas && <ActivityIndicator size="large" color="#4a90e2" />}
-      {errorReservas   && (
+      {errorReservas && (
         <Text style={{ color: '#e74c3c', textAlign: 'center', marginVertical: 10 }}>
           {errorReservas}
         </Text>
@@ -361,20 +347,11 @@ const handleCancelarReserva = (reserva) => {
                         color={getTipoEspacioInfo(reservaSeleccionada.entidadReservada.tipo).color}
                       />
                     </View>
-                    
-                  <View style={styles.modalEspacioInfo}>
+
+                    <View style={styles.modalEspacioInfo}>
                       <Text style={styles.modalEspacioNombre}>{reservaSeleccionada.proposito}</Text>
-                      {/*
-                      <TouchableOpacity
-                        onPress={() => handleContactarUsuario(reservaSeleccionada.usuarioId.email, 'propietario')}
-                      >
-                        <Text style={styles.modalPropietario}>
-                          Propietario: {reservaSeleccionada.usuarioId.nombre}
-                        </Text>
-                      </TouchableOpacity>
-                          */}
                     </View>
-                
+
                   </View>
                 </View>
 
@@ -404,7 +381,7 @@ const handleCancelarReserva = (reserva) => {
                   <View style={styles.modalDetalle}>
                     <Ionicons name="time" size={16} color="#4a90e2" />
                     <Text style={styles.modalDetalleText}>
-                       {reservaSeleccionada.horaInicio} a {reservaSeleccionada.horaFin}
+                      {reservaSeleccionada.horaInicio} a {reservaSeleccionada.horaFin}
                     </Text>
                   </View>
                 </View>
@@ -427,11 +404,10 @@ const handleCancelarReserva = (reserva) => {
                   <View style={styles.modalFinanzas}>
                     <View style={styles.finanzaItem}>
                       <Text style={styles.finanzaLabel}>Precio total</Text>
-                       <Text style={[styles.finanzaValue, { color: '#27ae60' }]}>${reservaSeleccionada.precioTotal}</Text>
+                      <Text style={[styles.finanzaValue, { color: '#27ae60' }]}>${reservaSeleccionada.precioTotal}</Text>
                     </View>
                   </View>
                 </View>
-
 
                 {reservaSeleccionada.estado === 'completada' && reservaSeleccionada.calificacion && (
                   <View style={styles.modalCalificacion}>

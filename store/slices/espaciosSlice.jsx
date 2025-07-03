@@ -164,7 +164,6 @@ export const obtenerDetalleEspacio = createAsyncThunk(
     try {
       const { auth } = getState();
 
-
       const endpoints = {
         oficina: '/v1/oficinas',
         espacio: '/v1/espacios',
@@ -233,7 +232,6 @@ export const actualizarEspacio = createAsyncThunk(
         }
       );
 
-      console.log('Respuesta de actualización:', response);
       const data = await response.json();
 
       if (!response.ok) {
@@ -298,7 +296,6 @@ export const cargarTodosLosEspacios = createAsyncThunk(
         } else {
         }
       });
-       console.log('Resultados exitosos:', successfulResults);
       return successfulResults;
     } catch (error) {
       console.error(error);
@@ -306,7 +303,6 @@ export const cargarTodosLosEspacios = createAsyncThunk(
     }
   }
 );
-
 
 export const eliminarEspacio = createAsyncThunk(
   'espacios/eliminarEspacio',
@@ -343,11 +339,10 @@ export const eliminarEspacio = createAsyncThunk(
       if (!response.ok) {
         return rejectWithValue(
           data.message ||
-            `Error HTTP ${response.status}: Error al eliminar el espacio`,
+          `Error HTTP ${response.status}: Error al eliminar el espacio`,
         );
       }
 
-      // si tu API devuelve algo, lo mandas; si no, con que devuelva el id basta
       return { id, tipo };
     } catch (err) {
       console.error(err);
@@ -355,7 +350,6 @@ export const eliminarEspacio = createAsyncThunk(
     }
   },
 );
-
 
 export const cargarEspaciosCliente = createAsyncThunk(
   'espacios/cargarEspaciosCliente',
@@ -692,53 +686,46 @@ const espaciosSlice = createSlice({
       .addCase(obtenerEscritorios.rejected, (state) => {
         state.escritorios = [];
       })
-      
-        .addCase(eliminarEspacio.pending, (state) => {
-            state.loadingDetalle = true;      // o usa otro flag si prefieres
-            state.errorDetalle = null;
-          })
-          .addCase(eliminarEspacio.fulfilled, (state, action) => {
-            state.loadingDetalle = false;
-            const { id, tipo } = action.payload;
 
-            // --- 1. quita del array específico ---
-            const quitar = (arr) => {
-              const i = arr.findIndex((e) => e._id === id);
-              if (i !== -1) arr.splice(i, 1);
-            };
-            switch (tipo) {
-              case 'oficina':
-                quitar(state.oficinas);
-                break;
-              case 'espacio':
-                quitar(state.espacios);
-                break;
-              case 'escritorio':
-                quitar(state.escritorios);
-                break;
-              case 'edificio':
-                quitar(state.edificios);
-                break;
-              case 'sala':
-                quitar(state.salas);
-                break;
-            }
+      .addCase(eliminarEspacio.pending, (state) => {
+        state.loadingDetalle = true;
+        state.errorDetalle = null;
+      })
+      .addCase(eliminarEspacio.fulfilled, (state, action) => {
+        state.loadingDetalle = false;
+        const { id, tipo } = action.payload;
 
-            // --- 2. quita del cache mapeado/filtrado ---
-            state.espaciosMapeados = state.espaciosMapeados.filter((e) => e.id !== id);
-            state.espaciosFiltrados = state.espaciosFiltrados.filter((e) => e.id !== id);
+        const quitar = (arr) => {
+          const i = arr.findIndex((e) => e._id === id);
+          if (i !== -1) arr.splice(i, 1);
+        };
+        switch (tipo) {
+          case 'oficina':
+            quitar(state.oficinas);
+            break;
+          case 'espacio':
+            quitar(state.espacios);
+            break;
+          case 'escritorio':
+            quitar(state.escritorios);
+            break;
+          case 'edificio':
+            quitar(state.edificios);
+            break;
+          case 'sala':
+            quitar(state.salas);
+            break;
+        }
 
-            // limpia detalle si justo estábamos viéndolo
-            if (state.detalleActual?._id === id) state.detalleActual = null;
-          })
-          .addCase(eliminarEspacio.rejected, (state, action) => {
-            state.loadingDetalle = false;
-            state.errorDetalle = action.payload;
-            // no modificamos los arrays si falla la eliminación
-          })
+        state.espaciosMapeados = state.espaciosMapeados.filter((e) => e.id !== id);
+        state.espaciosFiltrados = state.espaciosFiltrados.filter((e) => e.id !== id);
 
-
-
+        if (state.detalleActual?._id === id) state.detalleActual = null;
+      })
+      .addCase(eliminarEspacio.rejected, (state, action) => {
+        state.loadingDetalle = false;
+        state.errorDetalle = action.payload;
+      })
       .addCase(obtenerEdificios.fulfilled, (state, action) => {
         state.edificios = Array.isArray(action.payload?.data) ? action.payload.data : [];
       })
@@ -872,7 +859,6 @@ const espaciosSlice = createSlice({
       .addCase(cargarTodosLosEspacios.fulfilled, (state, action) => {
         state.loading = false;
 
-
         const payload = action.payload || [];
         if (!Array.isArray(payload)) {
           state.espaciosMapeados = [];
@@ -908,7 +894,6 @@ const espaciosSlice = createSlice({
           } else {
           }
         });
-
 
         state.espaciosMapeados = espaciosMapeados;
         state.espaciosFiltrados = espaciosMapeados.filter(espacio => {

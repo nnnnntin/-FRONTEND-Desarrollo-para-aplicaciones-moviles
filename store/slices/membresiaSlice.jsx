@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
-
 export const obtenerMembresiasActivas = createAsyncThunk(
   'membresias/obtenerActivas',
   async (_, { getState, rejectWithValue }) => {
@@ -24,12 +23,10 @@ export const obtenerMembresiasActivas = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en obtenerMembresiasActivas:', error);
       return rejectWithValue('Error de conexión');
     }
   }
 );
-
 
 export const obtenerPromocionesActivas = createAsyncThunk(
   'membresias/obtenerPromociones',
@@ -54,12 +51,10 @@ export const obtenerPromocionesActivas = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en obtenerPromocionesActivas:', error);
       return rejectWithValue('Error de conexión');
     }
   }
 );
-
 
 export const suscribirMembresia = createAsyncThunk(
   'membresias/suscribir',
@@ -86,12 +81,10 @@ export const suscribirMembresia = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en suscribirMembresia:', error);
       return rejectWithValue('Error de conexión');
     }
   }
 );
-
 
 export const cancelarMembresia = createAsyncThunk(
   'membresias/cancelar',
@@ -118,12 +111,10 @@ export const cancelarMembresia = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en cancelarMembresia:', error);
       return rejectWithValue('Error de conexión');
     }
   }
 );
-
 
 export const actualizarSuscripcionActual = createAsyncThunk(
   'membresias/actualizarSuscripcion',
@@ -146,12 +137,10 @@ export const actualizarSuscripcionActual = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en actualizarSuscripcionActual:', error);
       return rejectWithValue('Error de conexión');
     }
   }
 );
-
 
 export const obtenerSuscripcionActual = createAsyncThunk(
   'membresias/obtenerSuscripcionActual',
@@ -176,12 +165,10 @@ export const obtenerSuscripcionActual = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en obtenerSuscripcionActual:', error);
       return rejectWithValue('Error de conexión');
     }
   }
 );
-
 
 export const reactivarMembresia = createAsyncThunk(
   'membresias/reactivar',
@@ -208,12 +195,10 @@ export const reactivarMembresia = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en reactivarMembresia:', error);
       return rejectWithValue('Error de conexión');
     }
   }
 );
-
 
 export const cambiarPlanMembresia = createAsyncThunk(
   'membresias/cambiarPlan',
@@ -245,12 +230,10 @@ export const cambiarPlanMembresia = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en cambiarPlanMembresia:', error);
       return rejectWithValue('Error de conexión');
     }
   }
 );
-
 
 export const obtenerHistorialMembresias = createAsyncThunk(
   'membresias/obtenerHistorial',
@@ -275,12 +258,10 @@ export const obtenerHistorialMembresias = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en obtenerHistorialMembresias:', error);
       return rejectWithValue('Error de conexión');
     }
   }
 );
-
 
 export const aplicarCodigoPromocional = createAsyncThunk(
   'membresias/aplicarCodigo',
@@ -307,21 +288,16 @@ export const aplicarCodigoPromocional = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Error en aplicarCodigoPromocional:', error);
       return rejectWithValue('Error de conexión');
     }
   }
 );
 
-
 const initialState = {
-  
   membresiasActivas: [],
   promocionesActivas: [],
   suscripcionActual: null,
   historialMembresias: [],
-  
-  
   loadingMembresiasActivas: false,
   loadingSuscripcion: false,
   loadingCancelacion: false,
@@ -329,8 +305,6 @@ const initialState = {
   loadingCambioPlan: false,
   loadingHistorial: false,
   loadingPromocion: false,
-  
-  
   errorMembresiasActivas: null,
   errorSuscripcion: null,
   errorCancelacion: null,
@@ -338,12 +312,8 @@ const initialState = {
   errorCambioPlan: null,
   errorHistorial: null,
   errorPromocion: null,
-  
-  
   promocionAplicada: null,
   descuentoActivo: null,
-  
-  
   configuracion: {
     permitirCambiosPlan: true,
     permitirCancelacion: true,
@@ -351,12 +321,11 @@ const initialState = {
   }
 };
 
-
 const membresiaSlice = createSlice({
   name: 'membresias',
   initialState,
   reducers: {
-    
+
     clearError: (state) => {
       state.errorMembresiasActivas = null;
       state.errorSuscripcion = null;
@@ -366,67 +335,51 @@ const membresiaSlice = createSlice({
       state.errorHistorial = null;
       state.errorPromocion = null;
     },
-    
-    
     clearSpecificError: (state, action) => {
       const errorType = action.payload;
       state[errorType] = null;
     },
-    
-    
     setSuscripcionActual: (state, action) => {
       state.suscripcionActual = action.payload;
     },
-    
     clearSuscripcionActual: (state) => {
       state.suscripcionActual = null;
     },
-    
-    
     setPromocionAplicada: (state, action) => {
       state.promocionAplicada = action.payload;
     },
-    
     clearPromocionAplicada: (state) => {
       state.promocionAplicada = null;
     },
-    
     setDescuentoActivo: (state, action) => {
       state.descuentoActivo = action.payload;
     },
-    
     clearDescuentoActivo: (state) => {
       state.descuentoActivo = null;
     },
-    
-    
     updateConfiguracion: (state, action) => {
       state.configuracion = { ...state.configuracion, ...action.payload };
     },
-    
-    
     resetMembresiaState: (state) => {
       return initialState;
     },
-    
-    
     updateMembresiaLocal: (state, action) => {
       const { membresiaId, cambios } = action.payload;
-      const index = state.membresiasActivas.findIndex(m => 
+      const index = state.membresiasActivas.findIndex(m =>
         (m._id || m.id) === membresiaId
       );
       if (index !== -1) {
-        state.membresiasActivas[index] = { 
-          ...state.membresiasActivas[index], 
-          ...cambios 
+        state.membresiasActivas[index] = {
+          ...state.membresiasActivas[index],
+          ...cambios
         };
       }
     },
   },
-  
+
   extraReducers: (builder) => {
     builder
-      
+
       .addCase(obtenerMembresiasActivas.pending, (state) => {
         state.loadingMembresiasActivas = true;
         state.errorMembresiasActivas = null;
@@ -438,13 +391,11 @@ const membresiaSlice = createSlice({
       .addCase(obtenerMembresiasActivas.rejected, (state, action) => {
         state.loadingMembresiasActivas = false;
         state.errorMembresiasActivas = action.payload;
-        
+
         if (!state.membresiasActivas.length) {
           state.membresiasActivas = [];
         }
       })
-      
-      
       .addCase(obtenerPromocionesActivas.pending, (state) => {
         state.loadingMembresiasActivas = true;
         state.errorMembresiasActivas = null;
@@ -457,8 +408,6 @@ const membresiaSlice = createSlice({
         state.loadingMembresiasActivas = false;
         state.errorMembresiasActivas = action.payload;
       })
-      
-      
       .addCase(suscribirMembresia.pending, (state) => {
         state.loadingSuscripcion = true;
         state.errorSuscripcion = null;
@@ -466,7 +415,7 @@ const membresiaSlice = createSlice({
       .addCase(suscribirMembresia.fulfilled, (state, action) => {
         state.loadingSuscripcion = false;
         state.suscripcionActual = action.payload.suscripcion || action.payload;
-        
+
         state.promocionAplicada = null;
         state.descuentoActivo = null;
       })
@@ -474,8 +423,6 @@ const membresiaSlice = createSlice({
         state.loadingSuscripcion = false;
         state.errorSuscripcion = action.payload;
       })
-      
-      
       .addCase(cancelarMembresia.pending, (state) => {
         state.loadingCancelacion = true;
         state.errorCancelacion = null;
@@ -495,8 +442,6 @@ const membresiaSlice = createSlice({
         state.loadingCancelacion = false;
         state.errorCancelacion = action.payload;
       })
-      
-      
       .addCase(actualizarSuscripcionActual.pending, (state) => {
         state.loadingSuscripcion = true;
         state.errorSuscripcion = null;
@@ -509,8 +454,6 @@ const membresiaSlice = createSlice({
         state.loadingSuscripcion = false;
         state.errorSuscripcion = action.payload;
       })
-      
-      
       .addCase(obtenerSuscripcionActual.pending, (state) => {
         state.loadingSuscripcion = true;
         state.errorSuscripcion = null;
@@ -523,8 +466,6 @@ const membresiaSlice = createSlice({
         state.loadingSuscripcion = false;
         state.errorSuscripcion = action.payload;
       })
-      
-      
       .addCase(reactivarMembresia.pending, (state) => {
         state.loadingReactivacion = true;
         state.errorReactivacion = null;
@@ -543,8 +484,6 @@ const membresiaSlice = createSlice({
         state.loadingReactivacion = false;
         state.errorReactivacion = action.payload;
       })
-      
-      
       .addCase(cambiarPlanMembresia.pending, (state) => {
         state.loadingCambioPlan = true;
         state.errorCambioPlan = null;
@@ -557,8 +496,6 @@ const membresiaSlice = createSlice({
         state.loadingCambioPlan = false;
         state.errorCambioPlan = action.payload;
       })
-      
-      
       .addCase(obtenerHistorialMembresias.pending, (state) => {
         state.loadingHistorial = true;
         state.errorHistorial = null;
@@ -571,8 +508,6 @@ const membresiaSlice = createSlice({
         state.loadingHistorial = false;
         state.errorHistorial = action.payload;
       })
-      
-      
       .addCase(aplicarCodigoPromocional.pending, (state) => {
         state.loadingPromocion = true;
         state.errorPromocion = null;
@@ -589,7 +524,6 @@ const membresiaSlice = createSlice({
   },
 });
 
-
 export const {
   clearError,
   clearSpecificError,
@@ -603,6 +537,5 @@ export const {
   resetMembresiaState,
   updateMembresiaLocal
 } = membresiaSlice.actions;
-
 
 export default membresiaSlice.reducer;

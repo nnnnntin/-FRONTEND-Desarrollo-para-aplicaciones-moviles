@@ -28,8 +28,6 @@ import {
   obtenerMetodosPagoUsuario
 } from '../store/slices/usuarioSlice';
 
-
-
 const metodoPagoSchema = yup.object({
   _id: yup.string().optional(),
   id: yup.string().optional(),
@@ -132,7 +130,7 @@ const payloadReservaSchema = yup.object({
     .required('El precio final pagado es requerido'),
   estado: yup.string()
     .test('estado-reserva-valido', 'Estado de reserva inválido', function (value) {
-      if (!value) return true; 
+      if (!value) return true;
       const estadosValidos = ['pendiente', 'confirmada', 'cancelada', 'completada', 'no_asistio'];
       return estadosValidos.includes(value);
     })
@@ -196,7 +194,7 @@ const payloadPagoSchema = yup.object({
   metodoPago: metodoPagoPagoSchema.required('El método de pago es requerido'),
   estado: yup.string()
     .test('estado-pago-valido', 'Estado de pago inválido', function (value) {
-      if (!value) return true; 
+      if (!value) return true;
       const estadosValidos = ['pendiente', 'completado', 'fallido', 'reembolsado'];
       return estadosValidos.includes(value);
     })
@@ -278,14 +276,13 @@ const notificacionSchema = yup.object({
   }).optional(),
   prioridad: yup.string()
     .test('prioridad-valida', 'Prioridad inválida', function (value) {
-      if (!value) return true; 
+      if (!value) return true;
       const prioridadesValidas = ['baja', 'media', 'alta'];
       return prioridadesValidas.includes(value);
     })
     .default('media'),
   accion: yup.string().optional()
 });
-
 
 const validarMetodoPago = async (metodo) => {
   try {
@@ -486,7 +483,6 @@ const mapearTipoMetodoPago = (tipoOriginal) => {
   };
   return mapeo[tipoOriginal] || 'otro';
 };
-
 
 const validarPayloadPagoBackend = (payload) => {
   const errores = [];
@@ -696,7 +692,6 @@ const crearNotificacionPropietario = async (reserva, datosReserva, usuarioReserv
   try {
     const espacioDetalle = await obtenerDetalleEspacioPorId(datosReserva.espacioId, auth.token);
 
-    
     let propietarioId = null;
 
     if (espacioDetalle?.datosCompletos?.propietarioId) {
@@ -707,58 +702,45 @@ const crearNotificacionPropietario = async (reserva, datosReserva, usuarioReserv
       propietarioId = espacioDetalle.usuarioId;
     }
 
-    
     if (propietarioId) {
-      
+
       if (typeof propietarioId === 'object') {
         propietarioId = propietarioId._id || propietarioId.id;
       }
 
-      
       propietarioId = propietarioId.toString();
 
-      
       if (!propietarioId || propietarioId === 'undefined' || propietarioId === 'null') {
-        console.warn('No se pudo obtener un ID válido del propietario');
         return;
       }
     } else {
-      console.warn('No se encontró propietarioId en los detalles del espacio');
       return;
     }
 
-    
     const remitenteId = usuarioReservante?.id || usuarioReservante?._id;
     if (!remitenteId) {
-      console.warn('No se pudo obtener el ID del usuario reservante');
       return;
     }
 
-    
     const reservaId = reserva._id || reserva.id;
-    if (!reservaId) {
-      console.warn('No se pudo obtener el ID de la reserva');
-      return;
-    }
 
     const notificacionData = {
       tipoNotificacion: 'reserva',
       titulo: 'Nueva reserva en tu espacio',
       mensaje: `${usuarioReservante?.nombre || 'Un usuario'} ha reservado ${datosReserva.espacioNombre} para el ${datosReserva.fecha} de ${datosReserva.horaInicio} a ${datosReserva.horaFin}`,
-      destinatarioId: propietarioId, 
-      remitenteId: remitenteId.toString(), 
+      destinatarioId: propietarioId,
+      remitenteId: remitenteId.toString(),
       entidadRelacionada: {
         tipo: 'reserva',
-        id: reservaId.toString() 
+        id: reservaId.toString()
       },
       prioridad: 'alta',
       accion: 'ver_reserva'
     };
 
-    
     const validacion = await validarNotificacion(notificacionData);
     if (!validacion.valido) {
-      console.error('Errores en notificación del propietario:', validacion.errores);
+      console.error(validacion.errores);
       return;
     }
 
@@ -776,12 +758,12 @@ const crearNotificacionPropietario = async (reserva, datosReserva, usuarioReserv
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('Error del servidor al crear notificación:', errorData);
+      console.error(errorData);
       return;
     }
 
   } catch (error) {
-    console.error('Error al crear notificación del propietario:', error.message);
+    console.error(error.message);
   }
 };
 
@@ -800,10 +782,9 @@ const crearNotificacionUsuario = async (reserva, pago, factura, usuario, auth) =
       accion: 'ver_comprobante'
     };
 
-    
     const validacion = await validarNotificacion(notificacionData);
     if (!validacion.valido) {
-      console.error('Errores en notificación del usuario:', validacion.errores);
+      console.error(validacion.errores);
       return;
     }
 
@@ -1111,7 +1092,7 @@ const MetodosPago = ({ navigation, route }) => {
   };
 
   const handleEliminarTarjeta = async (metodoId, metodo) => {
-    
+
     const validacion = await validarMetodoPago(metodo);
     if (!validacion.valido) {
       Alert.alert('Error', `Método de pago inválido: ${validacion.errores.join(', ')}`);
@@ -1156,7 +1137,6 @@ const MetodosPago = ({ navigation, route }) => {
   const handleSeleccionarTarjeta = async (metodo) => {
     if (!modoSeleccion) return;
 
-    
     const validacion = await validarMetodoPago(metodo);
     if (!validacion.valido) {
       Alert.alert('Error', `Método de pago inválido: ${validacion.errores.join(', ')}`);
@@ -1181,7 +1161,7 @@ const MetodosPago = ({ navigation, route }) => {
   };
 
   const handleMarcarPredeterminado = async (metodo) => {
-    
+
     const validacion = await validarMetodoPago(metodo);
     if (!validacion.valido) {
       Alert.alert('Error', `Método de pago inválido: ${validacion.errores.join(', ')}`);
@@ -1211,7 +1191,7 @@ const MetodosPago = ({ navigation, route }) => {
       }
 
       if (!modoSuscripcion && datosReserva) {
-        
+
         const validacionReserva = await validarDatosReserva(datosReserva);
         if (!validacionReserva.valido) {
           Alert.alert(
@@ -1224,7 +1204,6 @@ const MetodosPago = ({ navigation, route }) => {
 
         const reservaParaBackend = crearPayloadReservaLimpio(datosReserva, usuario, metodo);
 
-        
         const validacionPayload = await validarPayloadReserva(reservaParaBackend);
         if (!validacionPayload.valido) {
           Alert.alert(
@@ -1235,7 +1214,6 @@ const MetodosPago = ({ navigation, route }) => {
           return;
         }
 
-        
         const erroresValidacion = validarPayloadLimpio(reservaParaBackend);
         if (erroresValidacion.length > 0) {
           Alert.alert(
@@ -1275,7 +1253,6 @@ const MetodosPago = ({ navigation, route }) => {
 
           const pagoData = crearDatosPagoCompatibles(datosReserva, reservaId, usuario, metodo);
 
-          
           const validacionPago = await validarPayloadPago(pagoData);
           if (!validacionPago.valido) {
             Alert.alert(
@@ -1286,7 +1263,6 @@ const MetodosPago = ({ navigation, route }) => {
             return;
           }
 
-          
           const erroresPago = validarPayloadPagoBackend(pagoData);
           if (erroresPago.length > 0) {
             Alert.alert(
@@ -1320,7 +1296,6 @@ const MetodosPago = ({ navigation, route }) => {
               datosReserva
             );
 
-            
             const validacionFactura = await validarFactura(facturaData);
             if (!validacionFactura.valido) {
               throw new Error(`Datos de factura inválidos: ${validacionFactura.errores.join(', ')}`);
@@ -1434,9 +1409,8 @@ const MetodosPago = ({ navigation, route }) => {
 
       } else if (modoSuscripcion && planSuscripcion) {
         try {
-          
+
           const validacionPlan = await validarPayloadPago(planSuscripcion);
-          
 
           const usuarioId = usuario?._id || usuario?.id || usuario?.userId;
 
@@ -1463,7 +1437,6 @@ const MetodosPago = ({ navigation, route }) => {
             renovacionAutomatica: true,
           };
 
-          
           const validacionSuscripcion = await validarSuscripcionData(suscripcionData);
           if (!validacionSuscripcion.valido) {
             Alert.alert(

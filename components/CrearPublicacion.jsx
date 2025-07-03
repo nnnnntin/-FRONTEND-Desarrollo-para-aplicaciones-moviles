@@ -92,7 +92,7 @@ const preciosSchema = Yup.object({
   porMes: Yup.number()
     .nullable()
     .min(0, 'El precio no puede ser negativo')
-}).test('al-menos-un-precio', 'Debes indicar al menos un precio', function(value) {
+}).test('al-menos-un-precio', 'Debes indicar al menos un precio', function (value) {
   return value.porHora || value.porDia || value.porMes;
 });
 
@@ -104,14 +104,14 @@ const disponibilidadSchema = Yup.object({
     cierre: Yup.string()
       .required('La hora de cierre es requerida')
       .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato de hora inválido (HH:MM)')
-      .test('cierre-despues-apertura', 'La hora de cierre debe ser después de la apertura', function(value) {
+      .test('cierre-despues-apertura', 'La hora de cierre debe ser después de la apertura', function (value) {
         const { apertura } = this.parent;
         if (!apertura || !value) return true;
         return value > apertura;
       })
   }),
   dias: Yup.array()
-    .of(Yup.string().test('dia-valido', 'Día no válido', function(value) {
+    .of(Yup.string().test('dia-valido', 'Día no válido', function (value) {
       const diasValidos = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
       return !value || diasValidos.includes(value);
     }))
@@ -123,50 +123,50 @@ const publicacionSchema = Yup.object({
     .required('El nombre es requerido')
     .min(3, 'El nombre debe tener al menos 3 caracteres')
     .max(100, 'El nombre no puede tener más de 100 caracteres'),
-  
+
   tipo: Yup.string()
-    .test('tipo-valido', 'Tipo de espacio no válido', function(value) {
+    .test('tipo-valido', 'Tipo de espacio no válido', function (value) {
       const tiposValidos = ['oficina', 'espacio', 'escritorio', 'sala'];
       return tiposValidos.includes(value);
     })
     .required('Debes seleccionar un tipo de espacio'),
-  
+
   descripcion: Yup.string()
     .max(500, 'La descripción no puede tener más de 500 caracteres'),
-  
+
   capacidad: Yup.number()
     .when('$requiereCapacidad', {
       is: true,
       then: (schema) => schema.required('La capacidad es requerida').min(1, 'La capacidad debe ser mayor a 0').max(1000, 'La capacidad no puede ser mayor a 1000'),
       otherwise: (schema) => schema.nullable()
     }),
-  
+
   superficieM2: Yup.number()
     .nullable()
     .min(1, 'La superficie debe ser mayor a 0')
     .max(10000, 'La superficie no puede ser mayor a 10,000 m²'),
-  
+
   configuracion: Yup.string()
     .when('$tieneSubtipos', {
       is: true,
       then: (schema) => schema.required('Debes seleccionar una configuración'),
       otherwise: (schema) => schema.nullable()
     }),
-  
+
   ubicacion: ubicacionSchema,
   precios: preciosSchema,
   disponibilidad: disponibilidadSchema,
-  
+
   amenidades: Yup.array().of(Yup.string()),
   equipamiento: Yup.array().of(Yup.string()),
-  
+
   estado: Yup.string()
-    .test('estado-valido', 'Estado no válido', function(value) {
+    .test('estado-valido', 'Estado no válido', function (value) {
       const estadosValidos = ['disponible', 'ocupado', 'mantenimiento'];
       return !value || estadosValidos.includes(value);
     })
     .default('disponible'),
-  
+
   activo: Yup.boolean().default(true)
 });
 
@@ -292,9 +292,9 @@ const CrearPublicacion = ({ navigation }) => {
       };
 
       const datosParaValidar = datosCompletos || formData;
-      
+
       await publicacionSchema.validateAt(campo, datosParaValidar, { context: contexto });
-      
+
       setErrores(prev => ({
         ...prev,
         [campo]: null
@@ -336,7 +336,7 @@ const CrearPublicacion = ({ navigation }) => {
     };
 
     try {
-      await publicacionSchema.validate(datosParaValidar, { 
+      await publicacionSchema.validate(datosParaValidar, {
         abortEarly: false,
         context: contexto
       });
@@ -349,7 +349,7 @@ const CrearPublicacion = ({ navigation }) => {
       return true;
     } catch (error) {
       const nuevosErrores = {};
-      
+
       if (error.inner && error.inner.length > 0) {
         error.inner.forEach(err => {
           nuevosErrores[err.path] = err.message;
@@ -357,7 +357,7 @@ const CrearPublicacion = ({ navigation }) => {
       } else {
         nuevosErrores.general = error.message;
       }
-      
+
       setErrores(nuevosErrores);
       return false;
     }
@@ -372,12 +372,12 @@ const CrearPublicacion = ({ navigation }) => {
       ...formData.ubicacion,
       coordenadas: coordenadas
     };
-    
+
     setFormData(prev => ({
       ...prev,
       ubicacion: nuevaUbicacion
     }));
-    
+
     validarCampo('ubicacion.coordenadas', coordenadas);
   };
 
@@ -393,7 +393,7 @@ const CrearPublicacion = ({ navigation }) => {
     const nuevasAmenidades = formData.amenidades.includes(amenidad)
       ? formData.amenidades.filter(a => a !== amenidad)
       : [...formData.amenidades, amenidad];
-    
+
     setFormData(prev => ({
       ...prev,
       amenidades: nuevasAmenidades
@@ -404,17 +404,17 @@ const CrearPublicacion = ({ navigation }) => {
     const nuevosDias = formData.disponibilidad.dias.includes(dia)
       ? formData.disponibilidad.dias.filter(d => d !== dia)
       : [...formData.disponibilidad.dias, dia];
-    
+
     const nuevaDisponibilidad = {
       ...formData.disponibilidad,
       dias: nuevosDias
     };
-    
+
     setFormData(prev => ({
       ...prev,
       disponibilidad: nuevaDisponibilidad
     }));
-    
+
     validarCampo('disponibilidad.dias', nuevosDias);
   };
 
@@ -423,7 +423,7 @@ const CrearPublicacion = ({ navigation }) => {
       ...prev,
       [campo]: valor
     }));
-    
+
     validarCampo(campo, valor);
   };
 
@@ -432,12 +432,12 @@ const CrearPublicacion = ({ navigation }) => {
       ...formData.ubicacion,
       [subcampo]: valor
     };
-    
+
     setFormData(prev => ({
       ...prev,
       ubicacion: nuevaUbicacion
     }));
-    
+
     validarCampo(`ubicacion.${subcampo}`, valor);
   };
 
@@ -446,17 +446,17 @@ const CrearPublicacion = ({ navigation }) => {
       ...formData.ubicacion.direccionCompleta,
       [subcampo]: valor
     };
-    
+
     const nuevaUbicacion = {
       ...formData.ubicacion,
       direccionCompleta: nuevaDireccion
     };
-    
+
     setFormData(prev => ({
       ...prev,
       ubicacion: nuevaUbicacion
     }));
-    
+
     validarCampo(`ubicacion.direccionCompleta.${subcampo}`, valor);
   };
 
@@ -465,12 +465,12 @@ const CrearPublicacion = ({ navigation }) => {
       ...formData.precios,
       [tipoPrecio]: valor
     };
-    
+
     setFormData(prev => ({
       ...prev,
       precios: nuevosPrecios
     }));
-    
+
     validarCampo(`precios.${tipoPrecio}`, parseFloat(valor) || null);
   };
 
@@ -479,17 +479,17 @@ const CrearPublicacion = ({ navigation }) => {
       ...formData.disponibilidad.horario,
       [tipoHorario]: valor
     };
-    
+
     const nuevaDisponibilidad = {
       ...formData.disponibilidad,
       horario: nuevoHorario
     };
-    
+
     setFormData(prev => ({
       ...prev,
       disponibilidad: nuevaDisponibilidad
     }));
-    
+
     validarCampo(`disponibilidad.horario.${tipoHorario}`, valor);
   };
 
@@ -541,14 +541,14 @@ const CrearPublicacion = ({ navigation }) => {
 
           const nuevasImagenes = [...imagenes, ...cloudinaryUrls];
           setImagenes(nuevasImagenes);
-          
+
           if (nuevasImagenes.length > 0 && errores.imagenes) {
             setErrores(prev => ({
               ...prev,
               imagenes: null
             }));
           }
-          
+
           Alert.alert('Éxito', 'Imágenes subidas correctamente');
         } catch (error) {
           console.error(error);
@@ -566,7 +566,7 @@ const CrearPublicacion = ({ navigation }) => {
   const removeImage = (index) => {
     const nuevasImagenes = imagenes.filter((_, i) => i !== index);
     setImagenes(nuevasImagenes);
-    
+
     if (nuevasImagenes.length === 0) {
       setErrores(prev => ({
         ...prev,
@@ -1171,7 +1171,7 @@ const CrearPublicacion = ({ navigation }) => {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <TouchableOpacity
               style={[
-                styles.addImageButton, 
+                styles.addImageButton,
                 uploadingImage && styles.addImageButtonDisabled,
                 errores.imagenes && styles.addImageButtonError
               ]}
@@ -1329,7 +1329,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginHorizontal: 10,
   },
-    inputError: {
+  inputError: {
     borderColor: '#e74c3c',
     borderWidth: 1,
   },

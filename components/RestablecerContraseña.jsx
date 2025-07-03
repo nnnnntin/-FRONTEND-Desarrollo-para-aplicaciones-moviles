@@ -16,7 +16,6 @@ const emailSchema = yup.object({
     .lowercase(),
 });
 
-
 const codigoSchema = yup.object({
   securityCode: yup
     .string()
@@ -24,7 +23,6 @@ const codigoSchema = yup.object({
     .matches(/^\d{6}$/, 'El código debe tener exactamente 6 dígitos')
     .length(6, 'El código debe tener exactamente 6 dígitos'),
 });
-
 
 const passwordSchema = yup.object({
   newPassword: yup
@@ -36,15 +34,14 @@ const passwordSchema = yup.object({
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
       'La contraseña debe contener al menos una minúscula, una mayúscula y un número'
     ),
-  
+
   confirmPassword: yup
     .string()
     .required('Debe confirmar la nueva contraseña')
-    .test('passwords-match', 'Las contraseñas deben coincidir', function(value) {
+    .test('passwords-match', 'Las contraseñas deben coincidir', function (value) {
       return value === this.parent.newPassword;
     }),
 });
-
 
 const resetPasswordSchema = yup.object({
   email: yup
@@ -58,13 +55,13 @@ const resetPasswordSchema = yup.object({
     )
     .trim()
     .lowercase(),
-  
+
   securityCode: yup
     .string()
     .required('El código de verificación es obligatorio')
     .matches(/^\d{6}$/, 'El código debe tener exactamente 6 dígitos')
     .length(6, 'El código debe tener exactamente 6 dígitos'),
-  
+
   newPassword: yup
     .string()
     .required('La nueva contraseña es obligatoria')
@@ -74,17 +71,17 @@ const resetPasswordSchema = yup.object({
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
       'La contraseña debe contener al menos una minúscula, una mayúscula y un número'
     ),
-  
+
   confirmPassword: yup
     .string()
     .required('Debe confirmar la nueva contraseña')
-    .test('passwords-match', 'Las contraseñas deben coincidir', function(value) {
+    .test('passwords-match', 'Las contraseñas deben coincidir', function (value) {
       return value === this.parent.newPassword;
     }),
 });
 
 const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
-  
+
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     email: '',
@@ -92,16 +89,13 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
     newPassword: '',
     confirmPassword: '',
   });
-  
-  
+
   const [validationErrors, setValidationErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
-  
   const updateFormData = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    
-    
+
     if (validationErrors[field]) {
       setValidationErrors(prev => {
         const newErrors = { ...prev };
@@ -109,8 +103,7 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
         return newErrors;
       });
     }
-    
-    
+
     const timeoutId = setTimeout(() => {
       validateField(field, value);
     }, 500);
@@ -118,7 +111,6 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
     return () => clearTimeout(timeoutId);
   };
 
-  
   const validateField = async (fieldName, value) => {
     try {
       let schema;
@@ -138,21 +130,20 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
       }
 
       await yup.reach(schema, fieldName).validate(value);
-      
-      
+
       if (fieldName === 'confirmPassword') {
         await schema.validate({
           newPassword: formData.newPassword,
           confirmPassword: value
         });
       }
-      
+
       setValidationErrors(prev => {
         const newErrors = { ...prev };
         delete newErrors[fieldName];
         return newErrors;
       });
-      
+
       return true;
     } catch (error) {
       setValidationErrors(prev => ({
@@ -163,7 +154,6 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
     }
   };
 
-  
   const validateStep = async (step) => {
     try {
       switch (step) {
@@ -182,14 +172,13 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
         default:
           return false;
       }
-      
-      
+
       const fieldsToClean = {
         1: ['email'],
         2: ['securityCode'],
         3: ['newPassword', 'confirmPassword']
       };
-      
+
       setValidationErrors(prev => {
         const newErrors = { ...prev };
         fieldsToClean[step].forEach(field => {
@@ -197,7 +186,7 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
         });
         return newErrors;
       });
-      
+
       return true;
     } catch (error) {
       if (error.inner) {
@@ -216,18 +205,16 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
     }
   };
 
-  
   const validacionesAdicionales = (step) => {
     const errores = {};
 
     if (step === 1) {
-      
+
       const emailsProhibidos = ['test@test.com', 'admin@admin.com', 'fake@fake.com'];
       if (emailsProhibidos.includes(formData.email.toLowerCase())) {
         errores.email = 'Este correo electrónico no está registrado en el sistema';
       }
 
-      
       const dominiosPermitidos = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'empresa.com'];
       const dominio = formData.email.split('@')[1];
       if (dominio && !dominiosPermitidos.includes(dominio)) {
@@ -236,31 +223,28 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
     }
 
     if (step === 2) {
-      
+
       const codigosProhibidos = ['123456', '000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999'];
       if (codigosProhibidos.includes(formData.securityCode)) {
         errores.securityCode = 'Código de seguridad inválido';
       }
 
-      
       if (formData.securityCode === '000001') {
         errores.securityCode = 'Código de verificación incorrecto';
       }
     }
 
     if (step === 3) {
-      
+
       if (formData.newPassword.toLowerCase().includes(formData.email.split('@')[0].toLowerCase())) {
         errores.newPassword = 'La contraseña no puede contener partes de tu correo electrónico';
       }
 
-      
       const passwordsComunes = ['password123', '12345678', 'qwerty123', 'abc123456'];
       if (passwordsComunes.includes(formData.newPassword.toLowerCase())) {
         errores.newPassword = 'Esta contraseña es demasiado común, elige una más segura';
       }
 
-      
       if (/(.)\1{2,}/.test(formData.newPassword)) {
         errores.newPassword = 'La contraseña no puede tener más de 2 caracteres idénticos consecutivos';
       }
@@ -274,110 +258,99 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
     return true;
   };
 
-  
   const handleStep1 = async () => {
     if (isLoading) return;
-    
+
     setIsLoading(true);
-    
+
     try {
       const stepValid = await validateStep(1);
       const additionalValid = validacionesAdicionales(1);
-      
+
       if (!stepValid || !additionalValid) {
         Alert.alert('Error de validación', 'Por favor corrige los errores en el formulario');
         return;
       }
 
-      
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       const emailMasked = `${formData.email.substring(0, 2)}****@${formData.email.split('@')[1]}`;
       Alert.alert(
-        'Código enviado', 
+        'Código enviado',
         `Se envió un código de seguridad a tu correo:\n${emailMasked}\n\nEl código expira en 10 minutos.`
       );
-      
+
       setCurrentStep(2);
     } catch (error) {
-      console.error('Error en paso 1:', error);
       Alert.alert('Error', 'No se pudo enviar el código. Intenta nuevamente.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  
   const handleStep2 = async () => {
     if (isLoading) return;
-    
+
     setIsLoading(true);
-    
+
     try {
       const stepValid = await validateStep(2);
       const additionalValid = validacionesAdicionales(2);
-      
+
       if (!stepValid || !additionalValid) {
         Alert.alert('Error de validación', 'Por favor corrige los errores en el formulario');
         return;
       }
 
-      
       await new Promise(resolve => setTimeout(resolve, 800));
-      
+
       setCurrentStep(3);
     } catch (error) {
-      console.error('Error en paso 2:', error);
       Alert.alert('Error', 'Error al verificar el código. Intenta nuevamente.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  
   const handleStep3 = async () => {
     if (isLoading) return;
-    
+
     setIsLoading(true);
-    
+
     try {
       const stepValid = await validateStep(3);
       const additionalValid = validacionesAdicionales(3);
-      
+
       if (!stepValid || !additionalValid) {
         Alert.alert('Error de validación', 'Por favor corrige los errores en el formulario');
         return;
       }
 
-      
       await resetPasswordSchema.validate(formData);
 
-      
       await new Promise(resolve => setTimeout(resolve, 1200));
 
       Alert.alert(
-        'Éxito', 
+        'Éxito',
         'Contraseña restablecida correctamente.\n\nYa puedes iniciar sesión con tu nueva contraseña.',
         [{ text: 'OK', onPress: onSuccess }]
       );
     } catch (error) {
-      console.error('Error en paso 3:', error);
       Alert.alert('Error', 'No se pudo restablecer la contraseña. Intenta nuevamente.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  
   const handleResendCode = async () => {
     if (isLoading) return;
-    
+
     setIsLoading(true);
-    
+
     try {
-      
+
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       Alert.alert('Código reenviado', 'Se ha enviado un nuevo código a tu correo electrónico');
     } catch (error) {
       Alert.alert('Error', 'No se pudo reenviar el código');
@@ -386,7 +359,6 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
     }
   };
 
-  
   const handlePreviousStep = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
@@ -399,36 +371,29 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
     Keyboard.dismiss();
   };
 
-  
   const ErrorText = ({ error }) => {
     if (!error) return null;
     return <Text style={styles.errorText}>{error}</Text>;
   };
 
-  
   const getPasswordStrength = (password) => {
     if (!password) return { score: 0, text: '', color: '#e1e5e9' };
-    
+
     let score = 0;
     let feedback = [];
 
-    
     if (password.length >= 8) score += 1;
     else feedback.push('Al menos 8 caracteres');
 
-    
     if (/[a-z]/.test(password)) score += 1;
     else feedback.push('Una minúscula');
 
-    
     if (/[A-Z]/.test(password)) score += 1;
     else feedback.push('Una mayúscula');
 
-    
     if (/\d/.test(password)) score += 1;
     else feedback.push('Un número');
 
-    
     if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) score += 1;
     else feedback.push('Un carácter especial');
 
@@ -476,11 +441,11 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
             />
             <ErrorText error={validationErrors.email} />
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
                 styles.button,
                 isLoading && styles.buttonDisabled
-              ]} 
+              ]}
               onPress={handleStep1}
               disabled={isLoading}
             >
@@ -488,7 +453,7 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
                 {isLoading ? 'Enviando...' : 'Enviar código'}
               </Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity onPress={onBack} style={styles.backButton}>
               <Text style={styles.backText}>Volver al inicio de sesión</Text>
             </TouchableOpacity>
@@ -523,11 +488,11 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
             />
             <ErrorText error={validationErrors.securityCode} />
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
                 styles.button,
                 isLoading && styles.buttonDisabled
-              ]} 
+              ]}
               onPress={handleStep2}
               disabled={isLoading}
             >
@@ -536,8 +501,8 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              onPress={handleResendCode} 
+            <TouchableOpacity
+              onPress={handleResendCode}
               style={styles.resendButton}
               disabled={isLoading}
             >
@@ -557,7 +522,7 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
 
       case 3:
         const passwordStrength = getPasswordStrength(formData.newPassword);
-        
+
         return (
           <>
             <Text style={styles.subtitle}>Nueva contraseña</Text>
@@ -580,7 +545,7 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
               blurOnSubmit={false}
               editable={!isLoading}
             />
-            
+
             {formData.newPassword.length > 0 && (
               <View style={styles.passwordStrengthContainer}>
                 <View style={[
@@ -595,7 +560,7 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
                 </Text>
               </View>
             )}
-            
+
             <ErrorText error={validationErrors.newPassword} />
 
             <Text style={styles.label}>Confirmar contraseña</Text>
@@ -614,11 +579,11 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
             />
             <ErrorText error={validationErrors.confirmPassword} />
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
                 styles.button,
                 isLoading && styles.buttonDisabled
-              ]} 
+              ]}
               onPress={handleStep3}
               disabled={isLoading}
             >
@@ -650,7 +615,7 @@ const RestablecerContraseña = ({ onBack, onSuccess, onForgotEmail }) => {
               />
             ))}
           </View>
-          
+
           {renderStep()}
         </View>
       </View>

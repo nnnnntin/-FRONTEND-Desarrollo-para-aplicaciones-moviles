@@ -16,8 +16,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import * as yup from 'yup';
 import { obtenerServiciosPorEspacio } from '../store/slices/proveedoresSlice';
 
-
-
 const reservaSchema = yup.object({
   fecha: yup
     .string()
@@ -26,14 +24,14 @@ const reservaSchema = yup.object({
       /^\d{4}-\d{2}-\d{2}$/,
       'Formato de fecha inválido (debe ser YYYY-MM-DD)'
     )
-    .test('fecha-futura', 'La fecha no puede ser en el pasado', function(value) {
+    .test('fecha-futura', 'La fecha no puede ser en el pasado', function (value) {
       if (!value) return false;
       const fechaSeleccionada = new Date(value);
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
       return fechaSeleccionada >= hoy;
     })
-    .test('fecha-valida', 'Fecha inválida', function(value) {
+    .test('fecha-valida', 'Fecha inválida', function (value) {
       if (!value) return false;
       const fecha = new Date(value);
       return !isNaN(fecha.getTime());
@@ -46,11 +44,11 @@ const reservaSchema = yup.object({
       /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
       'Formato de hora inválido (debe ser HH:MM en formato 24h)'
     )
-    .test('hora-trabajo', 'Hora fuera del horario de trabajo (06:00 - 18:00)', function(value) {
+    .test('hora-trabajo', 'Hora fuera del horario de trabajo (06:00 - 18:00)', function (value) {
       if (!value) return false;
       const [horas, minutos] = value.split(':').map(Number);
       const minutosTotal = horas * 60 + minutos;
-      return minutosTotal >= 360 && minutosTotal <= 1080; 
+      return minutosTotal >= 360 && minutosTotal <= 1080;
     }),
 
   horaFin: yup
@@ -60,35 +58,35 @@ const reservaSchema = yup.object({
       /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/,
       'Formato de hora inválido (debe ser HH:MM en formato 24h)'
     )
-    .test('hora-trabajo', 'Hora fuera del horario de trabajo (06:00 - 18:00)', function(value) {
+    .test('hora-trabajo', 'Hora fuera del horario de trabajo (06:00 - 18:00)', function (value) {
       if (!value) return false;
       const [horas, minutos] = value.split(':').map(Number);
       const minutosTotal = horas * 60 + minutos;
-      return minutosTotal >= 360 && minutosTotal <= 1080; 
+      return minutosTotal >= 360 && minutosTotal <= 1080;
     })
-    .test('hora-posterior', 'La hora de fin debe ser posterior a la hora de inicio', function(value) {
+    .test('hora-posterior', 'La hora de fin debe ser posterior a la hora de inicio', function (value) {
       const horaInicio = this.parent.horaInicio;
       if (!value || !horaInicio) return false;
-      
+
       const [hI, mI] = horaInicio.split(':').map(Number);
       const [hF, mF] = value.split(':').map(Number);
-      
+
       const minutosInicio = hI * 60 + mI;
       const minutosFin = hF * 60 + mF;
-      
+
       return minutosFin > minutosInicio;
     })
-    .test('duracion-minima', 'La reserva debe ser de al menos 1 hora', function(value) {
+    .test('duracion-minima', 'La reserva debe ser de al menos 1 hora', function (value) {
       const horaInicio = this.parent.horaInicio;
       if (!value || !horaInicio) return false;
-      
+
       const [hI, mI] = horaInicio.split(':').map(Number);
       const [hF, mF] = value.split(':').map(Number);
-      
+
       const minutosInicio = hI * 60 + mI;
       const minutosFin = hF * 60 + mF;
-      
-      return (minutosFin - minutosInicio) >= 60; 
+
+      return (minutosFin - minutosInicio) >= 60;
     }),
 
   cantidadPersonas: yup
@@ -96,82 +94,79 @@ const reservaSchema = yup.object({
     .required('La cantidad de personas es obligatoria')
     .min(1, 'Debe haber al menos 1 persona')
     .integer('La cantidad debe ser un número entero')
-    .test('capacidad-maxima', 'Excede la capacidad máxima del espacio', function(value) {
+    .test('capacidad-maxima', 'Excede la capacidad máxima del espacio', function (value) {
       const capacidad = this.options.context?.capacidad || 1;
       return value <= capacidad;
     }),
 });
 
-
 const servicioSchema = yup.object({
   id: yup
     .mixed()
     .required('ID del servicio es requerido')
-    .test('id-valido', 'ID debe ser string o número', function(value) {
+    .test('id-valido', 'ID debe ser string o número', function (value) {
       return typeof value === 'string' || typeof value === 'number';
     }),
-  
+
   nombre: yup
     .string()
     .required('Nombre del servicio es requerido')
     .min(3, 'El nombre debe tener al menos 3 caracteres')
     .max(100, 'El nombre no puede exceder 100 caracteres'),
-  
+
   precio: yup
     .number()
     .required('El precio es requerido')
     .min(0, 'El precio no puede ser negativo'),
-  
+
   unidadPrecio: yup
     .string()
-    .test('unidad-precio-valida', 'Unidad de precio no válida', function(value) {
-      if (!value) return true; 
+    .test('unidad-precio-valida', 'Unidad de precio no válida', function (value) {
+      if (!value) return true;
       const unidadesValidas = ['fijo', 'persona', 'hora'];
       return unidadesValidas.includes(value);
     })
     .default('fijo'),
-  
+
   disponible: yup
     .boolean()
     .default(true),
 });
 
-
 const espacioSchema = yup.object({
   id: yup
     .mixed()
     .required('ID del espacio es requerido')
-    .test('id-valido', 'ID debe ser string o número', function(value) {
+    .test('id-valido', 'ID debe ser string o número', function (value) {
       return typeof value === 'string' || typeof value === 'number';
     }),
-  
+
   nombre: yup
     .string()
     .required('Nombre del espacio es requerido')
     .min(3, 'El nombre debe tener al menos 3 caracteres')
     .max(100, 'El nombre no puede exceder 100 caracteres'),
-  
+
   precio: yup
     .number()
     .required('El precio es requerido')
     .min(0, 'El precio no puede ser negativo'),
-  
+
   capacidad: yup
     .number()
     .required('La capacidad es requerida')
     .min(1, 'La capacidad debe ser al menos 1')
     .max(1000, 'Capacidad excesiva'),
-  
+
   descripcion: yup
     .string()
     .max(1000, 'La descripción no puede exceder 1000 caracteres'),
-  
+
   imagen: yup
     .string()
     .url('URL de imagen inválida')
     .nullable(),
 });
-
 
 const procesoReservaSchema = yup.object({
   espacio: espacioSchema,
@@ -187,15 +182,12 @@ const ReservarEspacio = ({ navigation, route }) => {
   const dispatch = useDispatch();
   const { espacio } = route.params;
 
-  
   const { serviciosPorEspacio, loading } = useSelector(state => state.proveedores);
   const serviciosAdicionales = serviciosPorEspacio[espacio.id] || [];
 
-  
   const [mostrarDetalles, setMostrarDetalles] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
 
-  
   const hoyISO = new Date().toISOString().split('T')[0];
   const [datosReserva, setDatosReserva] = useState({
     fecha: hoyISO,
@@ -207,20 +199,19 @@ const ReservarEspacio = ({ navigation, route }) => {
   const [serviciosSeleccionados, setServiciosSeleccionados] = useState([]);
 
   useEffect(() => {
-    
+
     validarEspacio();
-    
+
     if (espacio.id) {
       dispatch(obtenerServiciosPorEspacio(espacio.id));
     }
   }, [dispatch, espacio.id]);
 
   useEffect(() => {
-    
+
     validarServicios();
   }, [serviciosAdicionales]);
 
-  
   const validarEspacio = async () => {
     try {
       await espacioSchema.validate(espacio);
@@ -238,7 +229,6 @@ const ReservarEspacio = ({ navigation, route }) => {
     }
   };
 
-  
   const validarServicios = async () => {
     if (serviciosAdicionales.length === 0) return;
 
@@ -254,15 +244,12 @@ const ReservarEspacio = ({ navigation, route }) => {
         ...prev,
         servicios: error.message
       }));
-      console.warn('Servicios inválidos encontrados:', error.message);
     }
   };
 
-  
   const updateDatosReserva = (field, value) => {
     setDatosReserva(prev => ({ ...prev, [field]: value }));
-    
-    
+
     const timeoutId = setTimeout(() => {
       validateReservaField(field, value);
     }, 500);
@@ -270,18 +257,17 @@ const ReservarEspacio = ({ navigation, route }) => {
     return () => clearTimeout(timeoutId);
   };
 
-  
   const validateReservaField = async (fieldName, value) => {
     try {
       const contexto = { capacidad: espacio.capacidad };
       await yup.reach(reservaSchema, fieldName).validate(value, { context: contexto });
-      
+
       setValidationErrors(prev => {
         const newErrors = { ...prev };
         delete newErrors[fieldName];
         return newErrors;
       });
-      
+
       return true;
     } catch (error) {
       setValidationErrors(prev => ({
@@ -292,15 +278,14 @@ const ReservarEspacio = ({ navigation, route }) => {
     }
   };
 
-  
   const validarReservaCompleta = async () => {
     try {
       const contexto = { capacidad: espacio.capacidad };
-      await reservaSchema.validate(datosReserva, { 
+      await reservaSchema.validate(datosReserva, {
         abortEarly: false,
-        context: contexto 
+        context: contexto
       });
-      
+
       setValidationErrors(prev => {
         const newErrors = { ...prev };
         ['fecha', 'horaInicio', 'horaFin', 'cantidadPersonas'].forEach(field => {
@@ -308,7 +293,7 @@ const ReservarEspacio = ({ navigation, route }) => {
         });
         return newErrors;
       });
-      
+
       return true;
     } catch (error) {
       const errors = {};
@@ -320,25 +305,22 @@ const ReservarEspacio = ({ navigation, route }) => {
     }
   };
 
-  
   const validacionesAdicionales = () => {
     const errores = {};
 
-    
     const esFinDeSemana = () => {
       const fecha = new Date(datosReserva.fecha);
       const diaSemana = fecha.getDay();
-      return diaSemana === 0 || diaSemana === 6; 
+      return diaSemana === 0 || diaSemana === 6;
     };
 
     if (esFinDeSemana()) {
       errores.fecha = 'Este espacio no está disponible los fines de semana';
     }
 
-    
     const [hI] = datosReserva.horaInicio.split(':').map(Number);
     const [hF] = datosReserva.horaFin.split(':').map(Number);
-    
+
     if (hI <= 12 && hF >= 13) {
       errores.horaFin = 'La reserva no puede incluir el horario de almuerzo (12:00 - 13:00)';
     }
@@ -354,7 +336,7 @@ const ReservarEspacio = ({ navigation, route }) => {
   const handleGoBack = () => navigation.goBack();
 
   const toggleServicio = async (servicio) => {
-    
+
     try {
       await servicioSchema.validate(servicio);
     } catch (error) {
@@ -379,7 +361,6 @@ const ReservarEspacio = ({ navigation, route }) => {
       const precioServicios = serviciosSeleccionados.reduce((total, servicio) => {
         const precio = parseFloat(servicio.precio);
         if (isNaN(precio) || precio < 0) {
-          console.warn('Precio de servicio inválido:', servicio);
           return total;
         }
 
@@ -390,58 +371,52 @@ const ReservarEspacio = ({ navigation, route }) => {
 
       return precioBase + precioServicios;
     } catch (error) {
-      console.error('Error calculando precio total:', error);
       return 0;
     }
   };
 
   const validarDisponibilidad = () => {
-    
-    
-    
+
     const fecha = new Date(datosReserva.fecha);
     const diaSemana = fecha.getDay();
-    
-    
+
     if (diaSemana === 1) {
       return false;
     }
-    
+
     return true;
   };
 
   const handleReservar = async () => {
     if (!mostrarDetalles) {
-      
+
       const espacioValido = await validarEspacio();
       if (!espacioValido) {
         Alert.alert('Error', 'Los datos del espacio no son válidos');
         return;
       }
-      
+
       setMostrarDetalles(true);
       return;
     }
 
-    
     const reservaValida = await validarReservaCompleta();
     const validacionesExtra = validacionesAdicionales();
-    
+
     if (!reservaValida || !validacionesExtra) {
       Alert.alert('Error de validación', 'Por favor corrige los errores en el formulario');
       return;
     }
 
-    
     if (!validarDisponibilidad()) {
       Alert.alert('No disponible', 'Este espacio no está disponible en el horario seleccionado');
       return;
     }
 
     try {
-      
+
       const precioTotal = calcularPrecioTotal();
-      
+
       const procesoCompleto = {
         espacio,
         datosReserva,
@@ -474,25 +449,21 @@ const ReservarEspacio = ({ navigation, route }) => {
       );
 
     } catch (error) {
-      console.error('Error en validación final:', error);
       Alert.alert('Error', 'Error en los datos de la reserva: ' + error.message);
     }
   };
 
-  
   const obtenerServiciosValidos = () => {
     return serviciosAdicionales.filter(servicio => {
       try {
         servicioSchema.validateSync(servicio);
         return true;
       } catch (error) {
-        console.warn('Servicio inválido filtrado:', servicio, error.message);
         return false;
       }
     });
   };
 
-  
   const ErrorText = ({ error }) => {
     if (!error) return null;
     return <Text style={styles.errorText}>{error}</Text>;
@@ -512,7 +483,6 @@ const ReservarEspacio = ({ navigation, route }) => {
         <View style={styles.placeholder} />
       </View>
 
-      {/* Mostrar errores de validación del espacio */}
       {validationErrors.espacio && (
         <View style={styles.errorContainer}>
           <Ionicons name="warning" size={16} color="#e74c3c" />
@@ -530,8 +500,8 @@ const ReservarEspacio = ({ navigation, route }) => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.imageContainer}>
           <Image
-            source={{ 
-              uri: espacio.imagen || 'https://images.unsplash.com/photo-1497366216548-37526070297c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80' 
+            source={{
+              uri: espacio.imagen || 'https://images.unsplash.com/photo-1497366216548-37526070297c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
             }}
             style={styles.espacioImage}
             resizeMode="cover"
@@ -1052,8 +1022,6 @@ const styles = StyleSheet.create({
   bottomSpacing: {
     height: 30,
   },
-  
-  
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',

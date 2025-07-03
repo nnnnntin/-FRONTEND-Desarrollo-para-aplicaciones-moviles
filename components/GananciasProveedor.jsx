@@ -79,7 +79,7 @@ const servicioSchema = yup.object({
   estado: yup
     .string()
     .required('El estado es obligatorio')
-    .test('estado-valido', 'Estado inválido', function(value) {
+    .test('estado-valido', 'Estado inválido', function (value) {
       const estadosValidos = ['pagado', 'pendiente', 'cancelado'];
       return estadosValidos.includes(value);
     })
@@ -91,7 +91,7 @@ const retiroFondosSchema = yup.object({
     .required('El monto a retirar es obligatorio')
     .min(100, 'El monto mínimo para retirar es $100')
     .max(50000, 'El monto máximo para retirar es $50,000')
-    .test('fondos-disponibles', 'No tienes suficientes fondos disponibles', function(value) {
+    .test('fondos-disponibles', 'No tienes suficientes fondos disponibles', function (value) {
       const fondosDisponibles = this.options.context?.fondosDisponibles || 0;
       return value <= fondosDisponibles;
     }),
@@ -99,7 +99,7 @@ const retiroFondosSchema = yup.object({
   metodoPago: yup
     .string()
     .required('El método de pago es obligatorio')
-    .test('metodo-pago-valido', 'Método de pago inválido', function(value) {
+    .test('metodo-pago-valido', 'Método de pago inválido', function (value) {
       const metodosValidos = ['transferencia', 'paypal', 'cheque'];
       return metodosValidos.includes(value);
     }),
@@ -174,17 +174,17 @@ const GananciasProveedor = ({ navigation }) => {
   const validarDatos = async () => {
     try {
       await resumenGananciasSchema.validate(resumenGanancias, { abortEarly: false });
-      
+
       for (const servicio of serviciosRecientes) {
         await servicioSchema.validate(servicio, { abortEarly: false });
       }
-      
+
       setValidacionCompleta(true);
       setErroresValidacion({});
     } catch (error) {
       setValidacionCompleta(false);
       const errores = {};
-      
+
       if (error.inner) {
         error.inner.forEach(err => {
           errores[err.path] = err.message;
@@ -192,29 +192,28 @@ const GananciasProveedor = ({ navigation }) => {
       } else {
         errores.general = error.message;
       }
-      
+
       setErroresValidacion(errores);
-      console.warn('Errores de validación en ganancias:', errores);
     }
   };
 
   const validarDatosRetiro = async () => {
     try {
       const fondosDisponibles = calcularFondosDisponibles();
-      
+
       await retiroFondosSchema.validate({
         ...datosRetiro,
         monto: parseFloat(datosRetiro.monto)
-      }, { 
+      }, {
         abortEarly: false,
         context: { fondosDisponibles }
       });
-      
+
       setErroresRetiro({});
       return true;
     } catch (error) {
       const errores = {};
-      
+
       if (error.inner) {
         error.inner.forEach(err => {
           errores[err.path] = err.message;
@@ -222,7 +221,7 @@ const GananciasProveedor = ({ navigation }) => {
       } else {
         errores.general = error.message;
       }
-      
+
       setErroresRetiro(errores);
       return false;
     }
@@ -249,7 +248,7 @@ const GananciasProveedor = ({ navigation }) => {
 
   const abrirModalRetiro = () => {
     const fondosDisponibles = calcularFondosDisponibles();
-    
+
     if (fondosDisponibles < 100) {
       Alert.alert(
         'Fondos insuficientes',
@@ -258,7 +257,7 @@ const GananciasProveedor = ({ navigation }) => {
       );
       return;
     }
-    
+
     setModalRetiro(true);
   };
 
@@ -274,12 +273,12 @@ const GananciasProveedor = ({ navigation }) => {
 
   const procesarRetiro = async () => {
     const esValido = await validarDatosRetiro();
-    
+
     if (!esValido) {
       const erroresTexto = Object.values(erroresRetiro)
         .filter(error => error)
         .join('\n');
-      
+
       Alert.alert('Datos incorrectos', erroresTexto);
       return;
     }
@@ -306,7 +305,7 @@ const GananciasProveedor = ({ navigation }) => {
       ...prev,
       [campo]: valor
     }));
-    
+
     if (erroresRetiro[campo]) {
       setErroresRetiro(prev => ({
         ...prev,
@@ -368,8 +367,8 @@ const GananciasProveedor = ({ navigation }) => {
             <Text style={styles.modalCancelText}>Cancelar</Text>
           </TouchableOpacity>
           <Text style={styles.modalTitle}>Retirar Fondos</Text>
-          <TouchableOpacity 
-            onPress={procesarRetiro} 
+          <TouchableOpacity
+            onPress={procesarRetiro}
             style={[styles.modalSaveButton, procesandoRetiro && styles.modalSaveButtonDisabled]}
             disabled={procesandoRetiro}
           >
@@ -416,10 +415,10 @@ const GananciasProveedor = ({ navigation }) => {
                   ]}
                   onPress={() => handleInputRetiro('metodoPago', metodo.id)}
                 >
-                  <Ionicons 
-                    name={metodo.icon} 
-                    size={20} 
-                    color={datosRetiro.metodoPago === metodo.id ? '#4a90e2' : '#7f8c8d'} 
+                  <Ionicons
+                    name={metodo.icon}
+                    size={20}
+                    color={datosRetiro.metodoPago === metodo.id ? '#4a90e2' : '#7f8c8d'}
                   />
                   <Text style={[
                     styles.metodoPagoText,
@@ -441,9 +440,9 @@ const GananciasProveedor = ({ navigation }) => {
               onChangeText={(text) => handleInputRetiro('cuentaDestino', text)}
               placeholder={
                 datosRetiro.metodoPago === 'transferencia' ? 'Número de cuenta bancaria' :
-                datosRetiro.metodoPago === 'paypal' ? 'Email de PayPal' :
-                datosRetiro.metodoPago === 'cheque' ? 'Dirección de envío' :
-                'Selecciona un método de pago primero'
+                  datosRetiro.metodoPago === 'paypal' ? 'Email de PayPal' :
+                    datosRetiro.metodoPago === 'cheque' ? 'Dirección de envío' :
+                      'Selecciona un método de pago primero'
               }
               editable={!!datosRetiro.metodoPago}
               maxLength={50}
@@ -843,7 +842,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'System',
   },
-  
+
   fondosDisponiblesSection: {
     backgroundColor: '#fff',
     marginHorizontal: 20,

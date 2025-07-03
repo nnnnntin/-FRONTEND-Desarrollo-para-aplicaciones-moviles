@@ -16,7 +16,6 @@ export const obtenerUsuarios = createAsyncThunk(
       );
 
       const data = await response.json();
-      console.log('Usuarios obtenidos:', data);
 
       if (!response.ok) {
         return rejectWithValue(data.message || 'Error al obtener usuarios');
@@ -71,10 +70,9 @@ export const actualizarUsuario = createAsyncThunk(
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(datosActualizacion),
-        signal,                 // 👈  permite cancelar
+        signal,
       });
 
-      // ⚠️  204/205 no traen cuerpo
       const hasBody = ![204, 205].includes(response.status);
       const data = hasBody ? await response.json() : null;
 
@@ -84,15 +82,12 @@ export const actualizarUsuario = createAsyncThunk(
         return rejectWithValue(errMsg);
       }
 
-      console.log('Usuario actualizado:', data);  
-      // Si tu backend envía { data: usuario }, devuélvelo así:
-      return data?.data ?? data;   // ← el usuario actualizado
+      return data?.data ?? data;
     } catch (err) {
       return rejectWithValue(err.message || 'Error de conexión');
     }
   }
 );
-
 
 export const eliminarUsuario = createAsyncThunk(
   'usuario/eliminar',
@@ -232,7 +227,6 @@ export const obtenerMetodosPagoUsuario = createAsyncThunk(
 
       const usuario = await response.json();
 
-
       return Array.isArray(usuario.metodoPago) ? usuario.metodoPago : [];
     } catch (error) {
       console.error(error);
@@ -258,10 +252,10 @@ export const agregarMetodoPago = createAsyncThunk(
       const detectarMarcaTarjeta = (numero) => {
         const numeroLimpio = numero.replace(/\s/g, '');
         if (numeroLimpio.startsWith('4')) return 'visa';
-        if (numeroLimpio.startsWith('5') || 
-            (numeroLimpio.startsWith('2') && 
-             parseInt(numeroLimpio.substring(0, 4)) >= 2221 && 
-             parseInt(numeroLimpio.substring(0, 4)) <= 2720)) return 'mastercard';
+        if (numeroLimpio.startsWith('5') ||
+          (numeroLimpio.startsWith('2') &&
+            parseInt(numeroLimpio.substring(0, 4)) >= 2221 &&
+            parseInt(numeroLimpio.substring(0, 4)) <= 2720)) return 'mastercard';
         if (numeroLimpio.startsWith('34') || numeroLimpio.startsWith('37')) return 'american_express';
         if (numeroLimpio.startsWith('6')) return 'discover';
         return 'otro';
@@ -269,47 +263,46 @@ export const agregarMetodoPago = createAsyncThunk(
 
       const bodyPayload = {
         predeterminado: Boolean(metodoPago.predeterminado || false),
-        tipo: 'tarjeta_credito', 
-        numero: metodoPago.numeroTarjeta.replace(/\s/g, ''), 
-        titular: metodoPago.nombreTitular.trim(), 
-        fechaVencimiento: metodoPago.fechaExpiracion, 
+        tipo: 'tarjeta_credito',
+        numero: metodoPago.numeroTarjeta.replace(/\s/g, ''),
+        titular: metodoPago.nombreTitular.trim(),
+        fechaVencimiento: metodoPago.fechaExpiracion,
         cvc: metodoPago.cvc,
         marca: detectarMarcaTarjeta(metodoPago.numeroTarjeta)
       };
 
       const validarPayload = (payload) => {
         const errores = [];
-        
+
         if (!payload.numero || !/^\d{13,19}$/.test(payload.numero)) {
           errores.push('El número de tarjeta debe tener entre 13 y 19 dígitos');
         }
-        
+
         if (!payload.titular || payload.titular.length < 2 || payload.titular.length > 100) {
           errores.push('El titular debe tener entre 2 y 100 caracteres');
         }
-        
+
         if (!payload.fechaVencimiento || !/^(0[1-9]|1[0-2])\/\d{2}$/.test(payload.fechaVencimiento)) {
           errores.push('La fecha de vencimiento debe tener el formato MM/AA');
         }
-        
+
         if (!payload.cvc || !/^\d{3,4}$/.test(payload.cvc)) {
           errores.push('El CVC debe tener 3 o 4 dígitos');
         }
-        
+
         if (!['tarjeta_credito', 'tarjeta_debito'].includes(payload.tipo)) {
           errores.push('El tipo debe ser tarjeta_credito o tarjeta_debito');
         }
-        
+
         if (!['visa', 'mastercard', 'american_express', 'discover', 'otro'].includes(payload.marca)) {
           errores.push('La marca debe ser una de las válidas');
         }
-        
+
         return errores;
       };
 
       const erroresValidacion = validarPayload(bodyPayload);
       if (erroresValidacion.length > 0) {
-        console.error('Errores de validación del payload:', erroresValidacion);
         return rejectWithValue(`Datos inválidos: ${erroresValidacion.join(', ')}`);
       }
 
@@ -328,36 +321,31 @@ export const agregarMetodoPago = createAsyncThunk(
       if (!response.ok) {
         let errorData;
         const contentType = response.headers.get('content-type');
-        
+
         if (contentType && contentType.includes('application/json')) {
           try {
             errorData = await response.json();
           } catch (parseError) {
-            console.error('Error parsing JSON response:', parseError);
             errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
           }
         } else {
           const textResponse = await response.text();
-          console.error('Non-JSON response:', textResponse);
           errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
         }
 
-        console.error('Error response:', errorData);
-        
-        const errorMessage = errorData.details 
+        const errorMessage = errorData.details
           ? `Error de validación: ${JSON.stringify(errorData.details)}`
-          : errorData.message || 
-            errorData.error || 
-            errorData.msg || 
-            `Error del servidor: ${response.status} ${response.statusText}`;
-        
+          : errorData.message ||
+          errorData.error ||
+          errorData.msg ||
+          `Error del servidor: ${response.status} ${response.statusText}`;
+
         return rejectWithValue(errorMessage);
       }
 
       const result = await response.json();
 
       if (!result.usuario) {
-        console.error('Response missing usuario field:', result);
         return rejectWithValue('Respuesta del servidor inválida: falta campo usuario');
       }
 
@@ -366,12 +354,10 @@ export const agregarMetodoPago = createAsyncThunk(
       return metodosPago;
 
     } catch (error) {
-      console.error('Network or parsing error in agregarMetodoPago:', error);
-      
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
         return rejectWithValue('Error de conexión: Verifica tu conexión a internet');
       }
-      
+
       if (error.name === 'AbortError') {
         return rejectWithValue('Solicitud cancelada: Tiempo de espera agotado');
       }
@@ -383,7 +369,7 @@ export const agregarMetodoPago = createAsyncThunk(
 
 const validarDatosMetodoPago = (metodoPagoData) => {
   const errores = [];
-  
+
   if (!metodoPagoData.numeroTarjeta) {
     errores.push('Número de tarjeta es requerido');
   } else {
@@ -392,7 +378,7 @@ const validarDatosMetodoPago = (metodoPagoData) => {
       errores.push('Número de tarjeta debe tener entre 13 y 19 dígitos');
     }
   }
-  
+
   if (!metodoPagoData.nombreTitular) {
     errores.push('Nombre del titular es requerido');
   } else {
@@ -401,7 +387,7 @@ const validarDatosMetodoPago = (metodoPagoData) => {
       errores.push('Nombre del titular debe tener entre 2 y 100 caracteres');
     }
   }
-  
+
   if (!metodoPagoData.fechaExpiracion) {
     errores.push('Fecha de expiración es requerida');
   } else if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(metodoPagoData.fechaExpiracion)) {
@@ -410,18 +396,18 @@ const validarDatosMetodoPago = (metodoPagoData) => {
     const [mes, año] = metodoPagoData.fechaExpiracion.split('/');
     const fechaActual = new Date();
     const fechaTarjeta = new Date(2000 + parseInt(año), parseInt(mes) - 1);
-    
+
     if (fechaTarjeta < fechaActual) {
       errores.push('La tarjeta está vencida');
     }
   }
-  
+
   if (!metodoPagoData.cvc) {
     errores.push('CVC es requerido');
   } else if (!/^\d{3,4}$/.test(metodoPagoData.cvc)) {
     errores.push('CVC debe tener exactamente 3 o 4 dígitos');
   }
-  
+
   return errores;
 };
 
@@ -627,32 +613,21 @@ export const obtenerProveedorPorUsuario = createAsyncThunk(
 );
 
 const initialState = {
-
   usuarios: [],
   usuarioSeleccionado: null,
-
-
   oficinasPropias: [],
   serviciosContratados: [],
   serviciosOfrecidos: [],
-
-
   empresaAsociada: null,
   proveedorAsociado: null,
-
-
   metodosPago: [],
   loadingMetodosPago: false,
   errorMetodosPago: null,
-
-
   pagination: {
     skip: 0,
     limit: 10,
     total: 0,
   },
-
-
   loading: false,
   error: null,
   loadingDetalle: false,
@@ -677,84 +652,59 @@ const usuarioSlice = createSlice({
         state.serviciosOfrecidos = action.payload.serviciosOfrecidos || state.serviciosOfrecidos;
       }
     },
-
-
     actualizarOficinasPropias: (state, action) => {
       state.oficinasPropias = action.payload;
     },
-
     agregarOficinaPropia: (state, action) => {
       if (!state.oficinasPropias.includes(action.payload)) {
         state.oficinasPropias.push(action.payload);
       }
     },
-
     eliminarOficinaPropia: (state, action) => {
       state.oficinasPropias = state.oficinasPropias.filter(id => id !== action.payload);
     },
-
-
     actualizarServiciosContratados: (state, action) => {
       state.serviciosContratados = action.payload;
     },
-
-
     actualizarServiciosOfrecidos: (state, action) => {
       state.serviciosOfrecidos = action.payload;
     },
-
-
     seleccionarUsuario: (state, action) => {
       state.usuarioSeleccionado = action.payload;
     },
-
     limpiarUsuarioSeleccionado: (state) => {
       state.usuarioSeleccionado = null;
       state.empresaAsociada = null;
       state.proveedorAsociado = null;
     },
-
-
     setMetodosPago: (state, action) => {
       state.metodosPago = action.payload;
     },
-
     clearErrorMetodosPago: (state) => {
       state.errorMetodosPago = null;
     },
-
-
     setPaginacion: (state, action) => {
       state.pagination = { ...state.pagination, ...action.payload };
     },
-
-
     setLoading: (state, action) => {
       state.loading = action.payload;
     },
-
     setError: (state, action) => {
       state.error = action.payload;
     },
-
     clearError: (state) => {
       state.error = null;
       state.errorDetalle = null;
     },
-
-
     setEmpresaAsociada: (state, action) => {
       state.empresaAsociada = action.payload;
     },
-
     setProveedorAsociado: (state, action) => {
       state.proveedorAsociado = action.payload;
     },
-
     clearEmpresaAsociada: (state) => {
       state.empresaAsociada = null;
     },
-
     clearProveedorAsociado: (state) => {
       state.proveedorAsociado = null;
     },
@@ -792,27 +742,25 @@ const usuarioSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-    .addCase(actualizarUsuario.fulfilled, (state, action) => {
-  state.loading = false;
+      .addCase(actualizarUsuario.fulfilled, (state, action) => {
+        state.loading = false;
 
-  const updatedUser = action.payload;
-  const updatedId = updatedUser.id || updatedUser._id;
+        const updatedUser = action.payload;
+        const updatedId = updatedUser.id || updatedUser._id;
 
-  // Actualizar en la lista
-  const index = state.usuarios.findIndex(
-    u => (u.id || u._id) === updatedId
-  );
-  if (index !== -1) {
-    state.usuarios[index] = updatedUser;
-  }
+        const index = state.usuarios.findIndex(
+          u => (u.id || u._id) === updatedId
+        );
+        if (index !== -1) {
+          state.usuarios[index] = updatedUser;
+        }
 
-  // Actualizar si está seleccionado
-  const selectedId = state.usuarioSeleccionado?.id || state.usuarioSeleccionado?._id;
-  if (selectedId === updatedId) {
-    state.usuarioSeleccionado = updatedUser;
-  }
-})
-.addCase(actualizarUsuario.rejected, (state, action) => {
+        const selectedId = state.usuarioSeleccionado?.id || state.usuarioSeleccionado?._id;
+        if (selectedId === updatedId) {
+          state.usuarioSeleccionado = updatedUser;
+        }
+      })
+      .addCase(actualizarUsuario.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })

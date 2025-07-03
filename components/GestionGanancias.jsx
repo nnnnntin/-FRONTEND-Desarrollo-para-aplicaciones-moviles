@@ -21,7 +21,7 @@ import {
 const reservaSchema = Yup.object({
   _id: Yup.string().required('ID de reserva es requerido'),
   estado: Yup.string()
-    .test('estado-valido', 'Estado de reserva no válido', function(value) {
+    .test('estado-valido', 'Estado de reserva no válido', function (value) {
       const estadosValidos = ['pendiente', 'confirmada', 'completada', 'cancelada'];
       return estadosValidos.includes(value);
     })
@@ -43,7 +43,7 @@ const reservaSchema = Yup.object({
     titulo: Yup.string().max(200, 'El título no puede exceder 200 caracteres'),
     name: Yup.string().max(200, 'El name no puede exceder 200 caracteres'),
     tipo: Yup.string()
-      .test('tipo-entidad-valido', 'Tipo de entidad no válido', function(value) {
+      .test('tipo-entidad-valido', 'Tipo de entidad no válido', function (value) {
         if (!value) return true;
         const tiposValidos = ['oficina', 'espacio', 'escritorio', 'escritorio_flexible', 'sala', 'sala_reunion', 'edificio'];
         return tiposValidos.includes(value);
@@ -67,13 +67,13 @@ const gananciasSchema = Yup.object({
 
 const cuentaBancariaSchema = Yup.object({
   banco: Yup.string()
-    .test('banco-valido', 'Banco no válido', function(value) {
+    .test('banco-valido', 'Banco no válido', function (value) {
       const bancosValidos = ['brou', 'itau', 'santander', 'scotiabank', 'hsbc', 'bbva', 'heritage'];
       return bancosValidos.includes(value);
     })
     .required('El banco es requerido'),
   tipoCuenta: Yup.string()
-    .test('tipo-cuenta-valido', 'Tipo de cuenta no válido', function(value) {
+    .test('tipo-cuenta-valido', 'Tipo de cuenta no válido', function (value) {
       const tiposValidos = ['ahorro', 'corriente'];
       return tiposValidos.includes(value);
     })
@@ -100,7 +100,7 @@ const historialReservaSchema = Yup.object({
     .min(0, 'El monto no puede ser negativo')
     .required('Monto es requerido'),
   estado: Yup.string()
-    .test('estado-historial-valido', 'Estado no válido', function(value) {
+    .test('estado-historial-valido', 'Estado no válido', function (value) {
       const estadosValidos = ['completada', 'confirmada', 'pendiente'];
       return estadosValidos.includes(value);
     })
@@ -154,7 +154,6 @@ const GestionGanancias = ({ navigation }) => {
   const validarReservas = (reservasArray) => {
     try {
       if (!Array.isArray(reservasArray)) {
-        console.warn('Las reservas no son un array válido');
         return [];
       }
 
@@ -163,12 +162,10 @@ const GestionGanancias = ({ navigation }) => {
           reservaSchema.validateSync(reserva);
           return true;
         } catch (error) {
-          console.warn(`Reserva inválida filtrada (${reserva._id}):`, error.message);
           return false;
         }
       });
     } catch (error) {
-      console.error('Error al validar reservas:', error);
       return [];
     }
   };
@@ -178,7 +175,6 @@ const GestionGanancias = ({ navigation }) => {
       gananciasSchema.validateSync(ganancias);
       return ganancias;
     } catch (error) {
-      console.warn('Ganancias inválidas, usando valores por defecto:', error.message);
       return {
         disponible: 0,
         pendiente: 0,
@@ -218,12 +214,10 @@ const GestionGanancias = ({ navigation }) => {
           historialReservaSchema.validateSync(item);
           return true;
         } catch (error) {
-          console.warn(`Item de historial inválido filtrado:`, error.message);
           return false;
         }
       });
     } catch (error) {
-      console.error('Error al validar historial:', error);
       return [];
     }
   };
@@ -241,7 +235,6 @@ const GestionGanancias = ({ navigation }) => {
         }
       }
     } catch (error) {
-      console.error('Error de validación de usuario:', error.message);
       Alert.alert('Error', 'Datos de usuario inválidos');
     }
   }, [dispatch, datosUsuario, authToken]);
@@ -275,14 +268,12 @@ const GestionGanancias = ({ navigation }) => {
         const precioFinal = Number(reserva.precioFinalPagado) || 0;
 
         if (isNaN(precioFinal) || precioFinal < 0) {
-          console.warn(`Precio inválido en reserva ${reserva._id}: ${precioFinal}`);
           return;
         }
 
         const fechaReserva = new Date(reserva.fechaInicio || reserva.fecha || reserva.createdAt);
 
         if (isNaN(fechaReserva.getTime())) {
-          console.warn(`Fecha inválida en reserva ${reserva._id}`);
           return;
         }
 
@@ -309,7 +300,6 @@ const GestionGanancias = ({ navigation }) => {
 
       return validarGanancias(ganancias);
     } catch (error) {
-      console.error('Error al calcular ganancias:', error);
       return validarGanancias({
         disponible: 0,
         pendiente: 0,
@@ -360,7 +350,6 @@ const GestionGanancias = ({ navigation }) => {
 
       return validarHistorial(historial);
     } catch (error) {
-      console.error('Error al generar historial:', error);
       return [];
     }
   };
@@ -413,7 +402,6 @@ const GestionGanancias = ({ navigation }) => {
       }
       return `$${num.toLocaleString('es-UY', { minimumFractionDigits: 2 })}`;
     } catch (error) {
-      console.error('Error al formatear número:', error);
       return '$0.00';
     }
   };
@@ -444,7 +432,7 @@ const GestionGanancias = ({ navigation }) => {
         setErroresValidacion({ ...erroresValidacion, [campo]: null });
       }
     } catch (error) {
-      console.error('Error al cambiar input:', error);
+      console.error(error);
     }
   };
 

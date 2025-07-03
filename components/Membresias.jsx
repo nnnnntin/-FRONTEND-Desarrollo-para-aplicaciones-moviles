@@ -38,7 +38,7 @@ const membresiaSchema = yup.object({
   tipo: yup
     .string()
     .required('El tipo de membresía es obligatorio')
-    .test('tipo-membresia-valido', 'Tipo de membresía inválido', function(value) {
+    .test('tipo-membresia-valido', 'Tipo de membresía inválido', function (value) {
       const tiposValidos = ['basico', 'estandar', 'premium', 'empresarial'];
       return tiposValidos.includes(value);
     }),
@@ -53,7 +53,7 @@ const membresiaSchema = yup.object({
           .max(99999, 'El precio no puede exceder $9,999'),
         periodicidad: yup
           .string()
-          .test('periodicidad-valida', 'Periodicidad inválida', function(value) {
+          .test('periodicidad-valida', 'Periodicidad inválida', function (value) {
             const periodicidadesValidas = ['mensual', 'trimestral', 'anual'];
             return periodicidadesValidas.includes(value);
           })
@@ -103,7 +103,6 @@ const membresiaSchema = yup.object({
     .nullable()
 });
 
-
 const suscripcionSchema = yup.object({
   usuarioId: yup
     .string()
@@ -112,14 +111,14 @@ const suscripcionSchema = yup.object({
   membresiaId: yup
     .string()
     .required('El ID de la membresía es obligatorio')
-    .test('not-fallback', 'ID de membresía inválido', function(value) {
+    .test('not-fallback', 'ID de membresía inválido', function (value) {
       return !value || !value.includes('fallback');
     }),
 
   fechaInicio: yup
     .string()
     .required('La fecha de inicio es obligatoria')
-    .test('valid-date', 'Fecha de inicio inválida', function(value) {
+    .test('valid-date', 'Fecha de inicio inválida', function (value) {
       const date = new Date(value);
       return !isNaN(date.getTime()) && date >= new Date(Date.now() - 24 * 60 * 60 * 1000);
     }),
@@ -132,7 +131,6 @@ const suscripcionSchema = yup.object({
     .boolean()
     .required('La renovación automática debe estar definida')
 });
-
 
 const cancelacionSchema = yup.object({
   usuarioId: yup
@@ -152,7 +150,7 @@ const cancelacionSchema = yup.object({
   fechaCancelacion: yup
     .string()
     .required('La fecha de cancelación es obligatoria')
-    .test('valid-date', 'Fecha de cancelación inválida', function(value) {
+    .test('valid-date', 'Fecha de cancelación inválida', function (value) {
       const date = new Date(value);
       return !isNaN(date.getTime());
     }),
@@ -161,7 +159,6 @@ const cancelacionSchema = yup.object({
     .boolean()
     .required('El reembolso parcial debe estar definido')
 });
-
 
 const promocionSchema = yup.object({
   nombre: yup
@@ -227,7 +224,6 @@ const Membresias = ({ navigation }) => {
     }
   }, [errorMembresiasActivas, errorSuscripcion, dispatch]);
 
-  
   useEffect(() => {
     if (membresiasActivas.length > 0 || promocionesActivas.length > 0) {
       validarDatos();
@@ -238,7 +234,6 @@ const Membresias = ({ navigation }) => {
     try {
       const errores = {};
 
-      
       for (let i = 0; i < membresiasActivas.length; i++) {
         try {
           await membresiaSchema.validate(membresiasActivas[i], { abortEarly: false });
@@ -253,7 +248,6 @@ const Membresias = ({ navigation }) => {
         }
       }
 
-      
       for (let i = 0; i < promocionesActivas.length; i++) {
         try {
           await promocionSchema.validate(promocionesActivas[i], { abortEarly: false });
@@ -272,11 +266,11 @@ const Membresias = ({ navigation }) => {
       setDatosValidados(Object.keys(errores).length === 0);
 
       if (Object.keys(errores).length > 0) {
-        console.warn('Errores de validación en membresías:', errores);
+        console.warn(errores);
       }
 
     } catch (error) {
-      console.error('Error validando datos:', error);
+      console.error(error);
       setDatosValidados(false);
     }
   };
@@ -508,131 +502,123 @@ const Membresias = ({ navigation }) => {
     );
   };
 
-
-
   const completarSuscripcion = (plan) => actualizarMembresia(plan);
 
   const actualizarMembresia = async (plan) => {
-  if (!usuario?._id && !usuario?.id) {
-    Alert.alert('Error', 'No se pudo identificar el usuario. Por favor, inicia sesión nuevamente.');
-    return;
-  }
-
-  setIsUpdating(true);
-
-  try {
-    
-    const suscripcionData = {
-      usuarioId: usuario._id || usuario.id,
-      membresiaId: plan.id,
-      fechaInicio: new Date().toISOString(),
-      metodoPagoId: 'default', 
-      renovacionAutomatica: true
-    };
-
-    
-    const validacion = await validarSuscripcion(suscripcionData);
-    if (!validacion.valido) {
-      const erroresTexto = Object.values(validacion.errores).join('\n');
-      Alert.alert('Datos inválidos', erroresTexto);
+    if (!usuario?._id && !usuario?.id) {
+      Alert.alert('Error', 'No se pudo identificar el usuario. Por favor, inicia sesión nuevamente.');
       return;
     }
 
-    
-    const resultado = await dispatch(suscribirMembresia(suscripcionData));
-    
-    if (suscribirMembresia.fulfilled.match(resultado)) {
-      
-      const usuarioActualizado = {
-        ...usuario,
-        membresia: {
-          tipoMembresiaId: plan.id,
-          fechaInicio: new Date().toISOString(),
-          fechaVencimiento: new Date(Date.now() + (plan.duracion || 30) * 24 * 60 * 60 * 1000).toISOString(),
-          renovacionAutomatica: true
-        }
+    setIsUpdating(true);
+
+    try {
+
+      const suscripcionData = {
+        usuarioId: usuario._id || usuario.id,
+        membresiaId: plan.id,
+        fechaInicio: new Date().toISOString(),
+        metodoPagoId: 'default',
+        renovacionAutomatica: true
       };
-      
-      dispatch(loguear({ usuario: usuarioActualizado, token }));
-      
-      Alert.alert(
-        'Suscripción exitosa',
-        `Te has suscrito al plan ${plan.nombre} exitosamente.`,
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
-      );
-    } else {
-      throw new Error(resultado.payload || 'Error al suscribirse');
+
+      const validacion = await validarSuscripcion(suscripcionData);
+      if (!validacion.valido) {
+        const erroresTexto = Object.values(validacion.errores).join('\n');
+        Alert.alert('Datos inválidos', erroresTexto);
+        return;
+      }
+
+      const resultado = await dispatch(suscribirMembresia(suscripcionData));
+
+      if (suscribirMembresia.fulfilled.match(resultado)) {
+
+        const usuarioActualizado = {
+          ...usuario,
+          membresia: {
+            tipoMembresiaId: plan.id,
+            fechaInicio: new Date().toISOString(),
+            fechaVencimiento: new Date(Date.now() + (plan.duracion || 30) * 24 * 60 * 60 * 1000).toISOString(),
+            renovacionAutomatica: true
+          }
+        };
+
+        dispatch(loguear({ usuario: usuarioActualizado, token }));
+
+        Alert.alert(
+          'Suscripción exitosa',
+          `Te has suscrito al plan ${plan.nombre} exitosamente.`,
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        throw new Error(resultado.payload || 'Error al suscribirse');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message || 'No se pudo completar la suscripción');
+    } finally {
+      setIsUpdating(false);
     }
-  } catch (error) {
-    console.error('Error al actualizar membresía:', error);
-    Alert.alert('Error', error.message || 'No se pudo completar la suscripción');
-  } finally {
-    setIsUpdating(false);
-  }
-};
+  };
 
-const cancelarMembresiaBackend = async () => {
-  if (!usuario?._id && !usuario?.id) {
-    Alert.alert('Error', 'No se pudo identificar el usuario. Por favor, inicia sesión nuevamente.');
-    return;
-  }
-
-  if (!usuario?.membresia?.tipoMembresiaId) {
-    Alert.alert('Error', 'No tienes una membresía activa para cancelar.');
-    return;
-  }
-
-  setIsUpdating(true);
-
-  try {
-    
-    const cancelacionData = {
-      usuarioId: usuario._id || usuario.id,
-      membresiaId: usuario.membresia.tipoMembresiaId,
-      motivo: 'Cancelación solicitada por el usuario',
-      fechaCancelacion: new Date().toISOString(),
-      reembolsoParcial: false
-    };
-
-    
-    const validacion = await validarCancelacion(cancelacionData);
-    if (!validacion.valido) {
-      const erroresTexto = Object.values(validacion.errores).join('\n');
-      Alert.alert('Datos inválidos', erroresTexto);
+  const cancelarMembresiaBackend = async () => {
+    if (!usuario?._id && !usuario?.id) {
+      Alert.alert('Error', 'No se pudo identificar el usuario. Por favor, inicia sesión nuevamente.');
       return;
     }
 
-    
-    const resultado = await dispatch(cancelarMembresia(cancelacionData));
-    
-    if (cancelarMembresia.fulfilled.match(resultado)) {
-      
-      const usuarioActualizado = {
-        ...usuario,
-        membresia: {
-          ...usuario.membresia,
-          renovacionAutomatica: false,
-          fechaCancelacion: new Date().toISOString()
-        }
-      };
-      
-      dispatch(loguear({ usuario: usuarioActualizado, token }));
-      
-      Alert.alert(
-        'Membresía cancelada',
-        'Tu membresía ha sido cancelada. Mantendrás el acceso hasta el final del período actual.',
-        [{ text: 'OK' }]
-      );
-    } else {
-      throw new Error(resultado.payload || 'Error al cancelar membresía');
+    if (!usuario?.membresia?.tipoMembresiaId) {
+      Alert.alert('Error', 'No tienes una membresía activa para cancelar.');
+      return;
     }
-  } catch (error) {
-    console.error('Error al cancelar membresía:', error);
-    Alert.alert('Error', error.message || 'No se pudo cancelar la membresía');
-  } finally {
-    setIsUpdating(false);
-  }
-};
+
+    setIsUpdating(true);
+
+    try {
+
+      const cancelacionData = {
+        usuarioId: usuario._id || usuario.id,
+        membresiaId: usuario.membresia.tipoMembresiaId,
+        motivo: 'Cancelación solicitada por el usuario',
+        fechaCancelacion: new Date().toISOString(),
+        reembolsoParcial: false
+      };
+
+      const validacion = await validarCancelacion(cancelacionData);
+      if (!validacion.valido) {
+        const erroresTexto = Object.values(validacion.errores).join('\n');
+        Alert.alert('Datos inválidos', erroresTexto);
+        return;
+      }
+
+      const resultado = await dispatch(cancelarMembresia(cancelacionData));
+
+      if (cancelarMembresia.fulfilled.match(resultado)) {
+
+        const usuarioActualizado = {
+          ...usuario,
+          membresia: {
+            ...usuario.membresia,
+            renovacionAutomatica: false,
+            fechaCancelacion: new Date().toISOString()
+          }
+        };
+
+        dispatch(loguear({ usuario: usuarioActualizado, token }));
+
+        Alert.alert(
+          'Membresía cancelada',
+          'Tu membresía ha sido cancelada. Mantendrás el acceso hasta el final del período actual.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        throw new Error(resultado.payload || 'Error al cancelar membresía');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message || 'No se pudo cancelar la membresía');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const getMembresiaActual = () => {
     if (!usuario?.membresia?.tipoMembresiaId) return null;
@@ -646,7 +632,6 @@ const cancelarMembresiaBackend = async () => {
     return mActual.tipoMembresiaId === planId && venc > new Date() && mActual.renovacionAutomatica;
   };
 
-  
   const AlertaValidacion = () => {
     if (Object.keys(erroresValidacion).length > 0) {
       return (
@@ -685,7 +670,7 @@ const cancelarMembresiaBackend = async () => {
             <Text style={styles.popularText}>MÁS POPULAR</Text>
           </View>
         )}
-        
+
         {planTieneErrores && (
           <View style={styles.errorBadge}>
             <Ionicons name="warning" size={16} color="#fff" />
@@ -707,7 +692,7 @@ const cancelarMembresiaBackend = async () => {
             <Text style={styles.planPeriodo}>/{plan.periodo}</Text>
           </View>
         </View>
-        
+
         <View style={styles.beneficiosContainer}>
           {plan.beneficios.map((texto, idx) => (
             <View key={idx} style={styles.beneficioItem}>
@@ -829,13 +814,13 @@ const cancelarMembresiaBackend = async () => {
           <View style={styles.promocionesContainer}>
             <Text style={styles.promocionesTitle}>🎉 Promociones disponibles</Text>
             {promocionesActivas.slice(0, 2).map((promocion, index) => {
-              const promocionTieneErrores = Object.keys(erroresValidacion).some(key => 
+              const promocionTieneErrores = Object.keys(erroresValidacion).some(key =>
                 key.startsWith(`promocion_${index}_`)
               );
-              
+
               return (
-                <View 
-                  key={index} 
+                <View
+                  key={index}
                   style={[
                     styles.promocionCard,
                     promocionTieneErrores && styles.promocionCardError
@@ -893,10 +878,6 @@ const cancelarMembresiaBackend = async () => {
             • Los planes marcados con ⚠️ presentan inconsistencias en sus datos
           </Text>
         </View>
-
-        {/* Resumen de validación */}
-        
-
         <View style={styles.bottomSpacing} />
       </ScrollView>
 
@@ -931,7 +912,6 @@ const styles = StyleSheet.create({
   introTitle: { fontSize: 24, fontWeight: 'bold', color: '#2c3e50', textAlign: 'center', fontFamily: 'System' },
   introSubtitle: { fontSize: 16, color: '#7f8c8d', textAlign: 'center', marginTop: 8, fontFamily: 'System' },
 
-  
   alertaExito: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1024,8 +1004,8 @@ const styles = StyleSheet.create({
   },
   planCardActive: { borderWidth: 2, borderColor: '#27ae60' },
   planCardPopular: { position: 'relative' },
-  planCardError: { 
-    borderWidth: 2, 
+  planCardError: {
+    borderWidth: 2,
     borderColor: '#e74c3c',
     backgroundColor: '#fefefe'
   },
@@ -1078,8 +1058,7 @@ const styles = StyleSheet.create({
   },
   infoTitulo: { fontSize: 14, fontWeight: 'bold', color: '#2c3e50', marginBottom: 8, fontFamily: 'System' },
   infoTexto: { fontSize: 12, color: '#7f8c8d', lineHeight: 18, fontFamily: 'System' },
-  
-  
+
   resumenValidacion: {
     marginHorizontal: 20,
     marginTop: 15,

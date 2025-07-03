@@ -33,26 +33,22 @@ const GestionUsuarios = ({ navigation }) => {
   const {
     reservas,
     reservaSeleccionada,
-    
+
   } = useSelector(state => state.reservas);
 
-  
   const [tabActiva, setTabActiva] = useState('todos');
   const [busqueda, setBusqueda] = useState('');
   const [modalDetalles, setModalDetalles] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const { usuarios, loading, error, usuarioSeleccionado } = useSelector(state => state.usuario);
-  console.log('Usuarios:', usuarios);
   useEffect(() => {
     verificarPermisos();
     cargarUsuarios();
-
 
     return () => {
       dispatch(clearError());
     };
   }, [dispatch]);
-
 
   useEffect(() => {
     if (error) {
@@ -71,15 +67,14 @@ const GestionUsuarios = ({ navigation }) => {
     }
   };
 
-const capitalize = txt =>
-  typeof txt === 'string' && txt.length
-    ? txt[0].toUpperCase() + txt.slice(1)
-    : '';
+  const capitalize = txt =>
+    typeof txt === 'string' && txt.length
+      ? txt[0].toUpperCase() + txt.slice(1)
+      : '';
 
   const cargarUsuarios = async () => {
-   await dispatch(obtenerUsuarios({ skip: 0, limit: 100 }));
+    await dispatch(obtenerUsuarios({ skip: 0, limit: 100 }));
   };
-
 
   const usuariosMapeados = usuarios.map(user => ({
     id: user._id || user.id,
@@ -147,61 +142,17 @@ const capitalize = txt =>
     }
   };
 
-
   const handleVerDetalles = (usuario) => {
     dispatch(seleccionarUsuario(usuario));
     setModalDetalles(true);
   };
 
-const handleCambiarEstado = (usuario, nuevoEstado) => {
-  const estadoActivo = nuevoEstado === 'activo';
+  const handleCambiarEstado = (usuario, nuevoEstado) => {
+    const estadoActivo = nuevoEstado === 'activo';
 
-  Alert.alert(
-    'Cambiar estado',
-    `¿Cambiar estado de ${usuario.nombre} a ${nuevoEstado}?`,
-    [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Confirmar',
-        onPress: async () => {
-          try {
-            setIsUpdating(true);
-
-            // 1️⃣  despacha y unwrap
-            await dispatch(
-              actualizarUsuario({
-                usuarioId: usuario.id,
-                datosActualizacion: { activo: estadoActivo },
-              })
-            ).unwrap();
-
-            
-            // 2️⃣  feedback
-            Alert.alert('Éxito', 'Estado actualizado correctamente');
-
-             // 🔄 2) actualizo el usuario del modal (opcional)
-            dispatch(seleccionarUsuario({
-              ...usuario,
-              estado: nuevoEstado,
-              activo: estadoActivo
-            }));
-          } catch (err) {
-            console.error(err);
-            Alert.alert('Error', err.message || 'No se pudo actualizar');
-          } finally {
-            setIsUpdating(false);
-          }
-        },
-      },
-    ]
-  );
-};
-
- 
-  const handleCambiarRol = async (usuario, nuevoRol) => {
     Alert.alert(
-      'Cambiar rol',
-      `¿Estás seguro de cambiar el rol de ${usuario.nombre} a ${nuevoRol}?`,
+      'Cambiar estado',
+      `¿Cambiar estado de ${usuario.nombre} a ${nuevoEstado}?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -209,32 +160,30 @@ const handleCambiarEstado = (usuario, nuevoEstado) => {
           onPress: async () => {
             try {
               setIsUpdating(true);
+              await dispatch(
+                actualizarUsuario({
+                  usuarioId: usuario.id,
+                  datosActualizacion: { activo: estadoActivo },
+                })
+              ).unwrap();
+              Alert.alert('Éxito', 'Estado actualizado correctamente');
 
-
-              const result = await dispatch(cambiarRolUsuario({
-                usuarioId: usuario.id,
-                nuevoRol: nuevoRol
+              dispatch(seleccionarUsuario({
+                ...usuario,
+                estado: nuevoEstado,
+                activo: estadoActivo
               }));
-
-              if (cambiarRolUsuario.fulfilled.match(result)) {
-                Alert.alert('Éxito', 'Rol actualizado correctamente');
-
-                cargarUsuarios();
-              } else {
-                throw new Error(result.payload || 'Error al cambiar rol');
-              }
             } catch (error) {
               console.error(error);
-              Alert.alert('Error', 'No se pudo cambiar el rol del usuario');
+              Alert.alert('Error', err.message || 'No se pudo actualizar');
             } finally {
               setIsUpdating(false);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
-
 
   const handleEliminarUsuario = async (usuario) => {
     Alert.alert(
@@ -248,7 +197,6 @@ const handleCambiarEstado = (usuario, nuevoEstado) => {
           onPress: async () => {
             try {
               setIsUpdating(true);
-
 
               const result = await dispatch(eliminarUsuario(usuario.id));
 
@@ -270,7 +218,6 @@ const handleCambiarEstado = (usuario, nuevoEstado) => {
       ]
     );
   };
-
 
   const handleCerrarModal = () => {
     setModalDetalles(false);
@@ -409,79 +356,8 @@ const handleCambiarEstado = (usuario, nuevoEstado) => {
         )}
 
         <View style={styles.modalAcciones}>
-    {/*       <View style={styles.accionesSection}>
-            <Text style={styles.accionesTitle}>Cambiar tipo de usuario</Text>
-            <View style={styles.rolesContainer}>
-              {['usuario', 'cliente', 'proveedor', 'administrador'].map(tipo => (
-                <TouchableOpacity
-                  key={tipo}
-                  style={[
-                    styles.rolButton,
-                    usuarioSeleccionado.tipo === tipo && styles.rolButtonActive,
-                    isUpdating && styles.buttonDisabled
-                  ]}
-                  onPress={() => handleCambiarRol(usuarioSeleccionado, tipo)}
-                  disabled={isUpdating || usuarioSeleccionado.tipo === tipo}
-                >
-                  <Text style={[
-                    styles.rolButtonText,
-                    usuarioSeleccionado.tipo === tipo && styles.rolButtonTextActive
-                  ]}>
-                    {capitalize(tipo)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
           <View style={styles.accionesSection}>
-            <Text style={styles.accionesTitle}>Cambiar rol</Text>
-            <View style={styles.rolesContainer}>
-              {['usuario', 'editor', 'administrador'].map(rol => (
-                <TouchableOpacity
-                  key={rol}
-                  style={[
-                    styles.rolButton,
-                    usuarioSeleccionado.rol === rol && styles.rolButtonActive,
-                    isUpdating && styles.buttonDisabled
-                  ]}
-                  onPress={() => handleCambiarRol(usuarioSeleccionado, rol)}
-                  disabled={isUpdating || usuarioSeleccionado.rol === rol}
-                >
-                  <Text style={[
-                    styles.rolButtonText,
-                    usuarioSeleccionado.rol === rol && styles.rolButtonTextActive
-                  ]}>
-                    {capitalize(rol)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-*/}
-          <View style={styles.accionesSection}>
-            <Text style={styles.accionesTitle}>Acciones</Text>
             <View style={styles.botonesContainer}>
-              {usuarioSeleccionado.estado === 'activo' ? (
-                <TouchableOpacity
-                  style={[styles.modalBoton, styles.botonSuspender, isUpdating && styles.buttonDisabled]}
-                  onPress={() => handleCambiarEstado(usuarioSeleccionado, 'suspendido')}
-                  disabled={isUpdating}
-                >
-                  <Ionicons name="pause" size={16} color="#fff" />
-                  <Text style={styles.modalBotonText}>Suspender</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.modalBoton, styles.botonActivar, isUpdating && styles.buttonDisabled]}
-                  onPress={() => handleCambiarEstado(usuarioSeleccionado, 'activo')}
-                  disabled={isUpdating}
-                >
-                  <Ionicons name="play" size={16} color="#fff" />
-                  <Text style={styles.modalBotonText}>Activar</Text>
-                </TouchableOpacity>
-              )}
-
               <TouchableOpacity
                 style={[styles.modalBoton, styles.botonEliminar, isUpdating && styles.buttonDisabled]}
                 onPress={() => handleEliminarUsuario(usuarioSeleccionado)}
