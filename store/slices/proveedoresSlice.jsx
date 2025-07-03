@@ -33,7 +33,7 @@ export const obtenerProveedores = createAsyncThunk(
     try {
       const token = getState().auth.token;
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/v1/proveedores?skip=${skip}&limit=${limit}`,
+        `${process.env.EXPO_PUBLIC_API_URL}/v1/proveedores`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

@@ -16,7 +16,6 @@ import {
   View
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-
 import {
   actualizarUsuario,
   cambiarRolUsuario,
@@ -37,12 +36,13 @@ const GestionUsuarios = ({ navigation }) => {
     
   } = useSelector(state => state.reservas);
 
-
+  
   const [tabActiva, setTabActiva] = useState('todos');
   const [busqueda, setBusqueda] = useState('');
   const [modalDetalles, setModalDetalles] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-
+  const { usuarios, loading, error, usuarioSeleccionado } = useSelector(state => state.usuario);
+  console.log('Usuarios:', usuarios);
   useEffect(() => {
     verificarPermisos();
     cargarUsuarios();

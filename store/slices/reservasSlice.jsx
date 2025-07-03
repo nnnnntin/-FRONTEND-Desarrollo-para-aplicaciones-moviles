@@ -716,10 +716,9 @@ export const selectReservasClientePorEstado = (estado) => (state) =>
 
 export const selectGananciasClienteTotal = (state) => {
   return state.reservas.reservasCliente
-    .filter(r => ['confirmada', 'completada'].includes(r.estado))
-    .reduce((total, r) => total + (r.precioFinalPagado || 0), 0);
+    ?.filter(r => ['confirmada', 'completada'].includes(r.estado))
+    ?.reduce((total, r) => total + (r.precioFinalPagado || 0), 0) || 0;
 };
-
 export const selectReservasClientePorMes = (state) => {
   const reservasPorMes = {};
   state.reservas.reservasCliente.forEach(reserva => {
