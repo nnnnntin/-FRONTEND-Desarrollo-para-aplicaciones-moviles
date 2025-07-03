@@ -15,8 +15,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Swipeable, RectButton } from 'react-native-gesture-handler';
 import DraggableFlatList from 'react-native-draggable-flatlist';
+import { RectButton, Swipeable } from 'react-native-gesture-handler';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { desloguear } from '../store/slices/authSlice';
@@ -116,6 +116,10 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
     }
   };
 
+  const onDragEndReservas = ({ data }) => {
+    //console.log('Nuevo orden de reservas:', data);
+  };
+
   const cargarEspacios = async () => {
     try {
       if (tipoUsuario === 'cliente') {
@@ -178,7 +182,6 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
     setMenuVisible(false);
   };
 
-  // Funciones para gestos de swipe
   const eliminarEspacio = (espacioId) => {
     Alert.alert(
       "Eliminar Espacio",
@@ -189,9 +192,7 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
           text: "Eliminar", 
           style: 'destructive',
           onPress: () => {
-            // Aquí implementarías la lógica para eliminar el espacio
             console.log('Eliminando espacio:', espacioId);
-            // dispatch(eliminarEspacio(espacioId));
           }
         }
       ]
@@ -212,7 +213,6 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
           text: "Sí, cancelar", 
           style: 'destructive',
           onPress: () => {
-            // Implementar lógica para cancelar reserva
             console.log('Cancelando reserva:', reservaId);
           }
         }
@@ -430,7 +430,6 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
     });
   };
 
-  // Componente con swipe para reservas del proveedor
   const ReservaProveedorCard = ({ reserva, drag, isActive }) => {
     if (!reserva) return null;
 
@@ -519,7 +518,6 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
     );
   };
 
-  // Componente con swipe para espacios
   const EspacioCard = ({ espacio }) => {
     if (!espacio || !espacio.datosCompletos) {
       return null;
@@ -625,7 +623,6 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
       </View>
     );
 
-    // Solo mostrar swipe para espacios propios (cliente)
     if (esPropio && tipoUsuario === 'cliente') {
       return (
         <Swipeable renderRightActions={() => renderRightActionsEspacio(espacio)}>
@@ -649,13 +646,6 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
       entidadTipo.includes(textoBusquedaLower) ||
       estado.includes(textoBusquedaLower);
   });
-
-  // Función para manejar el reordenamiento de reservas
-  const onDragEndReservas = ({ data }) => {
-    // Aquí podrías guardar el nuevo orden en el estado o enviar a la API
-    console.log('Nuevo orden de reservas:', data);
-    // setReservasOrdenadas(data);
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -693,10 +683,7 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
           </TouchableOpacity>
         </View>
       </View>
-
-      {/* Contenido principal */}
       {tipoUsuario === 'proveedor' && modoReordenar ? (
-        // Vista de reordenamiento para reservas
         <View style={styles.content}>
           <Text style={styles.reorderTitle}>Arrastra para reordenar tus reservas</Text>
           <DraggableFlatList
@@ -717,7 +704,6 @@ const Inicio = ({ navigation, setIsLogged, resetSession }) => {
           />
         </View>
       ) : (
-        // Vista normal con scroll
         <ScrollView
           style={styles.content}
           showsVerticalScrollIndicator={false}
@@ -1002,8 +988,6 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     color: '#2c3e50',
   },
-
-  // Estilos para gestos de swipe
   rightActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1036,8 +1020,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 4,
   },
-
-  // Estilos para drag and drop
   activeCard: {
     elevation: 8,
     shadowColor: '#000',
