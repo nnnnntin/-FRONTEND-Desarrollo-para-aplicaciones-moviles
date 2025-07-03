@@ -8,14 +8,20 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import AgregarTarjeta from '../components/AgregarTarjeta';
 import BuscarProveedores from '../components/BuscarProveedores';
+import Configuracion from '../components/Configuracion';
 import CrearPublicacion from '../components/CrearPublicacion';
 import CrearServicio from '../components/CrearServicio';
+import DashboardAdmin from '../components/DashboardAdmin';
 import DetalleOficina from '../components/DetalleOficina';
 import DetalleReserva from '../components/DetalleReserva';
 import FormularioProblema from '../components/FormularioProblema';
 import GananciasProveedor from '../components/GananciasProveedor';
 import GestionGanancias from '../components/GestionGanancias';
+import GestionProveedores from '../components/GestionProveedores';
+import GestionPublicaciones from '../components/GestionPublicaciones';
+import GestionReservas from '../components/GestionReservas';
 import GestionServicios from '../components/GestionServicios';
+import GestionUsuarios from '../components/GestionUsuarios';
 import Inicio from '../components/Inicio';
 import Mapa from '../components/Mapa';
 import Membresias from '../components/Membresias';
@@ -28,11 +34,6 @@ import ServiciosEspacio from '../components/ServiciosEspacio';
 import ServiciosOfrecidos from '../components/ServiciosOfrecidos';
 import ServiciosProveedor from '../components/ServiciosProveedor';
 import Transacciones from '../components/Transacciones';
-import DashboardAdmin from '../components/DashboardAdmin';
-import GestionProveedores from '../components/GestionProveedores';
-import GestionPublicaciones from '../components/GestionPublicaciones';
-import GestionReservas from '../components/GestionReservas';
-import GestionUsuarios from '../components/GestionUsuarios';
 
 import Listar from './Listar';
 
@@ -354,6 +355,15 @@ const Aplicacion = ({ setIsLogged, resetSession }) => {
         component={Notificaciones}
         options={{
           title: 'Notificaciones',
+          headerShown: false
+        }}
+      />
+
+      <Drawer.Screen
+        name='Configuracion'
+        component={Configuracion}
+        options={{
+          title: 'Configuración',
           headerShown: false
         }}
       />

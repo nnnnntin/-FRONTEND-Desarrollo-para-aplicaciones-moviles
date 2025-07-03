@@ -2,6 +2,7 @@ import { applyMiddleware, combineReducers, legacy_createStore as createStore } f
 import { composeWithDevTools } from "redux-devtools-expo-dev-plugin";
 import { thunk } from 'redux-thunk';
 import authReducer from './slices/authSlice';
+import configurationReducer from './slices/configurationSlice';
 import espaciosReducer from './slices/espaciosSlice';
 import membresiaReducer from './slices/membresiaSlice';
 import notificacionesReducer from './slices/notificacionesSlice';
@@ -16,7 +17,8 @@ const rootReducer = combineReducers({
   membresias: membresiaReducer,
   notificaciones: notificacionesReducer,
   reservas: reservasReducer,
-  proveedores: proveedoresReducer
+  proveedores: proveedoresReducer,
+  configuration: configurationReducer
 });
 
 const enhancer = composeWithDevTools(

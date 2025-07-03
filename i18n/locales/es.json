@@ -114,5 +114,19 @@
       "activeTabRequired": "Tab activa es requerida",
       "spaceDataRequired": "Datos de espacios son requeridos"
     }
+  },
+  "configuration": {
+    "title": "Configuración",
+    "language": {
+      "title": "Idioma",
+      "subtitle": "Selecciona el idioma de la aplicación",
+      "spanish": "Español",
+      "english": "Inglés",
+      "current": "Idioma actual: {{language}}"
+    },
+    "alerts": {
+      "languageChanged": "Idioma cambiado",
+      "languageChangedMessage": "El idioma se ha cambiado exitosamente a {{language}}"
+    }
   }
 }
