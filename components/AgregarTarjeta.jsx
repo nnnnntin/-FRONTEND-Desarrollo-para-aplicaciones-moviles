@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
@@ -16,108 +17,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import * as Yup from 'yup';
 import { agregarMetodoPago, clearErrorMetodosPago } from '../store/slices/usuarioSlice';
 
-const tarjetaSchema = Yup.object({
-  numeroTarjeta: Yup.string()
-    .required('El número de tarjeta es requerido')
-    .test('tarjeta-valida', 'El número de tarjeta debe tener entre 13 y 19 dígitos', function(value) {
-      if (!value) return false;
-      const numeroLimpio = value.replace(/\s/g, '');
-      return /^\d{13,19}$/.test(numeroLimpio);
-    }),
-  
-  cvc: Yup.string()
-    .required('El CVC es requerido')
-    .matches(/^\d{3,4}$/, 'El CVC debe tener exactamente 3 o 4 dígitos'),
-  
-  fechaExpiracion: Yup.string()
-    .required('La fecha de expiración es requerida')
-    .matches(/^(0[1-9]|1[0-2])\/\d{2}$/, 'El formato debe ser MM/AA con mes válido (01-12)')
-    .test('fecha-valida', 'La tarjeta está vencida', function(value) {
-      if (!value || !value.includes('/')) return false;
-      
-      const [mes, año] = value.split('/');
-      const mesNum = parseInt(mes);
-      const añoNum = parseInt(año);
-      
-      if (mesNum < 1 || mesNum > 12) {
-        return this.createError({ message: 'El mes debe estar entre 01 y 12' });
-      }
-      
-      const fechaActual = new Date();
-      const añoCompleto = 2000 + añoNum;
-      const fechaTarjeta = new Date(añoCompleto, mesNum - 1);
-      
-      return fechaTarjeta >= fechaActual;
-    }),
-  
-  nombreTitular: Yup.string()
-    .required('El nombre del titular es requerido')
-    .min(2, 'El nombre debe tener al menos 2 caracteres')
-    .max(100, 'El nombre no puede tener más de 100 caracteres')
-    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, 'El nombre solo puede contener letras y espacios'),
-  
-  predeterminado: Yup.boolean()
-});
-
-const validarDatosMetodoPago = (metodoPagoData) => {
-  const errores = [];
-  
-  if (!metodoPagoData.numeroTarjeta) {
-    errores.push('Número de tarjeta es requerido');
-  } else {
-    const numeroLimpio = metodoPagoData.numeroTarjeta.replace(/\s/g, '');
-    if (numeroLimpio.length !== 16 || !/^\d+$/.test(numeroLimpio)) {
-      errores.push('Número de tarjeta debe tener 16 dígitos');
-    }
-  }
-  
-  if (!metodoPagoData.nombreTitular || metodoPagoData.nombreTitular.trim().length < 2) {
-    errores.push('Nombre del titular debe tener al menos 2 caracteres');
-  }
-  
-  if (!metodoPagoData.fechaExpiracion) {
-    errores.push('Fecha de expiración es requerida');
-  } else if (!/^\d{2}\/\d{2}$/.test(metodoPagoData.fechaExpiracion)) {
-    errores.push('Formato de fecha inválido (debe ser MM/AA)');
-  } else {
-    const [mes, año] = metodoPagoData.fechaExpiracion.split('/');
-    const fechaActual = new Date();
-    const fechaTarjeta = new Date(2000 + parseInt(año), parseInt(mes) - 1);
-    
-    if (fechaTarjeta < fechaActual) {
-      errores.push('La tarjeta está vencida');
-    }
-  }
-  
-  if (!metodoPagoData.cvc) {
-    errores.push('CVC es requerido');
-  } else if (metodoPagoData.cvc.length < 3 || metodoPagoData.cvc.length > 4) {
-    errores.push('CVC debe tener 3 o 4 dígitos');
-  } else if (!/^\d+$/.test(metodoPagoData.cvc)) {
-    errores.push('CVC solo puede contener números');
-  }
-  
-  return errores;
-};
-
-const verificarConectividad = async () => {
-  try {
-    const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/health`, {
-      method: 'GET',
-      timeout: 5000
-    });
-    
-    if (response.ok) {
-      return true;
-    } else {
-      return false;
-    }
-  } catch (error) {
-    return false;
-  }
-};
-
 const AgregarTarjeta = ({ navigation, route }) => {
+  const { t } = useTranslation();
   const dispatch = useDispatch();
   const loadingMetodosPago = useSelector(state => state.usuario.loadingMetodosPago);
   const errorMetodosPago = useSelector(state => state.usuario.errorMetodosPago);
@@ -132,6 +33,107 @@ const AgregarTarjeta = ({ navigation, route }) => {
   const [nombreTitular, setNombreTitular] = useState('');
   const [predeterminado, setPredeterminado] = useState(false);
   const [errores, setErrores] = useState({});
+
+  const tarjetaSchema = Yup.object({
+    numeroTarjeta: Yup.string()
+      .required(t('addPaymentMethodForm.validation.cardNumberRequired'))
+      .test('tarjeta-valida', t('addPaymentMethodForm.validation.cardNumberInvalid'), function(value) {
+        if (!value) return false;
+        const numeroLimpio = value.replace(/\s/g, '');
+        return /^\d{13,19}$/.test(numeroLimpio);
+      }),
+
+    cvc: Yup.string()
+      .required(t('addPaymentMethodForm.validation.cvcRequired'))
+      .matches(/^\d{3,4}$/, t('addPaymentMethodForm.validation.cvcInvalid')),
+
+    fechaExpiracion: Yup.string()
+      .required(t('addPaymentMethodForm.validation.expirationDateRequired'))
+      .matches(/^(0[1-9]|1[0-2])\/\d{2}$/, t('addPaymentMethodForm.validation.expirationDateFormat'))
+      .test('fecha-valida', t('addPaymentMethodForm.validation.cardExpired'), function(value) {
+        if (!value || !value.includes('/')) return false;
+
+        const [mes, año] = value.split('/');
+        const mesNum = parseInt(mes);
+        const añoNum = parseInt(año);
+
+        if (mesNum < 1 || mesNum > 12) {
+          return this.createError({ message: t('addPaymentMethodForm.validation.invalidMonth') });
+        }
+
+        const fechaActual = new Date();
+        const añoCompleto = 2000 + añoNum;
+        const fechaTarjeta = new Date(añoCompleto, mesNum - 1);
+
+        return fechaTarjeta >= fechaActual;
+      }),
+
+    nombreTitular: Yup.string()
+      .required(t('addPaymentMethodForm.validation.cardHolderNameRequired'))
+      .min(2, t('addPaymentMethodForm.validation.cardHolderNameMin'))
+      .max(100, t('addPaymentMethodForm.validation.cardHolderNameMax'))
+      .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, t('addPaymentMethodForm.validation.cardHolderNameInvalid')),
+
+    predeterminado: Yup.boolean()
+  });
+
+  const validarDatosMetodoPago = (metodoPagoData) => {
+    const errores = [];
+
+    if (!metodoPagoData.numeroTarjeta) {
+      errores.push(t('addPaymentMethodForm.validation.cardNumberRequired'));
+    } else {
+      const numeroLimpio = metodoPagoData.numeroTarjeta.replace(/\s/g, '');
+      if (numeroLimpio.length !== 16 || !/^\d+$/.test(numeroLimpio)) {
+        errores.push(t('addPaymentMethodForm.validation.cardNumberLength'));
+      }
+    }
+
+    if (!metodoPagoData.nombreTitular || metodoPagoData.nombreTitular.trim().length < 2) {
+      errores.push(t('addPaymentMethodForm.validation.cardHolderNameMinLength'));
+    }
+
+    if (!metodoPagoData.fechaExpiracion) {
+      errores.push(t('addPaymentMethodForm.validation.expirationDateRequired'));
+    } else if (!/^\d{2}\/\d{2}$/.test(metodoPagoData.fechaExpiracion)) {
+      errores.push(t('addPaymentMethodForm.validation.expirationDateInvalid'));
+    } else {
+      const [mes, año] = metodoPagoData.fechaExpiracion.split('/');
+      const fechaActual = new Date();
+      const fechaTarjeta = new Date(2000 + parseInt(año), parseInt(mes) - 1);
+
+      if (fechaTarjeta < fechaActual) {
+        errores.push(t('addPaymentMethodForm.validation.cardExpired'));
+      }
+    }
+
+    if (!metodoPagoData.cvc) {
+      errores.push(t('addPaymentMethodForm.validation.cvcRequired'));
+    } else if (metodoPagoData.cvc.length < 3 || metodoPagoData.cvc.length > 4) {
+      errores.push(t('addPaymentMethodForm.validation.cvcDigits'));
+    } else if (!/^\d+$/.test(metodoPagoData.cvc)) {
+      errores.push(t('addPaymentMethodForm.validation.cvcNumeric'));
+    }
+
+    return errores;
+  };
+
+  const verificarConectividad = async () => {
+    try {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/health`, {
+        method: 'GET',
+        timeout: 5000
+      });
+
+      if (response.ok) {
+        return true;
+      } else {
+        return false;
+      }
+    } catch (error) {
+      return false;
+    }
+  };
 
   useEffect(() => {
     if (errorMetodosPago) {
@@ -218,7 +220,7 @@ const AgregarTarjeta = ({ navigation, route }) => {
         };
         await tarjetaSchema.validateAt(campo, datosTemp);
       }
-      
+
       setErrores(prev => ({
         ...prev,
         [campo]: null
@@ -252,12 +254,12 @@ const AgregarTarjeta = ({ navigation, route }) => {
         nuevosErrores[err.path] = err.message;
       });
       setErrores(nuevosErrores);
-      
+
       const primerError = error.inner[0];
       if (primerError) {
-        Alert.alert('Error de validación', primerError.message);
+        Alert.alert(t('addPaymentMethodForm.alerts.validationError'), primerError.message);
       }
-      
+
       return false;
     }
   };
@@ -301,9 +303,9 @@ const AgregarTarjeta = ({ navigation, route }) => {
   const erroresValidacion = validarDatosMetodoPago(metodoPagoData);
   if (erroresValidacion.length > 0) {
     Alert.alert(
-      'Error de validación', 
+      t('addPaymentMethodForm.alerts.validationError'),
       erroresValidacion.join('\n'),
-      [{ text: 'OK' }]
+      [{ text: t('addPaymentMethodForm.common.ok') }]
     );
     return;
   }
@@ -311,17 +313,17 @@ const AgregarTarjeta = ({ navigation, route }) => {
   const tipoTarjeta = detectarTipoTarjeta(numeroTarjeta);
   const ultimosCuatroDigitos = numeroTarjeta.replace(/\s/g, '').slice(-4);
   const userId = usuarioId || usuario?.id || usuario?._id;
-  
+
   if (!userId) {
-    return Alert.alert('Error', 'No se pudo identificar el usuario');
+    return Alert.alert(t('addPaymentMethodForm.common.error'), t('addPaymentMethodForm.alerts.userError'));
   }
 
   const fechaRegex = /^(0[1-9]|1[0-2])\/\d{2}$/;
   if (!fechaRegex.test(fechaExpiracion)) {
     Alert.alert(
-      'Error de formato',
-      'La fecha debe estar en formato MM/AA con mes válido (01-12)',
-      [{ text: 'OK' }]
+      t('addPaymentMethodForm.alerts.formatError'),
+      t('addPaymentMethodForm.alerts.dateFormatError'),
+      [{ text: t('addPaymentMethodForm.common.ok') }]
     );
     return;
   }
@@ -332,10 +334,10 @@ const AgregarTarjeta = ({ navigation, route }) => {
     ).unwrap();
 
     Alert.alert(
-      'Tarjeta Agregada',
-      `${(tipoTarjeta || 'Tarjeta').toUpperCase()} •••• ${ultimosCuatroDigitos} ha sido agregada exitosamente`,
+      t('addPaymentMethodForm.alerts.cardAdded'),
+      `${(tipoTarjeta || 'Tarjeta').toUpperCase()} •••• ${ultimosCuatroDigitos} ${t('addPaymentMethodForm.alerts.cardAddedSuccess')}`,
       [{
-        text: 'OK', onPress: () => {
+        text: t('addPaymentMethodForm.common.ok'), onPress: () => {
           if (onTarjetaAgregada) {
             onTarjetaAgregada();
           }
@@ -348,39 +350,39 @@ const AgregarTarjeta = ({ navigation, route }) => {
     console.error('=== ERROR AL AGREGAR TARJETA ===');
     console.error('Error type:', typeof error);
     console.error('Error content:', error);
-    
-    let mensaje = 'Error desconocido al agregar la tarjeta';
-    
+
+    let mensaje = t('addPaymentMethodForm.alerts.unknownError');
+
     if (typeof error === 'string') {
       if (error.includes('Error de validación')) {
         mensaje = error;
       } else if (error.includes('fetch') || error.includes('network')) {
-        mensaje = 'Error de conexión. Verifica tu conexión a internet e intenta nuevamente.';
+        mensaje = t('addPaymentMethodForm.alerts.connectionError');
       } else if (error.includes('401') || error.includes('Unauthorized')) {
-        mensaje = 'Sesión expirada. Por favor inicia sesión nuevamente.';
+        mensaje = t('addPaymentMethodForm.alerts.sessionExpired');
       } else if (error.includes('400') || error.includes('Bad Request')) {
-        mensaje = 'Datos de tarjeta inválidos. Verifica la información ingresada.';
+        mensaje = t('addPaymentMethodForm.alerts.invalidCardData');
       } else if (error.includes('500') || error.includes('Internal Server Error')) {
-        mensaje = 'Error del servidor. Intenta nuevamente en unos minutos.';
+        mensaje = t('addPaymentMethodForm.alerts.serverError');
       } else {
         mensaje = error;
       }
     } else if (error?.message) {
       mensaje = error.message;
     }
-    
+
     Alert.alert(
-      'Error al agregar tarjeta', 
+      t('addPaymentMethodForm.alerts.addCardError'),
       mensaje,
       [
-        { 
-          text: 'Reintentar', 
+        {
+          text: t('addPaymentMethodForm.buttons.retry'),
           onPress: () => {
-            handleAgregar(); 
+            handleAgregar();
           }
         },
-        { 
-          text: 'Cancelar', 
+        {
+          text: t('addPaymentMethodForm.buttons.cancel'),
           style: 'cancel',
           onPress: () => {
             console.log('Usuario canceló después del error');
@@ -393,25 +395,25 @@ const AgregarTarjeta = ({ navigation, route }) => {
 
   const handleAgregarConVerificacion = async () => {
     const hayConectividad = await verificarConectividad();
-    
+
     if (!hayConectividad) {
       Alert.alert(
-        'Sin conexión',
-        'No se puede conectar con el servidor. Verifica tu conexión a internet.',
+        t('addPaymentMethodForm.alerts.noConnection'),
+        t('addPaymentMethodForm.alerts.noConnectionMessage'),
         [
-          { 
-            text: 'Reintentar', 
+          {
+            text: t('addPaymentMethodForm.buttons.retry'),
             onPress: () => handleAgregarConVerificacion()
           },
-          { 
-            text: 'Cancelar', 
+          {
+            text: t('addPaymentMethodForm.buttons.cancel'),
             style: 'cancel'
           }
         ]
       );
       return;
     }
-    
+
     handleAgregar();
   };
 
@@ -439,7 +441,7 @@ const AgregarTarjeta = ({ navigation, route }) => {
         >
           <Ionicons name="arrow-back" size={24} color="#2c3e50" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Agregar Tarjeta</Text>
+        <Text style={styles.headerTitle}>{t('addPaymentMethodForm.title')}</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -449,21 +451,21 @@ const AgregarTarjeta = ({ navigation, route }) => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.titleContainer}>
-          <Text style={styles.sectionTitle}>Agregue una tarjeta</Text>
+          <Text style={styles.sectionTitle}>{t('addPaymentMethodForm.sectionTitle')}</Text>
           <Text style={styles.sectionSubtitle}>
-            Ingresa los datos de tu tarjeta de forma segura
+            {t('addPaymentMethodForm.sectionSubtitle')}
           </Text>
         </View>
 
         <View style={styles.formContainer}>
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Nombre del titular</Text>
+            <Text style={styles.inputLabel}>{t('addPaymentMethodForm.labels.cardHolderName')}</Text>
             <TextInput
               style={[
                 styles.input,
                 errores.nombreTitular && styles.inputError
               ]}
-              placeholder="Nombre como aparece en la tarjeta"
+              placeholder={t('addPaymentMethodForm.placeholders.cardHolderName')}
               placeholderTextColor="#bdc3c7"
               value={nombreTitular}
               onChangeText={handleCambioNombre}
@@ -474,14 +476,14 @@ const AgregarTarjeta = ({ navigation, route }) => {
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Número de tarjeta</Text>
+            <Text style={styles.inputLabel}>{t('addPaymentMethodForm.labels.cardNumber')}</Text>
             <View style={styles.inputWithIcon}>
               <TextInput
                 style={[
                   styles.input,
                   errores.numeroTarjeta && styles.inputError
                 ]}
-                placeholder="1234 5678 9012 3456"
+                placeholder={t('addPaymentMethodForm.placeholders.cardNumber')}
                 placeholderTextColor="#bdc3c7"
                 value={numeroTarjeta}
                 onChangeText={handleCambioNumeroTarjeta}
@@ -502,13 +504,13 @@ const AgregarTarjeta = ({ navigation, route }) => {
 
           <View style={styles.rowContainer}>
             <View style={styles.halfInputContainer}>
-              <Text style={styles.inputLabel}>Fecha expiración</Text>
+              <Text style={styles.inputLabel}>{t('addPaymentMethodForm.labels.expirationDate')}</Text>
               <TextInput
                 style={[
                   styles.input,
                   errores.fechaExpiracion && styles.inputError
                 ]}
-                placeholder="MM/AA"
+                placeholder={t('addPaymentMethodForm.placeholders.expirationDate')}
                 placeholderTextColor="#bdc3c7"
                 value={fechaExpiracion}
                 onChangeText={handleCambioFecha}
@@ -520,13 +522,13 @@ const AgregarTarjeta = ({ navigation, route }) => {
             </View>
 
             <View style={styles.halfInputContainer}>
-              <Text style={styles.inputLabel}>CVC</Text>
+              <Text style={styles.inputLabel}>{t('addPaymentMethodForm.labels.cvc')}</Text>
               <TextInput
                 style={[
                   styles.input,
                   errores.cvc && styles.inputError
                 ]}
-                placeholder="123"
+                placeholder={t('addPaymentMethodForm.placeholders.cvc')}
                 placeholderTextColor="#bdc3c7"
                 value={cvc}
                 onChangeText={handleCambioCVC}
@@ -551,7 +553,7 @@ const AgregarTarjeta = ({ navigation, route }) => {
               )}
             </View>
             <Text style={styles.checkboxLabel}>
-              Establecer como método de pago predeterminado
+              {t('addPaymentMethodForm.labels.setAsDefault')}
             </Text>
           </TouchableOpacity>
 
@@ -565,13 +567,13 @@ const AgregarTarjeta = ({ navigation, route }) => {
 
           <TouchableOpacity
             style={[styles.agregarButton, loadingMetodosPago && styles.agregarButtonDisabled]}
-            onPress={handleAgregar} 
+            onPress={handleAgregar}
             disabled={loadingMetodosPago}
           >
             {loadingMetodosPago ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.agregarButtonText}>Agregar Tarjeta</Text>
+              <Text style={styles.agregarButtonText}>{t('addPaymentMethodForm.buttons.addCard')}</Text>
             )}
           </TouchableOpacity>
         </View>

@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   FlatList,
   SafeAreaView,
@@ -17,45 +18,84 @@ import {
   toggleServicioAdicional
 } from '../store/slices/proveedoresSlice';
 
-const servicioSchema = yup.object({
-  _id: yup.string().required('ID del servicio es requerido'),
-  nombre: yup.string().required('Nombre del servicio es requerido').min(2, 'Nombre debe tener al menos 2 caracteres'),
-  activo: yup.boolean().required('Estado activo es requerido')
-});
-
-const proveedorExternoSchema = yup.object({
-  _id: yup.string().required('ID del proveedor es requerido'),
-  proveedor: yup.string().required('Nombre del proveedor es requerido').min(2, 'Nombre debe tener al menos 2 caracteres'),
-  servicio: yup.string().required('Servicio es requerido').min(2, 'Servicio debe tener al menos 2 caracteres'),
-  precio: yup.number().min(0, 'Precio debe ser mayor o igual a 0').required('Precio es requerido'),
-  calificacion: yup.number().min(0, 'Calificación mínima es 0').max(5, 'Calificación máxima es 5').required('Calificación es requerida'),
-  activo: yup.boolean().required('Estado activo es requerido')
-});
-
-const espacioSchema = yup.object({
-  id: yup.number().positive('ID debe ser un número positivo').required('ID del espacio es requerido'),
-  nombre: yup.string().required('Nombre del espacio es requerido').min(3, 'Nombre debe tener al menos 3 caracteres'),
-  serviciosIncluidos: yup.array().of(servicioSchema).default([]),
-  proveedoresExternos: yup.array().of(proveedorExternoSchema).default([])
-});
-
-const gestionServiciosSchema = yup.object({
-  tabActiva: yup.string()
-    .test('tab-valida', 'Tab debe ser incluidos o externos', function(value) {
-      const tabsValidas = ['incluidos', 'externos'];
-      return tabsValidas.includes(value);
-    })
-    .required('Tab activa es requerida'),
-  espaciosData: yup.array().of(espacioSchema).required('Datos de espacios son requeridos')
-});
-
 const GestionServicios = ({ navigation }) => {
+  const { t } = useTranslation();
   const dispatch = useDispatch();
   const { oficinasPropias } = useSelector(state => state.usuario);
   const { serviciosPorEspacio, proveedores, loading } = useSelector(state => state.proveedores);
 
   const [tabActiva, setTabActiva] = useState('incluidos');
   const [validationErrors, setValidationErrors] = useState({});
+
+  const servicioSchema = yup.object({
+    _id: yup
+      .string()
+      .required(t('gestionServicios.validation.serviceIdRequired')),
+    nombre: yup
+      .string()
+      .required(t('gestionServicios.validation.serviceNameRequired'))
+      .min(2, t('gestionServicios.validation.serviceNameMin')),
+    activo: yup
+      .boolean()
+      .required(t('gestionServicios.validation.serviceActiveRequired'))
+  });
+
+  const proveedorExternoSchema = yup.object({
+    _id: yup
+      .string()
+      .required(t('gestionServicios.validation.providerIdRequired')),
+    proveedor: yup
+      .string()
+      .required(t('gestionServicios.validation.providerNameRequired'))
+      .min(2, t('gestionServicios.validation.providerNameMin')),
+    servicio: yup
+      .string()
+      .required(t('gestionServicios.validation.serviceRequired'))
+      .min(2, t('gestionServicios.validation.serviceMin')),
+    precio: yup
+      .number().min(0, t('gestionServicios.validation.priceMin'))
+      .required(t('gestionServicios.validation.priceRequired')),
+    calificacion: yup
+      .number().min(0, t('gestionServicios.validation.ratingMin'))
+      .max(5, t('gestionServicios.validation.ratingMax'))
+      .required(t('gestionServicios.validation.ratingRequired')),
+    activo: yup
+      .boolean()
+      .required(t('gestionServicios.validation.providerActiveRequired'))
+  });
+
+  const espacioSchema = yup.object({
+    id: yup
+      .number()
+      .positive(t('gestionServicios.validation.spaceIdPositive'))
+      .required(t('gestionServicios.validation.spaceIdRequired')),
+    nombre: yup
+      .string()
+      .required(t('gestionServicios.validation.spaceNameRequired'))
+      .min(3, t('gestionServicios.validation.spaceNameMin')),
+    serviciosIncluidos: yup
+      .array()
+      .of(servicioSchema)
+      .default([]),
+    proveedoresExternos: yup
+      .array()
+      .of(proveedorExternoSchema)
+      .default([])
+  });
+
+  const gestionServiciosSchema = yup.object({
+    tabActiva: yup
+      .string()
+      .test('tab-valida', t('gestionServicios.validation.tabValid'), function(value) {
+        const tabsValidas = ['incluidos', 'externos'];
+        return tabsValidas.includes(value);
+      })
+      .required(t('gestionServicios.validation.activeTabRequired')),
+    espaciosData: yup
+      .array()
+      .of(espacioSchema)
+      .required(t('gestionServicios.validation.spaceDataRequired'))
+  });
 
   const misEspacios = [
     {

@@ -26,5 +26,93 @@
     "age": "Debes ser mayor de edad",
     "selectCountry": "Selecciona un país",
     "terms": "Debes aceptar los términos"
+  },
+  "addPaymentMethodForm": {
+    "title": "Agregar Tarjeta",
+    "sectionTitle": "Agregue una tarjeta",
+    "sectionSubtitle": "Ingresa los datos de tu tarjeta de forma segura",
+    "labels": {
+      "cardHolderName": "Nombre del titular",
+      "cardNumber": "Número de tarjeta",
+      "expirationDate": "Fecha expiración",
+      "cvc": "CVC",
+      "setAsDefault": "Establecer como método de pago predeterminado"
+    },
+    "placeholders": {
+      "cardHolderName": "Nombre como aparece en la tarjeta",
+      "cardNumber": "1234 5678 9012 3456",
+      "expirationDate": "MM/AA",
+      "cvc": "123"
+    },
+    "validation": {
+      "cardNumberRequired": "El número de tarjeta es requerido",
+      "cardNumberInvalid": "El número de tarjeta debe tener entre 13 y 19 dígitos",
+      "cvcRequired": "El CVC es requerido",
+      "cvcInvalid": "El CVC debe tener exactamente 3 o 4 dígitos",
+      "expirationDateRequired": "La fecha de expiración es requerida",
+      "expirationDateFormat": "El formato debe ser MM/AA con mes válido (01-12)",
+      "cardExpired": "La tarjeta está vencida",
+      "invalidMonth": "El mes debe estar entre 01 y 12",
+      "cardHolderNameRequired": "El nombre del titular es requerido",
+      "cardHolderNameMin": "El nombre debe tener al menos 2 caracteres",
+      "cardHolderNameMax": "El nombre no puede tener más de 100 caracteres",
+      "cardHolderNameInvalid": "El nombre solo puede contener letras y espacios",
+      "cardNumberLength": "Número de tarjeta debe tener 16 dígitos",
+      "cardHolderNameMinLength": "Nombre del titular debe tener al menos 2 caracteres",
+      "expirationDateInvalid": "Formato de fecha inválido (debe ser MM/AA)",
+      "cvcDigits": "CVC debe tener 3 o 4 dígitos",
+      "cvcNumeric": "CVC solo puede contener números"
+    },
+    "buttons": {
+      "addCard": "Agregar Tarjeta",
+      "retry": "Reintentar",
+      "cancel": "Cancelar"
+    },
+    "alerts": {
+      "cardAdded": "Tarjeta Agregada",
+      "cardAddedSuccess": "ha sido agregada exitosamente",
+      "addCardError": "Error al agregar tarjeta",
+      "unknownError": "Error desconocido al agregar la tarjeta",
+      "connectionError": "Error de conexión. Verifica tu conexión a internet e intenta nuevamente.",
+      "sessionExpired": "Sesión expirada. Por favor inicia sesión nuevamente.",
+      "invalidCardData": "Datos de tarjeta inválidos. Verifica la información ingresada.",
+      "serverError": "Error del servidor. Intenta nuevamente en unos minutos.",
+      "noConnection": "Sin conexión",
+      "noConnectionMessage": "No se puede conectar con el servidor. Verifica tu conexión a internet.",
+      "validationError": "Error de validación",
+      "userError": "No se pudo identificar el usuario",
+      "formatError": "Error de formato",
+      "dateFormatError": "La fecha debe estar en formato MM/AA con mes válido (01-12)"
+    },
+    "common": {
+      "ok": "OK",
+      "error": "Error"
+    }
+  },
+  "gestionServicios": {
+    "validation": {
+      "serviceIdRequired": "ID del servicio es requerido",
+      "serviceNameRequired": "Nombre del servicio es requerido",
+      "serviceNameMin": "Nombre debe tener al menos 2 caracteres",
+      "serviceActiveRequired": "Estado activo es requerido",
+      "providerIdRequired": "ID del proveedor es requerido",
+      "providerNameRequired": "Nombre del proveedor es requerido",
+      "providerNameMin": "Nombre debe tener al menos 2 caracteres",
+      "serviceRequired": "Servicio es requerido",
+      "serviceMin": "Servicio debe tener al menos 2 caracteres",
+      "priceMin": "Precio debe ser mayor o igual a 0",
+      "priceRequired": "Precio es requerido",
+      "ratingMin": "Calificación mínima es 0",
+      "ratingMax": "Calificación máxima es 5",
+      "ratingRequired": "Calificación es requerida",
+      "providerActiveRequired": "Estado activo es requerido",
+      "spaceIdPositive": "ID debe ser un número positivo",
+      "spaceIdRequired": "ID del espacio es requerido",
+      "spaceNameRequired": "Nombre del espacio es requerido",
+      "spaceNameMin": "Nombre debe tener al menos 3 caracteres",
+      "tabValid": "Tab debe ser incluidos o externos",
+      "activeTabRequired": "Tab activa es requerida",
+      "spaceDataRequired": "Datos de espacios son requeridos"
+    }
   }
 }
