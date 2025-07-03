@@ -12,14 +12,14 @@ export default {
     newArchEnabled: true,
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.mnacimento.aplicacion",
+      bundleIdentifier: "com.vacosta.aplicacion",
       infoPlist: {
         NSLocationWhenInUseUsageDescription: "Esta app necesita acceder a tu ubicación.",
         ITSAppUsesNonExemptEncryption: false
       }
     },
     android: {
-      package: "com.mnacimento.aplicacion",
+      package: "com.vacosta.aplicacion",
       permissions: ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
       adaptiveIcon: {
         foregroundImage: "./assets/images/logo.png",
